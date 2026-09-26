@@ -1201,6 +1201,78 @@ equipped A-series weapon to the local player only.
 
 ---
 
+## Session 019 — 2026-09-27 — Red Gum Station Playable; 3 ACR / MAF Soldier Bodies
+
+### COMPLETED
+
+- **Red Gum Station (`L_RedGum_01`)**, the first map built on the Fab Rural Australia pack (ADR-022). It is
+  built headless: map copy, 16 deployment starts, 3 objectives (Bore Pump, Homestead, Shearing Shed), the
+  director, nav bounds and the SS experience.
+  - Fences had split the nav mesh into three islands (diagnosed with a 10 m reachability grid). The fence
+    meshes now have no collision.
+  - The nav pass now fails unless every route leg connects.
+- **Soldier bodies.** `ASSCharacterPartActor` (Team) plus the `ISSLocalityPresentable` interface (Core),
+  with the bridge tint subsystem applying viewer locality.
+  - The viewer's own team shows the Quantum military character (3 ACR); the other team shows
+    conventional Modern Insurgent 7 parts (MAF).
+  - Meshes follow the mannequin's pose. All three packs use UE-mannequin bone names, so no retarget was
+    needed.
+  - The body is hidden from its own first-person view.
+  - `B_SS_CharacterParts` replaces Lyra's random Manny/Quinn picker in the Game Feature.
+- Fab packs registered (L-0016); ADR-022; Dry River nav rebuilt after the Game Feature re-wire.
+- No more windowed runs on unwired maps; the blank Example_01 run was only compiling shaders.
+
+### FILES CHANGED
+
+Created:
+- `SSLocalityPresentable.h`, `SSCharacterPartActor.{h,cpp}`;
+- `Tools/Unreal/build_redgum_level.py`, `build_redgum_nav.py`, `setup_soldiers.py`;
+- `Content/Maps/L_RedGum_01.umap`, `SSExp_ObjectiveAssault/Characters/*`;
+- `Docs/evidence/G057_redgum_live.txt`.
+
+Modified:
+- `SSViewerTeamTintSubsystem.cpp`, `setup_objective_assault.py`;
+- the Game Feature data, `L_DryRiver_01.umap` (script re-save plus nav rebuild);
+- DECISION_LOG, LICENCE_REGISTER, ASSET_REGISTER, PROJECT_AUDIT.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Guard | `python Tools/validate_architecture.py` | 0 | PASS | — |
+| Build | `Build.bat SouthernSpearEditor ...` | 0 | Succeeded | — |
+| Automation | `Automation RunTests SouthernSpear` | 0 | 30 Success, 0 Fail | `Build/tests.log` (not retained) |
+| Red Gum build | `build_redgum_level.py`, `build_redgum_nav.py` | 0 | ok=true; all 4 legs connect (deploy A to deploy B) | `Build/redgum_*.json` |
+| Live, 8 bots | `L_RedGum_01?NumBots=8?RoundSeconds=90 -game -nullrhi` (killed at 420 s, as intended) | 124 | 3 rounds; captures by both teams; round resets | `G057_redgum_live.txt` |
+| Soldier parts, live | same, 60 s rounds | 124 | Tint and locality applied to 9 pawns; no SS errors. 288 Lyra `GCNL_Spawning` "Accessed None" warnings (spawn effect has no Niagara system under null RHI) | — |
+| Dry River setup and nav | `setup_objective_assault.py`, `build_dryriver_nav.py` | 0 | ok=true | `Build/*.json` |
+| Rendered soldier check | windowed `-SSShotAt=150` | 0 | **NOT RUN**: the window was closed at about 150 s (Windows exit request) before the capture | — |
+
+### ASSETS
+
+L-0016 Fab packs (class A); M-RG-01 and C-SOL-01 in the asset register.
+
+### RISKS
+
+New R-19 (Fab dependency of the map and bodies) and R-20 (soldier look not yet visually checked). R-18
+logged in the audit.
+
+### DEFECTS FOUND
+
+1. `duplicate_asset` on a map kept the world referenced, causing a fatal "World Memory Leaks" (found by
+   the crash log). Fixed: load the source, then save-as.
+2. `save_map` fails when the target exists (found in the step report). Fixed: delete the old copy first.
+3. Per-instance fence collision edits do not persist, because the construction script reruns on load
+   (found with the island grid). Fixed at the mesh level.
+
+### NEXT ACTION
+
+**Rendered soldier check** on Red Gum (one windowed `-SSShotAt` run, about 3 minutes, shaders are cached
+after the first run). Confirm the 3 ACR and MAF looks, hide any insignia patch (R-20), then start the
+first-person view model (R-18).
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

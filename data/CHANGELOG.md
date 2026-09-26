@@ -776,6 +776,54 @@ Steering untested live; could conflict with the bot behaviour tree.
 
 ---
 
+## Session 010 — 2026-09-26 — Live Objective Assault Verified Over 22 Rounds
+
+### COMPLETED
+- Reviewed the producer's live run (`/Game/Maps/L_DryRiver_01?NumBots=6 -game -nullrhi`, ~2 h).
+- Added (not yet verified) 7 extra ground-snapped player starts per deployment in
+  `setup_objective_assault.py`; blocked from saving while the producer's game process held the assets.
+
+### TESTING
+| Test | Result | Evidence |
+|---|---|---|
+| Live round lifecycle, 6 bots | **PASS**: 22 rounds; wins for both teams by sequential capture, a split round (TeamTwo took A, TeamOne took B and won), timeout draws, every round reset; idle-bot steering active; no fatal errors, only engine Toolset Python import noise | `Docs/evidence/G041_live_round_keylines.txt` |
+| Extra player starts | **NOT RUN** — asset save blocked by a running game process | — |
+| Automation suite after bot steering | **NOT RUN** | — |
+
+### RISKS
+New **R-16**: win streaks (up to 8 in a row for one team, rounds ~1.5 min) suggest the winning
+team respawns close to OBJ B. Needs spawn/objective distance review once multiple starts exist.
+
+### NEXT ACTION
+**Close the running game, run setup_objective_assault.py + nav, and verify the extra starts.**
+
+---
+
+## Session 011 — 2026-09-26 — CLAUDE.md Added
+
+### COMPLETED
+- Added `CLAUDE.md`: project identity, session start checklist, source-of-truth order, fictional
+  content and legal rules, module architecture and guard, build/test commands, Dry River pipeline
+  order, Unreal Python gotchas found in Sessions 006–010, Git/LFS/publishing rules, and the
+  mandatory end-of-session changelog format.
+
+### FILES CHANGED
+Created `CLAUDE.md`. Modified `Docs/CHANGELOG.md`.
+
+### TESTING
+Documentation only. No build or test run: **NOT RUN** (not applicable).
+
+### ASSETS
+None.
+
+### RISKS
+Unchanged. The extra player starts from Session 010 remain unverified.
+
+### NEXT ACTION
+**Close the running game process, run `setup_objective_assault.py` + `build_dryriver_nav.py`, and verify the extra player starts.**
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

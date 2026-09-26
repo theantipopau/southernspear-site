@@ -1100,6 +1100,57 @@ New **R-17** (unlicensed drop in `Content/Sourced/`). The environment scans also
 
 ---
 
+## Session 017 — 2026-09-27 — Licensed-Art Policy, Sketchfab Clearance, A89
+
+### COMPLETED
+
+- **ADFRC addon drop reviewed** (`Content/Sourced/ADF`, 1,681 files): no models (only `.paa`, `.rvmat`, configs and sounds),
+  APL-SA/Arma-only licence, other authors, ADF-branded. Not usable; recorded in `SOURCED_ASSET_REVIEW.md`.
+- **ADR-021** (producer decision): free/purchased Fab (Standard License) and CC0/CC-BY Sketchfab assets are
+  allowed, registered before use and adapted to the fiction. Weapons stay original A-series; Dry River's layout stays original.
+- **Sketchfab clearance** via the public API:
+  - Cleared, CC-BY: Split Point VIC, Bingie Bingie NSW, Ross River NT (L-0012 to L-0014).
+  - Rejected: Cape Liptrap (CC-BY-NC-ND).
+  - Still needing page URLs: Petty Beach and the gear models.
+- **A89 light support weapon**, original design (1.19 m, 2,012 tris): shared helpers in `Tools/Blender/ss_weapon_kit.py`.
+  The Unreal import is generalised to `Tools/Unreal/setup_weapons.py` (`WEAPONS = ["A88", "A89"]`).
+- Fab "Add to Project" help for the producer. The launcher doesn't list this project, so use the in-editor Fab plugin.
+
+### FILES CHANGED
+
+Created: `Tools/Blender/ss_weapon_kit.py`, `Tools/Blender/a89_support.py`, `Art/Weapons/A89/*`,
+`/SSExp_ObjectiveAssault/Weapons/A89/*`, `Docs/evidence/G055_*`. Renamed: `Tools/Unreal/setup_a88.py` →
+`setup_weapons.py`. Modified: `Docs/DECISION_LOG.md` (ADR-021), `Docs/LICENCE_REGISTER.md`,
+`Docs/SOURCED_ASSET_REVIEW.md`, `CLAUDE.md`.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Sketchfab licence lookup | `curl https://api.sketchfab.com/v3/search?...` | 0 | licences as listed above | `SOURCED_ASSET_REVIEW.md` |
+| A89 build | `blender ... a89_support.py` | 0 | ok, 1.19 × 0.10 × 0.28 m, 2,012 tris | `G055_a89_*.png` |
+| Weapons setup | `-ExecutePythonScript=.../setup_weapons.py` | 0 | ok, 12/12 steps (A88 + A89), both muzzle sockets | `G055_weapons_setup.json` |
+| A89 in game | — | — | **NOT RUN** — not in the loadout yet (a support role needs role or kit selection first) | — |
+
+### ASSETS
+
+W-A89-01 (Class F, original). L-0012 to L-0014 cleared (CC-BY), not yet imported.
+
+### RISKS
+
+R-17 is narrowed: three scans cleared, one rejected; the rest await URLs.
+
+### DEFECTS FOUND
+
+1. The finishes check assumed every weapon has a Glass slot; it now compares against the mesh's own slots.
+
+### NEXT ACTION
+
+**Kit selection**: a simple per-player kit choice (Rifleman: A88; Support: A89) in the loadout settings, so the
+A89 is playable and the A88 fire-effects pass can be verified on both weapons.
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

@@ -753,6 +753,29 @@ the level pass (`build_dryriver_level.py`) still reports its own pass-1 path che
 
 ---
 
+## Session 009 — 2026-09-26 — Bots Steered to Objectives, Respawn Granted (unverified live)
+
+### COMPLETED
+- `ASSObjectiveAssaultDirector` steers idle AI bots (Lyra blackboard `TargetEnemy` empty) to the active objective every 2 s; players never touched.
+- `setup_objective_assault.py` grants ShooterCore `AbilitySet_Elimination` (GA_AutoRespawn) to LyraPlayerState via the text-property helper.
+
+### TESTING
+| Test | Exit | Result |
+|---|---|---|
+| Editor build | 0 | Succeeded |
+| setup_objective_assault.py | 0 | ok, 10/10 steps incl. respawn_abilities |
+| build_dryriver_nav.py | 0 | path verified, dressing solid |
+| Automation tests after steering change | — | **NOT RUN** (usage limit) |
+| Live `-game` round with `?NumBots=6` | — | **NOT RUN** (usage limit) |
+
+### RISKS
+Steering untested live; could conflict with the bot behaviour tree.
+
+### NEXT ACTION
+**Run the test suite, then a live `-game` run on L_DryRiver_01?NumBots=6 (~8 min) and confirm a round is won by capture.**
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

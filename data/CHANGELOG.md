@@ -882,6 +882,67 @@ director and objective state.
 
 ---
 
+## Session 013 — 2026-09-26 — Objective HUD and Dry River Lighting
+
+### COMPLETED
+
+- **Objective HUD** in a new UI module `SouthernSpearObjectivesUI` (Runtime, in the Objectives plugin):
+  pure `FSSObjectiveHudModel` (round/clock, "OBJ B Farmstead (2/2) Opposing capturing", own-side-first
+  score; viewer-relative words via the viewer's team, neutral "Team One/Team Two" when the viewer has no
+  team — ADR-017), C++-built `USSObjectiveStatusWidget` (no asset), and `USSObjectiveHudSubsystem`, which
+  adds it for the local player whenever a director exists. Reads replicated state only; changes nothing.
+- The first version put UMG in the gameplay module; guard rule **SS005 caught it** and the UI was split out.
+  Guard extended: a `<Module>UI` may depend on `<Module>` (SS001), `*UI` modules are exempt from SS005, and
+  `SouthernSpearObjectivesUI` is on the SS002 no-Lyra list.
+- `ASSObjectiveAssaultDirector::ToTeamId(FGenericTeamId)` exposes the director's team mapping.
+- **Dry River lighting**: `Tools/Unreal/light_dryriver.py` (movable sun, sky atmosphere, real-time sky
+  light, height fog, unbound post-process with bounded exposure). The map had no lights and rendered black.
+  Added to CI and the pipeline docs (level → dress → **light** → setup → nav).
+
+### FILES CHANGED
+
+Created: `Plugins/SouthernSpearObjectives/Source/SouthernSpearObjectivesUI/**` (Build.cs, HUD model,
+status widget, HUD subsystem, 3 tests), `Tools/Unreal/light_dryriver.py`, `Docs/evidence/G051_*`.
+Modified: `SouthernSpearObjectives.uplugin`, `SSObjectiveAssaultDirector.{h,cpp}`, `Tools/validate_architecture.py`,
+`.github/workflows/build.yml`, `Content/Maps/L_DryRiver_01.umap`, `CLAUDE.md`, `Docs/MAPS_DRYRIVER.md`.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Guard (UMG in gameplay module) | `python Tools/validate_architecture.py` | 1 | SS005 flagged `SouthernSpearObjectives` → UMG (real catch, fixed) | — |
+| Guard after split | same | 0 | PASS | — |
+| Editor build | `Build.bat SouthernSpearEditor Win64 Development` | 0 | Succeeded | — |
+| All tests | `Automation RunTests SouthernSpear` | 0 | **29/29** (new `Objectives.Hud.ViewerRelative`, `.NoViewerTeamIsNeutral`, `.Phases`) | `G051_tests_keylines.txt` |
+| Lighting pass | `-ExecutePythonScript=.../light_dryriver.py` | 0 | ok, 5/5 actors, map saved | `G051_dryriver_lighting_report.json` |
+| Nav after lighting | `build_dryriver_nav.py` | 0 | ok, path 2 points | — |
+| Live `-nullrhi` (6 bots, 60 s rounds) | `-game ... -FORCELOGFLUSH`, 200 s | 124 | "Objective status widget shown for LyraPlayerController_0"; resets respawn 7; 0 fatal/assert/ensure | — |
+| Rendered check | `UnrealEditor.exe ... -game -windowed 1280x720`, screen capture at 70 s | — | lit map; HUD shows round clock, active objective, capture bar (opposing red), score | `G051_hud_lit_dryriver.png` |
+| HUD replication with a remote client | — | — | **NOT RUN** (R-05/R-09) | — |
+
+### ASSETS
+
+None imported. Map re-saved by the lighting and nav passes. Screenshot evidence contains Lyra placeholder
+content (private repo, LFS pointer only).
+
+### RISKS
+
+No new risks. Open: R-09, R-12, R-14, R-15, R-16. The map is untextured blockout grey; Lyra placeholder
+characters and weapons remain (the art-source decision is still the producer's).
+
+### DEFECTS FOUND
+
+1. UI dependency in the gameplay module — found by guard SS005 before commit.
+2. Dry River had no lighting — found by the first rendered capture (black scene).
+3. On-screen `WeaponAudioFunctions.EarlyReflections` errors — caused by `-nosound`; gone with sound on. Not a defect.
+
+### NEXT ACTION
+
+**Viewer-relative team tint**: colour the viewer's own team blue and the opposing team red on characters
+(currently Lyra's fixed per-team colours, so the local player can be red), via SouthernSpearTeam presentation.
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

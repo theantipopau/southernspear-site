@@ -313,7 +313,7 @@ NEXT ACTION
 | Phase | State |
 |---|---|
 | Phase 0 | **Complete** — G0.8 passed; G0.9 blocked by engine distribution (R-09); G0.10 passed |
-| Phase 1 | **Active** — G1.1, G1.2, G2.0, G2.1 passed; SouthernSpearCore and SouthernSpearTeam built and tested (`CHANGELOG.md` Session 006) |
+| Phase 1 | **Active** — G1.1, G1.2, G2.0, G2.1 passed; SouthernSpearCore, SouthernSpearTeam and SouthernSpearObjectives built and tested; VS-12/VS-13 Objective Assault running on Dry River (`CHANGELOG.md` Session 008) |
 | Phases 2–6 | Not started |
 
 **Next action:** see the single NEXT ACTION in the latest `CHANGELOG.md` session.

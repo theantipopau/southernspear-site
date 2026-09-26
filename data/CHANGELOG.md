@@ -675,6 +675,84 @@ remains open in built work other than R-09 (engine distribution) and low-risk R-
 
 ---
 
+## Session 008 — 2026-09-26 — GitHub, the Website, and Objective Assault Running on Dry River
+
+### COMPLETED
+
+- **GitHub.** Private repo `theantipopau/SouthernSpear` (source and docs; LFS binaries not pushed,
+  since the repo vendors Epic content). Public repo `theantipopau/southernspear-site` serving the
+  website on GitHub Pages: https://theantipopau.github.io/southernspear-site/
+- **Website** (`Site/`), built from `Docs/images/southern-spear-website-design-spec.svg`: supplied
+  logo and header unmodified, spec colour tokens, 1280/1024/900/768/480 breakpoints, menu below
+  900 px, skip link, visible focus, reduced motion. Status, roadmap and this changelog are rendered
+  from the repo's own Markdown. No invented release, download, community or donation link.
+  Published by `python Tools/publish_site.py`.
+- **README** rewritten as the Southern Spear project README.
+- **SouthernSpearObjectives** plugin (ADR-018): pure `FSSObjectiveRules` (capture: presence not
+  strength, contested freeze, neutralise-then-capture, decay; round: pre-round → sequential
+  objectives → win on final capture / draw on time → post-round → reset), replicated
+  `ASSObjectiveActor` and `ASSObjectiveAssaultDirector`, team read through
+  `IGenericTeamAgentInterface` (no Lyra dependency). Editor-only `SouthernSpearObjectivesEditor`
+  helper, because `FGameFeatureComponentEntry` is not exposed to Python.
+- **SSExp_ObjectiveAssault** Game Feature + `B_SS_ObjectiveAssault` experience, built by
+  `Tools/Unreal/setup_objective_assault.py`, which also wires Dry River (2 objectives, director,
+  default experience). CI runs it.
+- **Dry River player starts fixed (R-13).** They were at ±85 **cm** (metres passed as cm) and pitched
+  180°. Now at ±85 m, facing the centre. Level, dressing, objectives and nav regenerated.
+- Architecture guard: SS002 (no Lyra) now covers SouthernSpearObjectives.
+
+### FILES CHANGED
+
+Created: `Plugins/SouthernSpearObjectives/**`, `Plugins/GameFeatures/SSExp_ObjectiveAssault/**`,
+`Tools/Unreal/setup_objective_assault.py`, `Tools/publish_site.py`, `Site/**`, `.claude/launch.json`,
+`Docs/evidence/G040_*`. Modified: `README.md`, `SouthernSpear.uproject`, `Tools/validate_architecture.py`,
+`Tools/Unreal/build_dryriver_level.py`, `.github/workflows/build.yml`, `Content/Maps/L_DryRiver_01.umap`,
+regenerated Dry River/dressing `.uasset`s, `Docs/DECISION_LOG.md` (ADR-018), `Docs/PROJECT_AUDIT.md`,
+`Docs/MAPS_DRYRIVER.md`, `Docs/TEST_PLAN.md`, `Docs/ASSET_REGISTER.md`, `Docs/DEVELOPMENT_ROADMAP.md`.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Architecture guard | `python Tools/validate_architecture.py` | 0 | PASS | `G040_guard_positive.txt` |
+| Guard negative (Objectives → Team + LyraGame, scratch copy) | same | 1 | SS001 + SS002 caught | `G040_guard_negative.txt` |
+| Editor build | `Build.bat SouthernSpearEditor Win64 Development` | 0 | Succeeded | `G040_tests_keylines.txt` |
+| All tests | `Automation RunTests SouthernSpear` | 0 | **26/26** (Core 9, Presentation 6, Objectives 11 incl. a real-world round with overlap-based presence) | `G040_tests_keylines.txt` |
+| Level → dress → setup → nav chain | the four `-ExecutePythonScript` commands | 0 each | setup ok (8/8 steps); nav path 2 points, 3/3 actors and 7/7 fences solid | `G040_objective_assault_setup.json`, `G040_dryriver_nav_report.json` |
+| Live game | `UnrealEditor-Cmd ... /Game/Maps/L_DryRiver_01 -game -nullrhi` (stopped by 200 s timeout, exit 124) | 124 | experience identified from WorldSettings; SSExp_ObjectiveAssault and ShooterCore Active; round 1 PreRound → InProgress, OBJ A active; bots spawned | `G040_dryriver_objective_assault_game_keylines.txt` |
+| Dressing data | `python Tools/verify_dressing.py` | 0 | all checks passed | — |
+| Site | local preview + JS checks at 1280 and 375 px | — | 7 sessions rendered, no horizontal overflow, menu at 375 px | — |
+| A capture in a live match | — | — | **NOT RUN** — Lyra bots do not seek objectives; capture is proven by the world test only | — |
+| Multiplayer replication of round state | — | — | **NOT RUN** — needs two clients (R-05) and a server (R-09) | — |
+
+### ASSETS
+
+Two original data assets (register M-001f, M-001g). No art imported. Brand PNGs copied unmodified to
+the public site repo.
+
+### RISKS
+
+~~R-13~~ closed. Open: R-09 (no Server target), R-12 (tile count unmeasured). New **R-14**: private repo
+holds LFS pointers only, so the GitHub copy is not a full backup of binary assets. New **R-15**:
+the level pass (`build_dryriver_level.py`) still reports its own pass-1 path check as failed
+(`ok=False`); the nav pass is the authoritative check and passes.
+
+### DEFECTS FOUND
+
+1. Player starts placed in metres-as-centimetres, found by dumping actor transforms while wiring the experience.
+2. `World->BeginPlay()` does not dispatch actor BeginPlay without a GameMode; test worlds now use
+   `WorldSettings->NotifyBeginPlay()`. Found by the first world-test run.
+3. `LyraWorldSettings.DefaultGameplayExperience` is EditDefaultsOnly and refuses Python; set via an
+   editor helper. `FGameFeatureComponentEntry` is not Python-exposed; same fix.
+4. A dump script held a map reference across `load_map`, causing an editor "World Memory Leaks" fatal.
+
+### NEXT ACTION
+
+**Make bots play the objective** (a ShooterCore-compatible bot behaviour that moves to the active
+`ASSObjectiveActor`), so a full round can be won in a live `-game` run rather than only in the world test.
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

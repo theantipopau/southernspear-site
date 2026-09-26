@@ -943,6 +943,55 @@ characters and weapons remain (the art-source decision is still the producer's).
 
 ---
 
+## Session 014 — 2026-09-26 — HUD Restyled to the Southern Spear Palette
+
+### COMPLETED
+
+- `SSUIStyle.h`: the website design tokens (`Site/styles.css`) mirrored in C++ (ink/field greens, line,
+  brass, sand, sage, OPFOR clay). Friendly = sage, opposing = OPFOR clay, contested = brass, neutral = sage-400.
+- Objective status widget rebuilt: field-dark plate with a brass top edge, ROUND n label (brass, tracked caps),
+  phase + large clock (turns clay under 30 s), A/B objective chips (owner-tinted, active outlined in brass),
+  objective name and viewer-relative status, a flat two-segment capture bar, own-side-first score.
+- `FSSObjectiveHudModel` gained structured fields (round label, phase, clock, name, status, per-side
+  words/scores/tones) and `BuildChips`. Spectators get neutral colours on both sides (ADR-017).
+
+### FILES CHANGED
+
+Created: `SouthernSpearObjectivesUI/Public/SSUIStyle.h`, `Docs/evidence/G052_*`. Modified:
+`SSObjectiveHudModel.{h,cpp}`, `SSObjectiveStatusWidget.{h,cpp}`, `Tests/SSObjectiveHudTests.cpp`.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Guard | `python Tools/validate_architecture.py` | 0 | PASS | — |
+| Build | `Build.bat SouthernSpearEditor Win64 Development` | 0 | Succeeded (one fix: `Clock` field shadowed a helper) | — |
+| All tests | `Automation RunTests SouthernSpear` | 0 | **30/30** (new `Objectives.Hud.Chips`) | `G052_tests_keylines.txt` |
+| Rendered | windowed `-game`, game window captured at 80 s | — | palette HUD as described; chips, bar and score correct | `G052_hud_palette.png` |
+
+### ASSETS
+
+None. System font (Roboto) with letter spacing stands in for Barlow Condensed (would need an OFL font
+import and a licence-register entry).
+
+### RISKS
+
+No new risks. Lyra's own HUD (health, ammo, weapon slots) is still Lyra's cyan style; restyling it means
+replacing the experience's HUD layout, which needs Lyra attribute access from a UI module (same bridge
+decision as the team tint).
+
+### DEFECTS FOUND
+
+1. The first capture attempt grabbed the desktop because the game window was behind another app; the
+   capture now focuses the game window and captures only its rectangle. The stray image was deleted.
+
+### NEXT ACTION
+
+**Producer decision: Lyra bridge (modify Lyra's team display function, or add a SouthernSpearLyraBridge
+module)**. It unblocks both the viewer-relative team tint and a Southern Spear health/ammo HUD.
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

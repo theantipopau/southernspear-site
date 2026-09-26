@@ -992,6 +992,57 @@ module)**. It unblocks both the viewer-relative team tint and a Southern Spear h
 
 ---
 
+## Session 015 — 2026-09-26 — Lyra Bridge and Viewer-Relative Team Tint
+
+### COMPLETED
+
+- Producer decisions recorded: **ADR-019** (SouthernSpearLyraBridge is the one guarded Lyra dependency) and
+  **ADR-020** (original art, script-built in Blender).
+- New plugin `SouthernSpearLyraBridge` with `USSViewerTeamTintSubsystem`: on each client, every pawn is
+  tinted from the viewer's side (own team sage `#B9C1B4`, other team OPFOR clay `#8C493D`, glows from the
+  palette) through `FSSTeamIdentity::ResolveLocality`. Spectators keep Lyra's absolute colours.
+- Guard: SS002 now bars Lyra from **every** `SouthernSpear*` module except the bridge.
+- Dev tool: `-SSShotAt=<s>` takes an in-engine viewport screenshot, replacing desktop capture.
+
+### FILES CHANGED
+
+Created: `Plugins/SouthernSpearLyraBridge/**`, `Docs/evidence/G053_viewer_relative_tint.png`. Modified:
+`SouthernSpear.uproject`, `Tools/validate_architecture.py`, `SSObjectiveHudSubsystem.{h,cpp}`,
+`Docs/DECISION_LOG.md`, `CLAUDE.md`.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Guard | `python Tools/validate_architecture.py` | 0 | PASS | — |
+| Guard negative (Team → LyraGame + LyraBridge, scratch copy) | same | 1 | SS001 + SS002 | — |
+| Build | `Build.bat SouthernSpearEditor ...` | 0 | Succeeded | — |
+| All tests | `Automation RunTests SouthernSpear` | 0 | 30/30 | — |
+| Live `-nullrhi`, 6 bots | 120 s | 124 | "Viewer-relative tint applied to 7 pawn(s) (viewer TeamOne)"; 0 fatal/assert/ensure | — |
+| Rendered | windowed `-game -SSShotAt=45` | 124 | own character sage (was Lyra red), opposing name tags clay; HUD intact | `G053_viewer_relative_tint.png` |
+| Tint seen by a second (TeamTwo) client | — | — | **NOT RUN** (R-05/R-09) | — |
+
+### ASSETS
+
+None.
+
+### RISKS
+
+No new IDs. Two desktop screen captures grabbed other windows instead of the game; both were deleted,
+never committed, and the practice was replaced by `-SSShotAt`.
+
+### DEFECTS FOUND
+
+1. `ULyraTeamDisplayAsset` is not exported from LyraGame (link-time); the bridge sets the colour parameters directly.
+2. Focus-stealing capture opened Lyra's pause menu; the in-engine screenshot avoids it.
+
+### NEXT ACTION
+
+**A88 rifle, first pass**: a script-built Blender model (`Tools/Blender/a88_rifle.py`), imported and equipped
+through a Southern Spear weapon definition that reuses Lyra's rifle behaviour and animations.
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

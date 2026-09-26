@@ -1151,6 +1151,56 @@ A89 is playable and the A88 fire-effects pass can be verified on both weapons.
 
 ---
 
+## Session 018 — 2026-09-27 — First-Person Camera; Fab Packs Arrive
+
+### COMPLETED
+
+- **First-person camera** (the game is an FPS; Lyra's ShooterCore is third-person). In `SouthernSpearLyraBridge`:
+  - `USSFirstPersonCameraMode` puts the view at the `head` bone plus an offset, following control rotation (FOV 90).
+  - `USSFirstPersonADSCameraMode` gives aim-down-sights at FOV 60.
+  - `USSFirstPersonSubsystem` wraps Lyra's camera-mode delegate for the local player: Lyra's ADS choice maps to the
+    SS ADS mode, everything else to SS first person. It also hides the local player's own head.
+- Fab project listing fixed for the producer with a directory junction in `OneDrive/Documents/Unreal Projects`.
+- Fab packs are now in `Content/`: AK-47, FPS_Weapon_Bundle, Insurgent_2, Modern_Insurgent_7, QuantumCharacter,
+  M1911, RuralAustralia, and `Downloaded/`. All raw packs are git-ignored until adapted (ADR-021).
+
+### FILES CHANGED
+
+Created: `SSFirstPersonCameraMode.{h,cpp}`, `SSFirstPersonSubsystem.{h,cpp}`, `Docs/evidence/G056_first_person.png`.
+Modified: `.gitignore`, `CLAUDE.md`.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Build | `Build.bat SouthernSpearEditor ...` | 0 | Succeeded | — |
+| Rendered | windowed `-game -SSShotAt=40` (a first attempt timed out while shaders compiled) | 124 | "First-person camera active"; eye-level view, HUD/ammo intact; **no arms or weapon in view** | `G056_first_person.png` |
+| ADS in first person | — | — | **NOT RUN** (needs input) | — |
+| Automation tests | — | — | **NOT RUN** this step (no test-covered code changed) | — |
+
+### ASSETS
+
+Fab packs present, not yet reviewed or registered.
+
+### RISKS
+
+New **R-18**: first person has no view model (arms and weapon) yet.
+
+### DEFECTS FOUND
+
+1. **Process defect:** commit `88627674` staged with `git add -A` and swept in two packs that arrived mid-commit
+   (M1911: 31 files, RuralAustralia: 436), before they were ignored. Only LFS pointers were pushed, because pushes
+   skip LFS uploads, so no asset data left the machine. Fixed in the next commit (untracked and ignored). From now
+   on, commits stage explicit paths only (CLAUDE.md).
+2. The changelog script failed on a `\U` escape in a Windows path; changelogs are now written from a file.
+
+### NEXT ACTION
+
+**First-person view model**: review FPS_Weapon_Bundle for first-person arms and animations, then show arms plus the
+equipped A-series weapon to the local player only.
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

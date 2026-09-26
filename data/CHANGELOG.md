@@ -1102,6 +1102,8 @@ New **R-17** (unlicensed drop in `Content/Sourced/`). The environment scans also
 
 ## Session 017 — 2026-09-27 — Licensed-Art Policy, Sketchfab Clearance, A89
 
+> The original entry reported the three cleared Sketchfab assets as L-0012 to L-0014. The current register uses L-0012 for Electric Dreams (declined), L-0013 Split Point, L-0014 Bingie Bingie and L-0015 Ross River; this numbering correction is recorded in the current rows, below. The initial asset drop count is historical; see `SOURCED_ASSET_REVIEW.md` for the later measured inventory.
+
 ### COMPLETED
 
 - **ADFRC addon drop reviewed** (`Content/Sourced/ADF`, 1,681 files): no models (only `.paa`, `.rvmat`, configs and sounds),
@@ -1109,7 +1111,7 @@ New **R-17** (unlicensed drop in `Content/Sourced/`). The environment scans also
 - **ADR-021** (producer decision): free/purchased Fab (Standard License) and CC0/CC-BY Sketchfab assets are
   allowed, registered before use and adapted to the fiction. Weapons stay original A-series; Dry River's layout stays original.
 - **Sketchfab clearance** via the public API:
-  - Cleared, CC-BY: Split Point VIC, Bingie Bingie NSW, Ross River NT (L-0012 to L-0014).
+  - Cleared, CC-BY: Split Point VIC, Bingie Bingie NSW, Ross River NT (the original L-0012 to L-0014 shorthand was off by one; authoritative entries are now L-0013 to L-0015).
   - Rejected: Cape Liptrap (CC-BY-NC-ND).
   - Still needing page URLs: Petty Beach and the gear models.
 - **A89 light support weapon**, original design (1.19 m, 2,012 tris): shared helpers in `Tools/Blender/ss_weapon_kit.py`.
@@ -1134,7 +1136,7 @@ Created: `Tools/Blender/ss_weapon_kit.py`, `Tools/Blender/a89_support.py`, `Art/
 
 ### ASSETS
 
-W-A89-01 (Class F, original). L-0012 to L-0014 cleared (CC-BY), not yet imported.
+W-A89-01 (Class F, original). L-0013 to L-0015 cleared (CC-BY), not yet imported.
 
 ### RISKS
 
@@ -1270,6 +1272,139 @@ logged in the audit.
 **Rendered soldier check** on Red Gum (one windowed `-SSShotAt` run, about 3 minutes, shaders are cached
 after the first run). Confirm the 3 ACR and MAF looks, hide any insignia patch (R-20), then start the
 first-person view model (R-18).
+
+---
+
+## Session 020 — 2026-09-27 — CC BY Terrain Scans Staged for Import Review
+
+### COMPLETED
+
+- Audited `Content/Sourced/` against `Docs/SOURCED_ASSET_REVIEW.md` and the licence register.
+- Verified the official Sketchfab model pages: Split Point and Bingie Bingie are licensed CC BY 4.0 and authored by Stefan A Vollgger. Staged each original OBJ/MTL/JPEG set unchanged under `Content/SouthernSpear/Vendor/SAVollgger/`.
+- Added ENV-001 and ENV-002 to `ASSET_REGISTER.md`, completed L-0013/L-0014 provenance rows, and put required credits beside the vendor files.
+- Left Ross River unstaged. All other sourced files were left untouched and unapproved.
+
+### FILES CHANGED
+
+Created: `Content/SouthernSpear/Vendor/SAVollgger/README.md` and two vendor source folders, each with its unchanged OBJ, MTL and JPEG files.
+Modified: `Docs/ASSET_REGISTER.md`, `Docs/LICENCE_REGISTER.md`, `Docs/SOURCED_ASSET_REVIEW.md`, `Docs/CHANGELOG.md`.
+
+### TESTING
+
+| Test | Command | Result |
+|---|---|---|
+| Sketchfab provenance/licence | Opened official model pages | PASS — correct titles, authors and CC BY licence; register records the 4.0 version |
+| Source archives | `unzip -t` on both archives | PASS — no archive errors |
+| Source-file identity | SHA-256 of each staged file vs matching archive member | PASS — all six OBJ/MTL/JPEG hashes match exactly |
+| MTL image paths | Python check against staged filenames | PASS — each MTL image reference resolves |
+| Mesh inspection | Python OBJ scan | PASS — Split Point 174,076 vertices / 346,200 triangles; Bingie Bingie 273,042 vertices / 540,708 triangles; all faces triangular |
+| Git LFS attributes | `git check-attr filter diff merge text` | PASS — OBJ and JPEG files resolve to LFS |
+| Unreal Editor import | — | **NOT RUN** — no `.uasset` import or editor validation yet |
+| Optimization/derivative | — | **NOT DONE** — original scan files retained; not game-ready |
+| Game/map use | — | **NOT DONE** — neither scan placed in a level |
+
+### ASSETS
+
+Two class-B third-party source sets staged unchanged: ENV-001 Split Point and ENV-002 Bingie Bingie. Include their registered CC BY 4.0 credits if used in a shipped build. No derived or imported Unreal asset was made.
+
+### RISKS
+
+- The remaining sourced drop still includes explicitly rejected game rips and unresolved/licence-blocked assets; all remain untouched and outside Git.
+- Both scans are dense photogrammetry and may need cleanup, reduction, LOD/Nanite review, collision work and performance validation before real-time use.
+- Ross River is licence-cleared but not staged; Cape Liptrap remains rejected under CC BY-NC-ND.
+
+### DEFECTS FOUND
+
+- Session 017 shorthand used the wrong L-number range after L-0012 was assigned to declined Electric Dreams. Current references now read L-0012 (declined), L-0013 Split Point, L-0014 Bingie Bingie and L-0015 Ross River.
+- The sourced review's previous “nothing imported” phrasing did not distinguish copied vendor source files from actual Unreal `.uasset` imports; it now does.
+
+### NEXT ACTION
+
+Import both OBJ files into a temporary Unreal review folder and inspect scale, texture binding, normals, collision, LOD/Nanite options and editor performance before making any adapted game asset.
+
+---
+
+## Session 021 — 2026-09-27 — Southern Spear UI Pass; Animated Soldiers; First-Person Weapon
+
+### COMPLETED
+
+- **Soldier animation fixed.** Lyra attaches parts through a ChildActorComponent, so the part's direct
+  parent was never the animated mesh. `ASSCharacterPartActor` now walks up to the first skinned mesh,
+  and all 9 pawns log "leader CharacterMesh0".
+- **First-person weapon view model.** `USSFirstPersonSubsystem` puts an owner-only copy of the held
+  weapon's mesh on the camera:
+  - hip and aimed (ADS) placements;
+  - look sway and walk bob;
+  - the body copy of the weapon is hidden from the owner.
+  - Arms are not done yet (R-18 stays open).
+- **Southern Spear UI replaces Lyra's** (ADR-023):
+  - `SouthernSpearUI` plugin with a player HUD: health bar, ammunition and weapon name, a crosshair that
+    opens with movement and hides when aiming, and a clay flash when hit.
+  - Esc match menu: Resume, Leave Match, Quit.
+  - Title front end `L_SS_FrontEnd`: key art; Red Gum Station and Dry River with bots; Quit. It is now
+    `GameDefaultMap`.
+  - Loading screen: the new key art (`Docs/images/loadingscreen.png`), an animated label and tips.
+  - Lyra's StandardHUD action set is removed from `B_SS_ObjectiveAssault`; `ProjectName` is now
+    Southern Spear.
+- **Minimap and full map** (`SouthernSpearObjectivesUI`): a north-up minimap centred on the player, and
+  the full map on M. Both use a client-local orthographic scene capture and show objective markers in
+  viewer-relative tones, plus a player arrow.
+- `USSLocalHudState` (Core) is the plain HUD data. The Lyra bridge (`USSHudStateSubsystem`) fills it
+  from Lyra's health component and quick-bar ammunition stats; UI modules only read it.
+- **New weapon files reviewed; none imported:**
+  - AKM and PKM: producer-supplied .blend files; real designs, needing A-series reshaping.
+  - C4A1: the file embeds "Cycles-Ready M4 Carbine … Licensed CC-BY" (author file name kkanamalla),
+    so it is third-party and needs its source URL and credit.
+  - A88/New: no licence text; the .mtl texture names do not match the supplied PNGs; 72k faces, 4K maps.
+    Source URL and terms needed.
+
+### FILES CHANGED
+
+Created:
+- `Plugins/SouthernSpearUI/*` (plugin, palette, widget kit, HUD, menu, loading screen, front-end game
+  mode, HUD subsystem);
+- `SSLocalHudState.h`, `SSHudStateSubsystem.{h,cpp}`, `SSMinimapWidget.{h,cpp}`;
+- `Tools/Unreal/setup_ui.py`, `Content/Maps/L_SS_FrontEnd.umap`,
+  `Plugins/SouthernSpearUI/Content/Textures/T_SS_KeyArt`, `Docs/images/loadingscreen.png`.
+
+Modified:
+- `SSCharacterPartActor.{h,cpp}`, `SSFirstPersonSubsystem.{h,cpp}`, bridge Build.cs;
+- `SSObjectiveHudSubsystem.{h,cpp}`, ObjectivesUI Build.cs;
+- `SouthernSpear.uproject`, `Config/DefaultGame.ini`, `Config/DefaultEngine.ini`;
+- `setup_objective_assault.py`, `B_SS_ObjectiveAssault`, `CLAUDE.md`, `DECISION_LOG.md`.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Guard | `python Tools/validate_architecture.py` | 0 | PASS | — |
+| Build | `Build.bat SouthernSpearEditor ...` | 0 | Succeeded (after fixing 2 compile errors) | — |
+| Automation | `Automation RunTests SouthernSpear` | 0 | 30 Success, 0 Fail | — |
+| UI content | `setup_ui.py` | 0 | ok=true (key art, experience HUD removed, front-end map) | `Build/ui_setup.json` |
+| Front end boots | `-game -nullrhi` (no map) | 124 | `LoadMap /Game/Maps/L_SS_FrontEnd`, game class SSFrontEndGameMode, "front end shown" | log |
+| Red Gum live | `L_RedGum_01?NumBots=8 -game -nullrhi` | 124 | 9 soldier parts, leader CharacterMesh0; SS player HUD shown; view model shows SM_A88; objective widget shown | log |
+| Rendered look (HUD, menu, loading, minimap, soldiers, view model) | — | — | **NOT RUN** (headless only; placements may need tuning) | — |
+| Esc / M / menu buttons with real input | — | — | **NOT RUN** | — |
+
+### ASSETS
+
+T_SS_KeyArt (producer key art). New weapon source files are not imported and not registered: they await
+source URLs and licences, and A-series reshaping.
+
+### RISKS
+
+R-18 partly mitigated (weapon view model; no arms). R-20 is still open (no rendered check).
+
+### DEFECTS FOUND
+
+1. Soldier bodies were unanimated: leader pose looked only at the direct attach parent (reported by the
+   producer; confirmed by the new "leader" log line).
+2. Three compile errors: palette alpha overload, and `FSlateChildSize` fill weights (found by the build).
+
+### NEXT ACTION
+
+**Rendered UI check.** One windowed run from the front end into Red Gum, with screenshots of the menu,
+loading screen, HUD, minimap and view model; then tune placements.
 
 ---
 

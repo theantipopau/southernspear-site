@@ -1043,6 +1043,63 @@ through a Southern Spear weapon definition that reuses Lyra's rifle behaviour an
 
 ---
 
+## Session 016 — 2026-09-26 — Sourced Asset Review and the A88 in Game
+
+### COMPLETED
+
+- **`Content/Sourced/` review** (about 2.4 GB, 286 files, added by the producer). No licences anywhere. It
+  includes a *Call of Duty: MWIII* rip and a *Counter-Strike 2* rip, real-weapon replicas (AUG, HK416, AKM,
+  M4, Minimi), an "insurgent" character (contradicts ADR-016), and scraped textures. Verdicts are in
+  `Docs/SOURCED_ASSET_REVIEW.md`. The folder is git-ignored and **nothing was imported**. New risk R-17.
+- **A88 rifle, first pass (ADR-020)**:
+  - `Tools/Blender/a88_rifle.py` builds an original angular bullpup (89 cm, 2,632 tris, Polymer/Metal/Glass slots, muzzle socket).
+  - `Tools/Unreal/setup_a88.py` imports it, adds the flat PBR master `M_SS_FlatPBR` and palette instances, and creates
+    `B_SS_A88` on the new `ASSHeldItemVisualActor` (SouthernSpearTeam, cosmetic only).
+  - It also creates `WID_SS_A88`/`ID_SS_A88` as copies of Lyra's rifle definitions, pointed at our visual.
+- **Starting loadout** (`USSLoadoutSubsystem` + `USSLoadoutSettings` in the bridge): each pawn receives the
+  configured items and the first becomes active, the same for both teams. Lyra's unexported quick bar is
+  driven through UFUNCTION reflection. `ID_SS_A88` is configured in `DefaultGame.ini`.
+- Editor helper `GetPropertyAsText` added.
+
+### FILES CHANGED
+
+Created: `Tools/Blender/a88_rifle.py`, `Tools/Unreal/setup_a88.py`, `Art/Weapons/A88/{SM_A88.fbx,A88.blend}`,
+`SSHeldItemVisualActor.{h,cpp}`, `SSLoadoutSubsystem.{h,cpp}`, `/SSExp_ObjectiveAssault/Weapons/A88/*`,
+`/SSExp_ObjectiveAssault/Materials/M_SS_FlatPBR`, `Docs/SOURCED_ASSET_REVIEW.md`, `Docs/evidence/G054_*`.
+Modified: `.gitignore`, `Config/DefaultGame.ini`, `SouthernSpearLyraBridge.Build.cs`, the editor library,
+`Docs/ASSET_REGISTER.md`, `Docs/PROJECT_AUDIT.md` (R-17), `CLAUDE.md`.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Blender build | `blender --background --factory-startup --python Tools/Blender/a88_rifle.py` | 0 | ok, 0.89 × 0.084 × 0.313 m, 2,632 tris | `G054_a88_side.png`, `G054_a88_threequarter.png` |
+| Unreal setup | `-ExecutePythonScript=.../setup_a88.py` | 0 | ok, 6/6 steps; mesh 89 cm; muzzle socket found; 1 equippable fragment re-pointed | `G054_a88_setup.json` |
+| Guard / build / tests | as usual | 0/0/0 | PASS / Succeeded / 30/30 | — |
+| Rendered | windowed `-game -SSShotAt=35`, 6 bots | 124 | A88 active in slot 2 (30/60), held correctly (rail and optic up, forward), bots carry it (kill feed); no Blueprint runtime errors | `G054_a88_in_game.png` |
+| Muzzle flash / shell FX on the A88 | — | — | **NOT CHECKED** — Lyra's fire cue may expect `B_Weapon`; next pass | — |
+
+### ASSETS
+
+W-A88-01 (Class F, original). Nothing from `Content/Sourced/`.
+
+### RISKS
+
+New **R-17** (unlicensed drop in `Content/Sourced/`). The environment scans also conflict with ADR-013.
+
+### DEFECTS FOUND
+
+1. `StaticMesh.sockets` is protected in Python; `find_socket` is used instead.
+2. The Lyra item-fragment property is invisible to Python; set via the text helper.
+3. The local `CallFunction` helper collided with `UObject::CallFunction` (compile error), so it was renamed.
+
+### NEXT ACTION
+
+**A88 fire effects and first-person fit**: verify the muzzle flash, tracers and shell ejection on `B_SS_A88`
+(add the sockets and interface Lyra's fire cue expects), and tune `MeshOffset` so the hands sit on the grip and foregrip.
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

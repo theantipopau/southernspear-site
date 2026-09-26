@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Southern Spear</title>
+<meta name="description" content="Southern Spear is a free, community-developed, Australian-inspired tactical multiplayer FPS in active development. Fictional; not endorsed by any government or defence organisation.">
+<meta property="og:title" content="Southern Spear">
+<meta property="og:description" content="An Australian-inspired tactical shooter focused on teamwork, roles and objective-based multiplayer. In active development.">
+<meta property="og:image" content="assets/header.png">
+<link rel="icon" type="image/png" href="assets/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <nav class="nav wrap" aria-label="Primary">
+    <a class="brand" href="#top" aria-label="Southern Spear home">
+      <img src="assets/logo.png" alt="" width="44" height="44">
+      <span>Southern<br>Spear</span>
+    </a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <ul id="nav-links" class="nav-links">
+      <li><a href="#about">About</a></li>
+      <li><a href="#how-to-play">How to play</a></li>
+      <li><a href="#download">Download</a></li>
+      <li><a href="#roadmap">Roadmap</a></li>
+      <li><a href="#changelog">Changelog</a></li>
+      <li><a href="#community">Community</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main id="main">
+  <section id="top" class="hero" aria-labelledby="hero-title">
+    <div class="hero-art">
+      <img src="assets/header.png" alt="Southern Spear header artwork: the Southern Spear title over an Australian landscape." width="2048" height="512">
+    </div>
+    <div class="wrap hero-copy">
+      <p class="eyebrow">Free &middot; Community developed &middot; Tactical FPS</p>
+      <h1 id="hero-title">Team. Train.<br>Operate. Overcome.</h1>
+      <p class="lede">An Australian-inspired tactical shooter focused on disciplined teamwork, qualifications, defined roles and objective-based multiplayer.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="#roadmap">Follow development</a>
+        <a class="btn btn-ghost" href="#changelog">Read the changelog</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap facts" aria-label="Project facts">
+    <dl>
+      <div><dt>Current status</dt><dd>Active development &mdash; pre-alpha</dd></div>
+      <div><dt>Platform</dt><dd>Windows (planned)</dd></div>
+      <div><dt>Price</dt><dd>Free</dd></div>
+      <div><dt>Gameplay</dt><dd>Tactical multiplayer</dd></div>
+      <div><dt>Design principle</dt><dd>Fair &middot; cosmetic symmetry</dd></div>
+    </dl>
+  </section>
+
+  <section id="about" class="wrap section" aria-labelledby="about-title">
+    <p class="eyebrow">What is Southern Spear?</p>
+    <h2 id="about-title">Tactical, readable and team-focused</h2>
+    <p class="measure">Southern Spear rewards communication, preparation and role discipline. Players see their own team as the Commonwealth Land Service, and the other team as the fictional Murasian Armed Forces. Presentation changes appearance only: gameplay tuning is mechanically equal for both teams.</p>
+    <div class="cards three">
+      <article class="card">
+        <p class="card-num">01 &middot; Train</p>
+        <h3>Learn before deployment</h3>
+        <p>Core movement, weapon and role training before taking responsibility in a match.</p>
+        <p class="note">Qualifications unlock roles, not power.</p>
+      </article>
+      <article class="card">
+        <p class="card-num">02 &middot; Operate</p>
+        <h3>Play a defined role</h3>
+        <p>Rifleman, grenadier, support gunner, medic and command roles contribute differently.</p>
+        <p class="note">Team capability matters more than individual score.</p>
+      </article>
+      <article class="card">
+        <p class="card-num">03 &middot; Overcome</p>
+        <h3>Complete the objective</h3>
+        <p>Coordinate movement, control terrain and complete the mission with the team intact.</p>
+        <p class="note">No lone-wolf hero loop.</p>
+      </article>
+    </div>
+    <p class="planned">These are design goals. Training, qualifications and roles are not yet implemented; see the roadmap for what exists today.</p>
+  </section>
+
+  <section id="how-to-play" class="band" aria-labelledby="htp-title">
+    <div class="wrap section">
+      <p class="eyebrow">Player journey</p>
+      <h2 id="htp-title">How to play</h2>
+      <ol class="steps">
+        <li><span class="step-n" aria-hidden="true">1</span><h3>Download</h3><p>Get the latest verified build from the official release page, once one exists.</p></li>
+        <li><span class="step-n" aria-hidden="true">2</span><h3>Set up</h3><p>Configure controls, audio, accessibility and callsign.</p></li>
+        <li><span class="step-n" aria-hidden="true">3</span><h3>Train</h3><p>Complete foundational training and role qualifications.</p></li>
+        <li><span class="step-n" aria-hidden="true">4</span><h3>Deploy</h3><p>Join a server, select an available role and communicate.</p></li>
+      </ol>
+      <p class="planned">There is no playable build yet. This is the intended flow.</p>
+    </div>
+  </section>
+
+  <section class="wrap section" aria-labelledby="persp-title">
+    <p class="eyebrow">Contextual presentation</p>
+    <h2 id="persp-title">One battle, two perspectives</h2>
+    <div class="cards two">
+      <article class="card friendly">
+        <p class="card-num">Friendly presentation</p>
+        <h3>3rd Battalion, Australian Commonwealth Regiment</h3>
+        <p>Conventional infantry of the Commonwealth Land Service.</p>
+        <dl class="kv">
+          <div><dt>Primary weapon</dt><dd>A88 Standard Service Rifle</dd></div>
+          <div><dt>Uniform</dt><dd>CMECU</dd></div>
+          <div><dt>Organisation</dt><dd>Commonwealth Defence Service</dd></div>
+        </dl>
+      </article>
+      <article class="card opposing">
+        <p class="card-num">Opposing presentation</p>
+        <h3>Murasian Armed Forces</h3>
+        <p>A fictional conventional opposing force with original red-earth camouflage, insignia and equipment.</p>
+        <dl class="kv">
+          <div><dt>Balance</dt><dd>Mechanically equivalent weapons</dd></div>
+          <div><dt>Characters</dt><dd>Identical gameplay hitboxes</dd></div>
+          <div><dt>Difference</dt><dd>Cosmetic presentation only</dd></div>
+        </dl>
+      </article>
+    </div>
+    <p class="planned">Every player sees their own team as 3 ACR and the other team as MAF. All units, forces and weapons are fictional.</p>
+  </section>
+
+  <section id="roadmap" class="band" aria-labelledby="roadmap-title">
+    <div class="wrap section">
+      <p class="eyebrow">Development status</p>
+      <h2 id="roadmap-title">Follow the build in public</h2>
+      <p class="measure">Status below is loaded from the project's own roadmap and changelog. No completion percentages or release dates are shown, because none have been set.</p>
+      <div id="status" class="status" aria-live="polite"><p>Loading status&hellip;</p></div>
+      <details class="doc">
+        <summary>Full development roadmap</summary>
+        <div id="roadmap-doc" class="md"></div>
+      </details>
+    </div>
+  </section>
+
+  <section id="changelog" class="wrap section" aria-labelledby="changelog-title">
+    <p class="eyebrow">Rolling changelog</p>
+    <h2 id="changelog-title">What changed, session by session</h2>
+    <p class="measure">Every working session adds an entry: what was completed, how it was tested, the risks, and the one next action.</p>
+    <div id="changelog-list" class="sessions"><p>Loading changelog&hellip;</p></div>
+  </section>
+
+  <section id="download" class="band" aria-labelledby="dl-title">
+    <div class="wrap section">
+      <p class="eyebrow">Latest verified release</p>
+      <h2 id="dl-title">Ready to deploy?</h2>
+      <div class="card download">
+        <h3>No public build yet</h3>
+        <p>Southern Spear is pre-alpha. There is no release to download. When one exists, this panel will show its version, file size, checksum and date from the release metadata.</p>
+        <p><span class="btn btn-disabled" aria-disabled="true">Download for Windows &mdash; not yet available</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section id="community" class="wrap section" aria-labelledby="comm-title">
+    <p class="eyebrow">Community development</p>
+    <h2 id="comm-title">Follow &middot; contribute &middot; support</h2>
+    <div class="cards three">
+      <article class="card">
+        <h3>GitHub</h3>
+        <p>This website and the published changelog live in a public repository.</p>
+        <p><a class="link" href="https://github.com/theantipopau/southernspear-site">theantipopau/southernspear-site</a></p>
+      </article>
+      <article class="card">
+        <h3>Community</h3>
+        <p>No community space has been opened yet.</p>
+      </article>
+      <article class="card">
+        <h3>Donate</h3>
+        <p>Donations are not being accepted.</p>
+      </article>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p><strong>Southern Spear is a fictional entertainment product.</strong> It is not endorsed, sponsored, developed or approved by the Australian Government, the Department of Defence, the Australian Defence Force or the Australian Army. All organisations, units, forces and weapons are fictional. Not affiliated with America's Army.</p>
+    <p class="small">Built on Unreal Engine and the Lyra Starter Game. Unreal and Unreal Engine are trademarks of Epic Games, Inc.</p>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="site.js"></script>
+</body>
+</html>

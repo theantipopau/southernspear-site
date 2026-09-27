@@ -2,7 +2,7 @@
 
 **Document ID:** `Docs/CHANGELOG.md`
 **Purpose:** Rolling record of what was actually done, what was actually tested, and what is still open. Appended to at the end of every work session.
-**Last updated:** 2026-09-26
+**Last updated:** 2026-09-27
 
 > **This file records evidence, not narrative.** A line here means a command was run and its result observed. If something was not done, it is not claimed. Anything marked `NOT RUN` is genuinely outstanding, not quietly skipped.
 
@@ -1490,6 +1490,255 @@ real-rifle replica, and ADR-021 requires A-series reshaping.
 
 **Producer review of the rendered UI**, then the other session fixes its smoke test's loading-screen
 ensure so the suite is green.
+
+---
+
+## Session 023 — 2026-09-27 — Weapon Asset Intake and Provenance Review
+
+### COMPLETED
+
+- Reviewed the current untracked weapon-source folders against Session 021/022 notes, source-file paths, the asset register, licence register and the tracked A88 game assets.
+- Corrected the A88 record: the producer-supplied textured mesh is already the imported/in-use cosmetic asset, while the original script-built A88 remains separate source work. The A88 source itself is not tracked; the imported Unreal derivative is tracked, so the missing source URL/terms and real-rifle redesign remain release blockers (R-21 / L-0017).
+- Recorded the C4A1/M4 file as blocked despite its embedded/reported “Licensed CC-BY” note: no source URL, exact licence version/terms or attribution has been verified; its adjacent texture folder is empty in this checkout. Added R-22 / L-0020.
+- Recorded the AKM and PKM `.blend` files as provenance/licence-pending, reference-only, and not approved for import or derivative use. Added R-23 / L-0018–L-0019.
+- Added a weapon-source review section and aligned W-001/W-002 and A88 import/source rows in `ASSET_REGISTER.md`. Updated `PROJECT_AUDIT.md` risk rows and the licence register. No art files, `.uasset`s, or scripts were changed; no smoke-test work was performed.
+
+### FILES CHANGED
+
+Modified: `Docs/ASSET_REGISTER.md`, `Docs/LICENCE_REGISTER.md`, `Docs/PROJECT_AUDIT.md`, `Docs/CHANGELOG.md`.
+
+### TESTING
+
+| Check | Command / method | Result |
+|---|---|---|
+| Intake inventory | Reviewed `Art/Weapons/A88/New`, `AKM`, `C4A1`, `PKM` and their corresponding notes | Completed; no source provenance was added or assumed |
+| A88 import state | Read existing `Build/weapons_setup.json`, `Build/sm_a88_sourced_report.json`, `Build/a88_setup.json`; checked tracked asset paths with `git ls-files` | Existing report says setup `ok=true`; mesh 78.8 × 13.1 × 29.8 cm, 72,493 triangles; textured import assets are tracked. This is review of existing evidence, not a rerun. |
+| Source-control/LFS rules | `git status --short --untracked-files=all -- <asset paths>`; `git check-attr filter diff merge text -- <sample asset paths>` | Raw A88/AKM/C4A1/PKM files are untracked; sampled OBJ/PNG/Blend sources resolve to LFS. No assets staged or committed. |
+| Build, import or runtime validation | — | **NOT RUN** — documentation/provenance review only |
+| Headless authority smoke test | — | **NOT RUN** — explicitly shelved at producer direction |
+
+### ASSETS
+
+No asset files created, imported or modified in this session. L-0017 records A88 as Class E until rights evidence is supplied. L-0018–L-0020 record the AKM, PKM and C4A1/M4 sources as blocked; source folders remain local/untracked. No new asset is cleared for use or redistribution.
+
+### RISKS
+
+- **R-21** — A88 rights/source provenance and fictional redesign remain unresolved; importantly, its Unreal derivative is already imported/in use despite the raw source being untracked.
+- **R-22** — C4A1/M4 terms and attribution unverified.
+- **R-23** — AKM/PKM provenance and rights unverified; real-design files remain reference-only.
+
+### DEFECTS FOUND
+
+- Asset records lagged project state: W-001 still described a placeholder, and the A88 Unreal import was not clearly distinguished from its local untracked source and previous original script-built mesh.
+- The C4A1's embedded “Licensed CC-BY” label could be mistaken for verified rights; exact provenance and terms are missing.
+
+### NEXT ACTION
+
+Obtain and verify the source URLs and licence terms for A88/C4A1, and confirm whether AKM/PKM are reference-only; keep all unresolved raw sources out of redistribution and redesign any weapon geometry as original A-series work before release.
+
+---
+
+## Session 024 — 2026-09-27 — ADFRC Extraction Intake Review and Claude Source Guard
+
+### COMPLETED
+
+- Inspected the new `Content/Sourced/ADF_Extracted/` tree and representative EF88/M4A5 paths. Unlike the separately reviewed `Content/Sourced/ADF/` folder (whose zero-model count applied only to that folder), this extraction contains `.p3d` models, Arma configs/material definitions, textures, `.rtm` animations and Workshop package data.
+- Checked the public ADF Re-Cut Workshop notice, ADFRC `LICENSE.md`, `ASSETS_LICENSE.md`, `DEV_LICENSE.md`, `MODEL_CREDITS.md`, and Bohemia's APL-SA text. The stated terms do not clear the extracted models or APL-SA material for this Unreal/commercial project; ADFRC further restricts protected-model extraction/reuse. Corrected the earlier ADF addendum so the contributor agreement is not described as an end-user licence or blanket relicensing path.
+- Cross-referenced `adfrc_ef88` and `adfrc_m4a5` against Claude's A-series guidance and the independent A88/C4A1 source records. Matching EF88/M4 naming is not provenance or permission, and these files are not the sources recorded at L-0017 or L-0020.
+- Added a metadata-only quarantine instruction for Claude, a sourced-asset addendum, an explicit non-game-asset note in `ASSET_REGISTER.md`, licence record L-0021 and open risk R-24. No source files were copied, altered, staged or imported; `ADF_Extracted` remains git-ignored.
+
+### FILES CHANGED
+
+Modified: `CLAUDE.md`, `Docs/SOURCED_ASSET_REVIEW.md`, `Docs/ASSET_REGISTER.md`, `Docs/LICENCE_REGISTER.md`, `Docs/PROJECT_AUDIT.md`, `Docs/CHANGELOG.md`.
+
+### TESTING
+
+| Check | Command / method | Result |
+|---|---|---|
+| Intake inventory | Listed the `ADF_Extracted` tree and representative directories; read sample EF88/M4A5 config/model metadata | Completed. Representative inventory only; no total file count or size was measured. No model/texture/animation binary was opened or processed. |
+| Git ignore | `git check-ignore -v Content/Sourced/ADF_Extracted/Models/ADF_Weapons/adfrc_ef88/ADFRC_EF88.p3d` | Exit 0 — `.gitignore:189:Content/Sourced/` ignores the representative extracted model. |
+| Rights/source review | Read public Steam Workshop item 2971219389, ADFRC licence/model-licence/developer-agreement/model-credit pages, and Bohemia APL-SA text | Completed; sources and access date recorded in `SOURCED_ASSET_REVIEW.md`. This is project intake triage, not legal advice or item-level clearance. |
+| Git working tree | `git status --short --branch` | `main`; concurrent pre-existing docs, code, and content changes were present and left untouched. |
+| Documentation whitespace | `git diff --check -- CLAUDE.md Docs/SOURCED_ASSET_REVIEW.md Docs/ASSET_REGISTER.md Docs/LICENCE_REGISTER.md Docs/PROJECT_AUDIT.md Docs/CHANGELOG.md` | Exit 0 — no whitespace errors. Git emitted only configured CRLF-to-LF notices for existing CRLF documents. |
+| Unreal import/build/tests | — | **NOT RUN** — documentation/provenance review only; no Unreal assets were created or changed. |
+| Headless authority smoke test | — | **NOT RUN** — remains shelved per producer direction. |
+
+### ASSETS
+
+No game assets created, copied, imported or modified. `Content/Sourced/ADF_Extracted/` remains an ignored quarantine folder, not a licensed vendor source. L-0021 records the collection as blocked (known APL-SA/protected-model incompatibility; individual provenance remains unresolved); no ADFRC content was added to the game asset register as usable art.
+
+### RISKS
+
+- **R-24 (new)** — ADFRC extraction includes Arma assets with non-commercial/Arma-only APL-SA terms and additional restrictions for protected models; exact local file provenance and per-model categories are unknown. Keep metadata-only and quarantined.
+- R-17 remains open for the broader mixed sourced drop. R-21 through R-23 remain unchanged.
+
+### DEFECTS FOUND
+
+- No code or content defect was found. The documentation gaps were that Claude's general sourced-content warning did not identify this new ADFRC extraction or its stronger model-specific restrictions; the earlier “0 models” inventory could be overgeneralized beyond the distinct `Content/Sourced/ADF/` folder; and the prior addendum described the developer agreement as an alternative downstream licence. These boundaries and the agreement's actual scope are now explicit.
+
+### NEXT ACTION
+
+Obtain exact source-chain evidence and written, file-specific rights-holder permissions for any ADFRC item proposed for use; until then, keep the extraction quarantined and continue only with independently sourced or original A-series assets.
+
+---
+
+## Session 025 — 2026-09-27 — ADFRC Growth, Player-Model Question, and a Broken FBX Conversion
+
+### COMPLETED
+
+- Re-inspected `Content/Sourced/ADF_Extracted/` after it grew: it now carries a `README.md`, a `_tools/` converter directory and an empty `Models_FBX/`, and measures 7,928 files / ~17 GB (against 7,748 claimed in its README).
+- Recorded the extraction's now-documented provenance from its own README: the ADFRC source pack (LFS objects fetched and decoded) **plus the binarised Steam Workshop release** (15 `.pbo` archives unpacked from the local Arma 3 install), which is the only source of its `.p3d` models. That corrects the earlier L-0021 note that the acquisition path was undocumented, and it places the models squarely inside the category ADFRC's `ASSETS_LICENSE.md` and `DEV_LICENSE.md` §2.4 restrict.
+- Answered the player-model question with measurements: **there are no player/character body models in the tree** — `Workshop/ADF_Units` holds 0 `.p3d` and 13 `.paa`, only binarised config headers that dress vanilla Arma bodies. What exists is 56 player-worn gear meshes (helmets, facewear, NVGs, field dress, a Crye G3 uniform, plate carriers, backpacks, TBAS role vests).
+- Diagnosed the FBX conversion as **failing on every model**: `Models_FBX/` contains no exported geometry, and `_convert_log.txt` shows the identical error each time — `P3D_Error: Invalid MLOD signature: b'ODOL'`, because the Arma 3 Object Builder addon expects the newer `MLOD` signature. No Blender or Unreal process is running.
+- Did **not** import, convert or re-export anything. Added the measured inventory, provenance, gear list, conversion failure and a new operational hazard to `Docs/SOURCED_ASSET_REVIEW.md`; corrected L-0021's provenance and added a models row; added **R-25** for ~17 GB of loose assets sitting inside the Unreal content root.
+
+### FILES CHANGED
+
+Modified: `Docs/SOURCED_ASSET_REVIEW.md`, `Docs/LICENCE_REGISTER.md`, `Docs/PROJECT_AUDIT.md`, `Docs/CHANGELOG.md`.
+
+### TESTING
+
+| Check | Command / method | Result |
+|---|---|---|
+| Tree growth | `find`/`ls` over `ADF_Extracted` (top level, extension histogram, file count, `du -sh`) | Top level now `Animations Models Models_FBX README.md Source Textures Workshop _tools`; 7,928 files / 17 GB. Histogram: 2,500 `.paa`, 2,489 `.png`, 854 `.rvmat`, 536 `.p3d`, 330 `.rtm`, 257 `.wss`, 257 `.wav`, 165 `.json`, 37 `.uasset`. |
+| Provenance | Read `Content/Sourced/ADF_Extracted/README.md` | Two sources documented (source pack + binarised Workshop PBOs); models come only from the PBOs; README carries its own licence warning and asks that the model clause be verified before import. |
+| Player-model existence | `find Workshop/ADF_Units -iname '*.p3d' -o -iname '*.paa'`; `grep` of `ADF_Units/Modern/CDO/Infantry.hpp` | **0 `.p3d`**, 13 `.paa`. Unit definitions are binarised config headers only; no ADFRC soldier body exists. |
+| Gear inventory | `find Models/ADF_Gear Models/ADF_Gear_2 -iname '*.p3d'` | 56 player-worn gear meshes listed (helmets, facewear, NVGs, `crye_g3.p3d`, `adfrc_field_dress.p3d`, `JPC_Base`, `Peacekeeper_*`, backpacks, `tbas_T2_*`/`TBAS_T5_*`). |
+| Conversion state | `cat Models_FBX/_convert_log.txt`; `find Models_FBX -type f \| wc -l` | Log shows 3 attempts, all `FAIL` with `Invalid MLOD signature: b'ODOL'` via `bpy.ops.a3ob.import_p3d`. Only 1 file in the tree (the log) — **no FBX exported**. |
+| Conversion processes | `tasklist \| grep -iE 'blender\|unreal'` | `none` — no conversion or editor process is running. |
+| Git working tree | `git status --short --branch` | `main`; the pre-existing and Session 024 documentation changes remain uncommitted and were left in place. |
+| Unreal import / build / tests | — | **NOT RUN** — nothing was imported or converted; documentation and measurement only. |
+| Moving the tree out of `Content/` (R-25) | — | **NOT RUN** — deferred to producer direction this session. |
+
+### ASSETS
+
+No assets created, imported, converted or modified. `Models_FBX/` remains empty. The 56 gear meshes stay quarantined under L-0021 / R-24 and are **not** cleared for import: the models came from the binarised Workshop release that ADFRC's terms protect, and they additionally carry real manufacturer and service identities (Crye Precision, Ops-Core, PASGT, "Team Wendy") that ADR-016 and L-0007 bar regardless of licence. The project's actual player bodies remain the Fab packs under L-0016 wired through `B_SS_Soldier`.
+
+### RISKS
+
+- **R-25 (new)** — ~17 GB of loose source assets, including ~10 GB of PNG and 37 `.uasset` files, sit inside the Unreal content root; the tree's README warns of an auto-import of ~2,484 PNGs on next editor open. Move the tree outside `Content/` before opening the editor.
+- **R-24** unchanged and now better evidenced: provenance is documented, and it documents extraction from the binarised release.
+- R-17, R-21 to R-23 unchanged.
+
+### DEFECTS FOUND
+
+1. **The FBX conversion pipeline is broken, not merely incomplete.** `Models_FBX/` was created and three models were attempted, but every one failed with `Invalid MLOD signature: b'ODOL'` and no geometry was produced. Anyone waiting on FBX output from that addon for this content will wait forever; the ODOL models need a different path. Found by reading the conversion log rather than by looking for FBX files.
+2. **The request's premise does not hold: there are no player models here.** The ADFRC units pack dresses vanilla Arma bodies and ships no body meshes, so the tree offers gear, not characters. Found by counting `.p3d` under `Workshop/ADF_Units`.
+3. **A new operational hazard was introduced by the extraction growing in place** (R-25): 17 GB of source now lives under the Unreal content root, with the tree's own README warning of an auto-import of thousands of textures. Found by measuring the tree against `.gitignore` and the content root.
+4. **The extraction's README asserts the assets were provided for this game.** That is recorded as a producer-side claim, not a rights-holder grant; it does not displace APL-SA or the protected-model terms.
+
+### NEXT ACTION
+
+Decide the direction for player models: source properly licensed character and gear packs and wire them in, build original CMECU/MAF gear in Blender per ADR-020, or seek a written commercial licence from the ADFRC rights holders — and separately, move `Content/Sourced/ADF_Extracted/` out of `Content/` to close R-25 before the editor is next opened.
+
+---
+
+## Session 026 — 2026-09-27 — Original Australian Uniforms on the Player Models
+
+### COMPLETED
+
+- **The ADFRC request was declined, and the alternative was built instead.** The producer asked to use textures and patterns — and helmet models — from `Content/Sourced/ADF_Extracted/`. Those cannot be used: the models were extracted from the binarised Workshop release that ADFRC's `ASSETS_LICENSE.md` and `DEV_LICENSE.md` §2.4 protect (no extraction, no derivatives, no other media), the textures are APL-SA which is **non-commercial and Arma-only**, and the gear additionally carries real manufacturer and service identities (Crye Precision, Ops-Core, PASGT, "Team Wendy") barred by ADR-016 and L-0007. Not even as a tracing reference: ADR-016 requires CMECU to be an original pattern. So the goal was met with original work instead.
+- **Inventoried what is actually wired in.** 3 ACR is the single Fab mesh `SKM_QuantumCharacter` (14 material slots, including a blue rolled-up shirt and blue jeans); MAF is seven single-slot parts (head, hands, sweater, military pants, shoes, small armour, beret). Both packs ship `.uasset` only.
+- **Established that material-instance overrides are impossible on the 3 ACR body.** Its materials sample textures directly with no `TextureSampleParameter2D`, so there is no parameter to override. The MAF materials do expose parameters, but a uniform approach was chosen instead.
+- **Authored original texture sets by script** (`Tools/Textures/make_character_textures.py`): CMECU dry-country camo, MAF red-earth camo, and tan/dark gear fabric, each with base colour, a twill micro-normal and an ORM map — 12 PNGs, 2048² for camo and 1024² for gear.
+- **Authored four original fabric materials** and applied them as per-slot cosmetic overrides, so the licensed vendor meshes are neither duplicated nor edited. Added `FSSPartMaterialOverride` and the two override arrays to `ASSCharacterPartActor` (SouthernSpearTeam, the cosmetic module — presentation only, ADR-004).
+- **Fixed a committed build break** that was blocking every editor build: `SSCompassWidget.cpp` and `SSMinimapWidget.cpp` each declare `constexpr int32 MaxMarkers` in an anonymous namespace, which collide when UBA merges them into one unity TU. Renamed to `CompassMaxMarkers` / `MinimapMaxMarkers`.
+
+### FILES CHANGED
+
+Created: `Tools/Textures/make_character_textures.py`, `Tools/Common/uv_material_params.py`, `Tools/Unreal/probe_character_materials.py`, `Tools/Unreal/setup_character_textures.py`, `Tools/Unreal/verify_character_materials.py`, `Art/Characters/Textures/*.png` (12), and the imported material/texture assets under `/SSExp_ObjectiveAssault/Characters/`.
+Modified: `Plugins/SouthernSpearTeam/Source/SouthernSpearTeam/Public/SSCharacterPartActor.h`, `.../Private/SSCharacterPartActor.cpp`, `Plugins/GameFeatures/SSExp_ObjectiveAssault/Content/Characters/B_SS_Soldier.uasset`, `Docs/ASSET_REGISTER.md`, `Docs/LICENCE_REGISTER.md`, `Docs/PROJECT_AUDIT.md`, `Docs/CHANGELOG.md`.
+
+**Files I do not own, changed to unblock the build:** `Plugins/SouthernSpearObjectives/Source/SouthernSpearObjectivesUI/Private/SSCompassWidget.cpp` and `SSMinimapWidget.cpp` (local constant rename only). Left uncommitted for the owning session to adopt or revert.
+
+### TESTING
+
+| Check | Command / method | Result |
+|---|---|---|
+| Texture generation | `python Tools/Textures/make_character_textures.py` | 12 PNGs written to `Art/Characters/Textures/`, report `Build/character_textures.json` count 12. |
+| Texture appearance | Contact sheet rendered and **visually inspected** in the browser | CMECU reads as dry-country camo with three populated luma bands; MAF reads as red-earth; gear is clean flat nylon. Two defects were found this way and fixed (see below). |
+| Material wiring probe | `probe_character_materials.py` (read-only) | 14 friendly slots and 7 MAF parts enumerated with their vendor masters; `Build/character_materials.json`. |
+| Material parameter names | `Tools/Common/uv_material_params.py` on the vendor `.uasset` binaries | 3 ACR materials confirmed to have **no** texture parameters; MAF confirmed to have `TextureSampleParameter2D`. Justifies authoring our own masters. |
+| Editor build | `Build.bat SouthernSpearEditor Win64 Development` | **Result: Succeeded**, 9.52 s, after the unity-collision fix. |
+| Architecture guard | `python Tools/validate_architecture.py` | **PASS**, exit 0, no violations. |
+| Material + override setup | `setup_character_textures.py` | `ok=true`: 4 materials authored, 12 textures imported, `B_SS_Soldier` saved. `Build/character_materials_setup.json`. |
+| Override read-back | `verify_character_materials.py` | Friendly: 7 of 14 slots overridden (cap, holster, carrier, patches, boonie → GearTan; shirt, jeans → CMECU). Opposing: 5 of 7 parts (sweater, pants → MAF; shoes, armour, beret → GearDark). |
+| Material contents | `uv_material_params.py` on the saved `M_SS_*.uasset` | Each carries all three texture references, `MaterialExpressionTextureSampleParameter2D` and `SAMPLERTYPE_Normal`. |
+| Automation | `Automation RunTests SouthernSpear` | **30 Success, 1 Fail.** The failure is `SouthernSpear.Network.Gameplay.TwoPlayerAuthoritySmoke` — the parallel session's uncommitted test, failing on the same `ViewportOverlayWidget.IsValid()` ensure at `SSGameplayAuthoritySmokeTest.cpp:93` already recorded in Session 022. **Not caused by this session.** Log `Build/tests_character_materials.log`. |
+| **Rendered in-game view** | windowed `-game -SSShotAt=30` on `L_DryRiver_01` | **NOT ACHIEVED** — exit 124. The run stalls during module load, before the map; no screenshot written. Headless `-nullrhi` runs are unaffected (45 s). Environment limitation, not a code fault. **The uniforms have therefore not been seen on the meshes in game.** |
+| ADFRC content | — | **NOT IMPORTED** — nothing from `ADF_Extracted` was read into the engine, as decided above. |
+
+### ASSETS
+
+Original, class F, script-built: CH-TEX-001/002/003 (12 PNGs) and CH-MAT-001 (4 materials). CH-SOL-001 is the existing soldier bodies carrying those materials as overrides — the underlying Fab geometry is unmodified and remains L-0016 class A. No ADFRC asset was imported. `LICENCE_REGISTER.md` L-0016 now records the modification; `ASSET_REGISTER.md` §4.9f tracks every derivative.
+
+### RISKS
+
+- **R-20 (mitigated)** — the `M_Patches` slot is overridden with plain fabric, so vendor insignia is no longer displayed, but no rendered view exists yet to confirm the rest of the body.
+- **R-25** unchanged: the 17 GB ADFRC tree still sits inside `Content/`. Measured this session that it does **not** slow headless editor runs (45 s project open), so the risk is now understood as interactive-editor friction rather than a blocker.
+- R-24, R-17, R-21 to R-23 unchanged.
+
+### DEFECTS FOUND
+
+1. **`HEAD` did not compile.** `SSCompassWidget.cpp` and `SSMinimapWidget.cpp` both declare `constexpr int32 MaxMarkers` in an anonymous namespace; under a unity build UBA merges them and the definitions collide. It surfaced only once my change invalidated the makefile and forced a different unity grouping — a latent break sitting in commit `75444a03`. Found by building rather than assuming the tree was green.
+2. **The camo banding was mathematically wrong.** The first implementation's soft-threshold logic made the first tone dominate, so the pale dust band never appeared: the CMECU luma histogram occupied only two bins and the gear looked stained rather than dyed. Caught by checking the luma histogram before looking at the image, then confirmed and fixed visually.
+3. **`M_Patches` may have carried insignia** (R-20). Now overridden with plain fabric.
+4. **UE 5.8 exposes no material-introspection API** usable from Python for this (`expression_collection`, `get_material_property_input_expression` and `get_material_expression` are all absent), so `verify_character_materials.py` could not enumerate expressions. Verification fell back to reading the saved packages' name tables — a real check of what was written, but not a graph traversal.
+
+### NEXT ACTION
+
+**Get a rendered view of both sides in game to confirm the new uniforms and close R-20.** The windowed `-game` run currently stalls before the map load; diagnose that first (it blocks every rendered check in the project, not just this one).
+
+---
+
+## Session 023 — 2026-09-27 — Soldier Animation Layers and Reload Fixed; A88 Provenance
+
+### COMPLETED
+
+- **Running animation and A88 reload fixed** (reported by the producer). Lyra picks the body mesh and the
+  weapon animation layers (locomotion and the reload montage) from cosmetic tags on character parts.
+  Lyra's own Manny part carries `Cosmetic.AnimationStyle.Masculine` and `Cosmetic.BodyStyle.Medium`
+  (found by probing `B_Manny`); `ASSCharacterPartActor` carried none, so no rifle animation set linked.
+  It now implements `IGameplayTagAssetInterface` with the same default tags, re-checked at BeginPlay in
+  case the tag config loads after the class default object.
+- **A88 provenance recorded (L-0017).** The producer's source page is the RigModels aggregator listing
+  "EF88 Rifle 3D Model": licence shown as "Royalty Free", author credited as Upsurge Studios
+  (upsurgestudios.com). It is a replica of a real service rifle with named real-brand attachments; the
+  original author's terms are not shown.
+- The Fab animation pack the producer mentioned is **not in the project yet**: the Fab vault cache holds
+  only the packs already imported.
+
+### FILES CHANGED
+
+Modified: `SSCharacterPartActor.{h,cpp}`, `SouthernSpearTeam.Build.cs` (GameplayTags), `LICENCE_REGISTER.md`.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Guard | `python Tools/validate_architecture.py` | 0 | PASS | — |
+| Build | `Build.bat SouthernSpearEditor ...` | 0 | Succeeded | — |
+| Tags live | `L_RedGum_01?NumBots=4 -game -nullrhi` | 124 | "SSCharacterPart tags: Cosmetic.AnimationStyle.Masculine, Cosmetic.BodyStyle.Medium" | log |
+| Running animation and reload in play | game launched for the producer | — | **Producer check pending** | — |
+
+### ASSETS
+
+L-0017 updated with the source URL and author credit; still provisional (R-21).
+
+### RISKS
+
+R-21 unchanged: aggregator "Royalty Free" label only; the original author's licence is unconfirmed; it
+is a real-rifle replica that needs A-series reshaping.
+
+### DEFECTS FOUND
+
+1. Soldier parts had no cosmetic tags, so no weapon animation layers linked (no running animation, no
+   reload). Found by the producer's play report plus a probe of Lyra's `B_Manny`.
+
+### NEXT ACTION
+
+**Producer confirms running and reloading in play**, then imports the Fab animation pack with "Add to
+Project".
 
 ---
 

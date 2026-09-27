@@ -2047,6 +2047,57 @@ Modified: `Art/ADFRC/MANIFEST.md` (corrected totals, new sections), `Art/ADFRC_P
 
 ---
 
+## Session 032 — ADFRC animation retarget groundwork, and two corrections
+
+### COMPLETED
+
+- **Pushed the previous session's work.** Commit `76a8e0df` (ADFRC authorisation, relocation, conversion, licence register) went to `origin/main`: `0336691b..76a8e0df`, 21 MB of LFS objects, no ADFRC binaries, no binaries from other sessions. Branch is level with `origin/main`.
+- **Captured the Quantum reference skeleton properly.** `Tools/Unreal/dump_quantum_skeleton.py` reads it out of the editor and writes **351 bones** with hierarchy and rest transforms to `Build/quantum_reference_skeleton.json`. Getting there took finding the real API: UE 5.8 Python has no `ReferenceSkeleton` type and no `EditorSkeletalMeshSubsystem`; the route is `Skeleton.get_reference_pose()` -> `AnimPose.get_bone_names()` / `get_ref_bone_pose(bone_name)`, with parents from `SkeletalMeshEditorSubsystem.get_bone_parent(mesh, bone_name)`. The earlier estimate of "~140 bones" from grepping the uasset name table was wrong by a factor of two and is now superseded.
+- **Recovered the Arma source hierarchy.** `Art/ADFRC/Config/*/model.cfg` carries the full `OFP2_ManSkeleton` `skeletonBones[]` table: **103 bones**, parents included. Neither the RTM nor the BMTR files store a hierarchy, so this is the only place it exists.
+- **Built the bone map and a clip survey** (`Tools/Unreal/adfrc_animation_survey.py`, reports `Build/adfrc_animation_survey.{json,md}`). The map covers **62 of the Arma rig's 103 bones**; the 41 it cannot cover are the 34 `face_*` bones (Quantum drives the face separately), plus `camera`, `eyeleft`, `eyeright`, `weapon`, `launcher` and two stray `handring` bones. All four usable soldier clips map **62 of their own 66-67 bones**, the remainder being exactly those attachment bones that Unreal sockets handle anyway.
+- **Corrected the clip inventory.** Of 146 decoded clips: **74 static poses, 68 vehicle/aircrew, 4 soldier animations.** The 4 are `GestureReloadAUG` (165f), `GestureReloadAUGProne` (165f), `MPP_Slow_Reload` (91f) and `MPP_Fast_Reload` (54f). The Chinook cargo set, `CH47_Pilot`, the fighter-pilot clips, the MRAP gunner and the `bushmaster_ffv_*` mocaps are all vehicle rigs that pass a naive "has a spine and two arms" humanoid test, which is why an earlier count of 33 "humanoid" clips was wrong.
+- **R-30 downgraded to PARTIAL with evidence** (see DEFECTS FOUND).
+
+### FILES CHANGED
+
+Created (tracked):
+- `Tools/Unreal/dump_quantum_skeleton.py` — editor-side reference-skeleton dump.
+- `Tools/Unreal/adfrc_animation_survey.py` — clip classification + Arma→Quantum bone map.
+- `Tools/Common/probe_man_import.py` — single-model A3OB import probe (the R-30 reproduction).
+
+Created (untracked, `Build/` is ignored): `quantum_reference_skeleton.json`, `adfrc_animation_survey.json`, `adfrc_animation_survey.md`.
+
+Modified: `Docs/PROJECT_AUDIT.md` (R-30 rewritten, R-32 and R-33 added), `Docs/CHANGELOG.md` (this entry).
+
+### TESTING
+
+- `UnrealEditor-Cmd.exe ... -ExecutePythonScript=Tools/Unreal/dump_quantum_skeleton.py` — **PASS**, 351 bones, `root <- (none)`, `pelvis <- root`, `spine_01 <- pelvis` ... with non-zero rest translations, so the pose is real and not a placeholder.
+- `python Tools/Unreal/adfrc_animation_survey.py` — **PASS**, 146 clips, 103 Arma bones, 62 mapped.
+- `blender -b --python Tools/Common/probe_man_import.py -- Art/ADFRC_MLOD/adfrc_vests/TBAS_T5_Base_MLOD.p3d` — **PASS**, `{'FINISHED'}` in 0.73 s, 38,869 verts / 31,831 polys, 32 vertex groups.
+- **NOT RUN**: no retargeted animation was produced, so nothing was imported into Unreal and nothing was verified in game. No conversion or import batch was executed this session.
+
+### ASSETS
+
+No new assets imported. No licence-register change: the animation clips are covered by the existing L-0021 entry, and no ADFRC binary has been added to git.
+
+### RISKS
+
+- **R-32 (new)** — the ADFRC reloads cannot be retargeted *correctly* yet. A retarget needs the source rig's rest pose as well as the target's; the Arma rest offsets live in stock `A3\anims_f\data\skeleton\SkeletonPivots.p3d`, which ADFRC does not ship and the local Arma 3 install does not contain (core `.pbo`s only, encrypted). The explicit instruction is not to ship a rotation-only retarget, because its per-bone error cannot be measured and it would look right in a diff and wrong in game.
+- **R-33 (new)** — the Quantum soldier has no reload animation and no reload anim layer. The project's only reloads are Lyra mannequin clips on a different skeleton. Retargeting alone therefore does not yield an in-game reload.
+- **R-30 (PARTIAL)** — the man-model import hang is explained and reproducible, but the 20 garments still have no usable skeleton.
+
+### DEFECTS FOUND
+
+- **R-30 was a harness artefact, and the entry named a non-existent operator.** A3OB v2.5 registers `a3ob.import_p3d`; `bpy.ops.arma3tools.import_p3d` does not exist. The original probe also ran inside BIS.CLI batch mode, which this audit already records as deadlocking. Run directly, a 92.8 MB `class = man` MLOD imports in under a second. Found by introspecting `dir(bpy.ops)` for the real operator id rather than trusting the recorded symptom.
+- **Three earlier claims in this thread were wrong and are corrected above**: the Quantum bone count (~140 → 351), the humanoid clip count (33 → 4), and the existence of "existing reload/running animation layers" to wire into (there are none on the Quantum rig). Each was a plausible-sounding inference from a partial signal rather than a measurement.
+- `Tools/Common/adfrc_class_scan.py` writes a `?` in its class column for every model now that the `.cfg` files are gone from the MLOD tree, so it can no longer identify `class = man` by itself — the class is only in the deleted configs. The affected list in R-30 is now carried by hand.
+
+### NEXT ACTION
+
+**Get `SkeletonPivots.p3d` (R-32)** — the ADFRC reload retarget is blocked on that one stock Arma 3 file, and every other piece (Quantum rest pose, Arma hierarchy, bone map, per-clip coverage) is already measured and checked in.
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

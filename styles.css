@@ -90,6 +90,8 @@
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
@@ -97,7 +99,13 @@ body {
   background: var(--ink-950);
   color: var(--sage-200);
   font: 400 17px/1.65 var(--font-body);
+  /* `hidden` on body alone leaves a few pixels of horizontal scroll on the
+     narrowest phones, because the hero's scale animation overflows the
+     viewport. `clip` on the root contains it without turning the root into a
+     scroll container, which is what `hidden` does. `hidden` stays as the
+     declaration for browsers without `clip`. */
   overflow-x: hidden;
+  overflow-x: clip;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -945,7 +953,12 @@ body[data-nav-open="true"] { overflow: hidden; }
   color: var(--brass-500);
 }
 .status-card__value { margin: 0 0 10px; font: 700 1.1rem/1.3 var(--font-display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--sand-100); }
-.status-card__body { margin: 0; font-size: 0.92rem; color: var(--sage-200); }
+/* These cards quote the changelog verbatim, so they inherit whatever long
+   file paths and identifiers the project's own documents contain. Without
+   this a single 319px token pushes 4px of horizontal scroll onto a 360px
+   phone. The text is generated, so the fix belongs here rather than in the
+   source document. */
+.status-card__body { margin: 0; font-size: 0.92rem; color: var(--sage-200); overflow-wrap: anywhere; }
 .status-card__body ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
 .status-card__body li::marker { color: var(--brass-500); }
 .status-card__meta { margin: 12px 0 0; font: 500 0.78rem/1.5 var(--font-mono); color: var(--sage-400); letter-spacing: 0.04em; }
@@ -953,6 +966,17 @@ body[data-nav-open="true"] { overflow: hidden; }
 /* --------------------------------------------------------------------------
    13. Roadmap timeline
    -------------------------------------------------------------------------- */
+/* The timeline is a column, not a full-bleed table. Left unconstrained, the
+   phase body stretched to over 1000px on a wide screen with the text sitting
+   in the left third and a third of the page empty, which read as misaligned.
+   Capping it to the reading measure and centring it puts the whole timeline
+   on the page's axis and matches the FAQ and document treatments. */
+.roadmap,
+.doc-panel {
+  width: 100%;
+  max-width: var(--shell-narrow);
+  margin-inline: auto;
+}
 .roadmap { display: grid; gap: 0; }
 .phase {
   position: relative;

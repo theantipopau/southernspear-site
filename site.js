@@ -669,7 +669,7 @@
   }
 
   function renderRoadmap(text) {
-    var host = document.getElementById("roadmap");
+    var host = document.getElementById("roadmap-phases");
     if (!host) return;
     clear(host);
 
@@ -1087,11 +1087,11 @@
           });
         }
       } catch (error) {
-        reportError(document.getElementById("roadmap"), "The roadmap", error.message);
+        reportError(document.getElementById("roadmap-phases"), "The roadmap", error.message);
       }
       renderStatusWhenReady();
     }).catch(function (error) {
-      reportError(document.getElementById("roadmap"), "The roadmap", error.message);
+      reportError(document.getElementById("roadmap-phases"), "The roadmap", error.message);
       reportError(document.getElementById("roadmap-doc"), "The roadmap document", error.message);
     }).then(revealFragment);
 

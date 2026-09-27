@@ -2297,6 +2297,183 @@ result, and until it does, every claim in this log about how the game looks rema
 
 ---
 
+## Session 029 — 2026-09-27 — Fair Map Layouts: Spawn Tool, Cross-Map Objectives, Map Documents
+
+### COMPLETED
+
+- **Reviewed the other agent's `MAPS_SALTBUSH.md` and `MAPS_SELATCANAL.md`** (sound, evidence-based) and
+  acted on their findings; both are rewritten with the new measurements; `MAPS_REDGUM.md` is new.
+- **`layout_spawns.py`** (new, final authority on starts, all four maps): 8 starts per team on clear
+  walkable ground (70 cm wall clearance, 2 m headroom, reachable from the deployment **and** to the centre
+  objective), farthest-point spread, hidden from the enemy deployment first, facing the centre objective;
+  deployments more than 200 m on foot from the centre objective slide in. Reports spacing, spawn exposure
+  and each team's walk to every objective.
+  - Selat Canal 7/8 → **8/8**; spawn exposure 0/64 on Red Gum, Dry River, Saltbush (Canal 11/64).
+- **`layout_objectives.py`** (new): objectives placed across the map at even-walk points (Red Gum
+  flanks; Saltbush spread). The opening objective is now even on Saltbush (105 vs 104 m; was 46 vs 134 m)
+  and within 11% on Red Gum (213 vs 240 m; was ~170 vs ~390 m). Red Gum's flank objectives are renamed
+  North Paddock / South Paddock (they no longer stand on the bore pump and shearing shed).
+- **`build_objective_map.py`**: deployments chosen by `min(walk, 1.6 x straight line)` and objectives
+  along the walking route (straight line gave a 70 m walled street; walk alone gave two banks 20 m apart).
+- Front-end Red Gum card text follows the renamed objectives.
+
+### FILES CHANGED
+
+`Tools/Unreal/layout_spawns.py`, `layout_objectives.py` (new), `build_objective_map.py`;
+`Docs/MAPS_SALTBUSH.md`, `MAPS_SELATCANAL.md` (rewritten), `MAPS_REDGUM.md` (new); `SSMenuWidget.cpp`;
+maps `L_RedGum_01`, `L_DryRiver_01`, `L_Saltbush_01`, `L_SelatCanal_01`.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Guard | `python Tools/validate_architecture.py` | 0 | PASS | — |
+| Build | `Build.bat SouthernSpearEditor ...` | 0 | Succeeded | — |
+| Automation | `Automation RunTests SouthernSpear` | 255 | 30 Success; 1 Fail (parallel session's `TwoPlayerAuthoritySmoke`) | `Build/tests.log` |
+| Spawn layout | `layout_spawns.py` | 0 | ok=true, 8/8 on all maps; figures above | `Build/spawn_layout.json` |
+| Objective layout | `layout_objectives.py` | 0 | Red Gum flanks 3–4% at placement; Saltbush spread; Canal rejected (objectives within 28 m) | `Build/objective_layout.json` |
+| Saltbush match | 8 bots, 180 s, `-nullrhi` | 124 | Windmill captured by Team One (first capture on this map) | log |
+| Red Gum match | 8 bots, 180 s, before and after pull-in | 124 | **No capture** (contested stalemate) | log |
+| Canal / Dry River matches | 8 bots, 150 s | 124 | **No capture** | log |
+| Nav step-height experiment | canal reach probe | 0 | 36 → 41 of 164 reachable at 45 cm; reverted | log |
+
+### ASSETS
+
+None new.
+
+### RISKS
+
+- R-25 (new): **capture stalemate.** ADR-018 freezes a contested objective; respawning bots keep both
+  teams present, so small or long maps can go a whole round without a capture. Needs a rules or bot
+  decision (producer).
+- Selat Canal cannot host a fair three-objective sequence on its connected footprint (22% of samples).
+- R-24 (GitHub LFS push) still open.
+
+### DEFECTS FOUND
+
+1. Selat Canal 7/8 starts (other agent's review).
+2. Opening objective much nearer Team One on the builder maps (fairness measurement).
+3. Canal Team One starts on a disconnected nav island (layout debug; fixed: starts must reach the objectives).
+
+### NEXT ACTION
+
+**Producer decides the capture stalemate** (R-25): majority capture, respawn waves, or attack/defend bot
+roles.
+
+---
+
+## Session 030 — 2026-09-27 — Native Resolution, Ray Tracing Default Off, Scoreboard with Ping, Dry River Real Cover; Locomotion Audit
+
+### COMPLETED
+
+- **"Textures are horrible" — two causes, both fixed:**
+  - the game rendered at **60.6% (1552x873)** of the producer's 2560x1440 display and upscaled:
+    `sg.ResolutionQuality=0` means "project default", which UE 5.8 scales down on large displays. An
+    unset value now becomes native 100% (`USSUserPrefsSubsystem`); Settings > Render resolution still
+    lowers it. Verified: `stat unit` shows 100.0% (2560x1440).
+  - hardware ray tracing rendered Nanite-converted rocks and the weapons **black** (Saltbush capture,
+    A/B with the setting off). It now defaults off (Settings: "Hardware ray tracing (experimental)").
+- Settings console variables now apply at game-override priority: ray tracing, ray-traced shadows and
+  anti-aliasing were silently ignored below the project's own defaults (log: "SetByGameSetting ... ignored").
+- A startup crash introduced and fixed in session (the settings object was created before Lyra's
+  settings class loaded; now only once a world exists).
+- **Scoreboard (hold Tab)**: viewer-relative (own side "3 ACR · Friendly" first, "MAF · Opposing"),
+  eliminations / deaths / assists / ping per player, team kill totals, local row highlighted.
+  `USSScoreboardState` (Core) filled by `USSScoreboardSubsystem` (bridge, reflection); Lyra's base
+  per-player scorer `B_ShooterGameScoring_Base` granted by the experience (not the team-deathmatch
+  scorer, whose kill limit would end rounds). Verified live: kills and deaths count.
+- **Dry River real cover**: `dryriver_blockout.py` exports the designed cover (40 rocks, 20 trees,
+  30 scrub, fence) as `SS_MAP_DryRiver_01_Cover.csv` instead of baking low-poly cones and boulders into the
+  terrain; `dress_dryriver_cover.py` reimports the terrain and places Rural Australia rocks, trees and grass
+  trees at the same positions and sizes, and post-and-wire fences (119 posts) for the greybox and dressing
+  fences. Nav rebuilt (`build_dryriver_nav.py` ok, path verified); spawns re-laid (exposure 3/64).
+- Dev tools: `ss.Debug.FollowBot` (third-person look at the nearest bot), `-SSShowScoreboard`,
+  `-SSScoreDebug`.
+- **Locomotion audit** (`Docs/LOCOMOTION_AUDIT.md`) written before any movement change (producer brief).
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Guard | `python Tools/validate_architecture.py` | 0 | PASS | — |
+| Build | `Build.bat SouthernSpearEditor ...` | 0 | Succeeded | — |
+| Automation | `Automation RunTests SouthernSpear` | 255 | 30 Success; 1 Fail (parallel session's `TwoPlayerAuthoritySmoke`) | `Build/tests.log` |
+| Render resolution | default launch, `stat unit` | 124 | 60.6% before, 100.0% after | screenshots |
+| Ray tracing A/B | Saltbush spawn, HWRT on/off | 124 | Black cliff and weapon with HWRT on; correct with it off | screenshots |
+| Scoreboard | Dry River 10 bots, `-SSShowScoreboard`, `-SSScoreDebug` | 124 | Rows, teams, K/D, local row | screenshot, log |
+| Dry River cover | `dress_dryriver_cover.py`, `build_dryriver_nav.py`, `layout_spawns.py` | 0 | 90 props + 119 posts; nav ok; exposure 3/64 | reports |
+
+### RISKS
+
+- R-26 (new): third-person weapons are rotated ~90° in the soldiers' hands (bot-follow capture);
+  covered by the locomotion audit.
+- R-24, R-25 open.
+
+### DEFECTS FOUND
+
+1. Render resolution 60% (producer: textures; stat capture).
+2. Hardware ray tracing black meshes (A/B capture).
+3. Settings console variables ignored (log).
+4. Startup crash (introduced and fixed here).
+5. Third-person weapon rotation (bot-follow capture).
+
+### NEXT ACTION
+
+**Producer approves the locomotion roadmap** (`Docs/LOCOMOTION_AUDIT.md` §7), including adding Epic's
+Game Animation Sample.
+
+---
+
+## Session 031 — 2026-09-27 — ADF Soldiers from ADFRC (ADR-025), Locomotion Decisions (ADR-024), Audit Correction
+
+### COMPLETED
+
+- **Producer decisions recorded:** ADR-024 (locomotion rebuild per `LOCOMOTION_AUDIT.md`) and **ADR-025**
+  (real ADF look from the ADFRC set, overriding ADR-016's pattern rule for the AMCU textures; patches and
+  flags stripped; release needs Defence permission or the CMECU swap: R-27). CLAUDE.md content rule amended.
+- **Audit F2 withdrawn after measurement**: with Lyra's rifle drawn over ours (`ss.Debug.ShowLyraWeapon`) the
+  meshes overlap exactly; socket data agrees. The "rifle pointing up" is Lyra's jog pose (F5).
+- **3 ACR soldiers rebuilt from ADFRC gear** (producer: "very low quality, don't replicate Australian soldiers"):
+  - `Tools/Blender/adfrc_gear_rig.py`: fits Arma gear to the UE5 mannequin. It places the gear with the Memory LOD
+    joints, re-poses the limbs onto the mannequin's joints with a segment-distance rig, transfers skin weights
+    from the mannequin body, and encodes texture and rvmat names in the material slots. Rigid mode is for helmets.
+    Arma helper faces, BIS skin, flags and patches are dropped.
+  - Found: the other converter's `.blend` files carry no bone weights, and the gear files use Arma's true character
+    space, which is offset from the uniform file (`SS_GEAR_SPACE`, measured).
+  - Kit: Crye G3 combat uniform in **AMCU** with gloves and boots, **Ops-Core helmet** (AMCU cover, Peltor
+    headset), **TBAS T5 plate carrier** (AMCU carrier and pouches, belt, holster). Multicam pouches use AMCU or
+    coyote variants, or flat coyote.
+  - `Tools/Unreal/setup_adf_soldier.py`: imports onto Lyra's `SK_Mannequin`; `M_SS_GearPBR`
+    (colour, normal, SMDI; skeletal); matte non-metallic fabric (the SMDI gloss rendered chrome-white).
+    `setup_soldiers.py`: 3 ACR = head + uniform + carrier + helmet on the animated skeleton (audit F3 for the
+    friendly side).
+  - Bugs found on the way: a rigid helmet group named "head.001" (an Arma selection shared the name), and
+    `save_loaded_asset` skipping Python-set materials (not dirty).
+- The parallel session's MAF materials (`Characters/Materials`, `Characters/Textures` and their scripts) are
+  committed with the soldier Blueprint that references them.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Gear fit | Blender renders (mannequin overlay, front and side) | 0 | Uniform, helmet and carrier on the mannequin | renders (scratch) |
+| Textures | Blender textured render | 0 | AMCU sleeves and trousers, plain torso (as authored); UVs correct | render |
+| Import | `setup_adf_soldier.py` | 0 | ok=true; every slot has colour, normal and SMDI; materials persisted (verified) | `Build/adf_soldier_setup.json` |
+| In game | Dry River, `ss.Debug.FollowBot` | 124 | ADF soldier animated: helmet on head, AMCU uniform, carrier, matte fabric | captures |
+| Weapon alignment | `ss.Debug.ShowLyraWeapon` | 124 | Lyra's and our meshes coincide | captures |
+
+### RISKS
+
+- **R-27 (new):** AMCU and ADF kit are Commonwealth designs; a commercial release needs Defence permission or
+  the CMECU swap (ADR-025).
+- The uniform's upper sleeves are slightly puffy after the re-pose; the MAF side still uses the Fab parts.
+
+### NEXT ACTION
+
+**S1: `ASSCharacter` + `USSCharacterMovementComponent`** (tactical speeds, momentum, replicated stances; ADR-024).
+
+---
+
 ## Session 033 — Map playability measured for the first time; the reference map fails its own rules
 
 Run in parallel with the other session's soldier and locomotion work. Nothing outside `Tools/Unreal/`,
@@ -2433,7 +2610,7 @@ Lyra `B_Hero_Default` (reparented), experience and IMC updates; blood uses the a
 
 ### RISKS
 
-- **R-28 (new):** two Lyra departures (D-08, D-09) must be re-applied on any Lyra update.
+- **R-36 (new; first numbered R-28, which was already taken):** two Lyra departures (D-08, D-09) must be re-applied on any Lyra update.
 - Penetration thickness is geometric only (no per-material table); thin rock edges can be shot through.
 
 ### DEFECTS FOUND
@@ -2444,6 +2621,69 @@ Lyra `B_Hero_Default` (reparented), experience and IMC updates; blood uses the a
 ### NEXT ACTION
 
 **Measure through-cover damage**: a scripted test that fires through a 5 cm board at a target and checks the health lost.
+
+---
+
+## Session 035 — 2026-09-28 — Full Test Suite Green; Penetration Hook Measured; Parallel Session's Work Committed
+
+### COMPLETED
+
+- **All 35 SouthernSpear tests pass (exit 0)**, the first fully green run in several sessions. The parallel session's
+  `TwoPlayerAuthoritySmoke` had two causes, found from its callstacks:
+  - **ours**: `USSSettingsSyncSubsystem` pushed volumes into Lyra's settings in editor test worlds, where Lyra cannot
+    load its audio control-bus mix (it needs `GEngine->GetCurrentPlayWorld()`): three `bSoundControlBusMixLoaded`
+    ensures. Volumes are now pushed only with an audio device and a play world;
+  - **Lyra's loading screen** adding a widget to a headless test viewport (`ViewportOverlayWidget.IsValid()`).
+    Test runs now pass `-NoLoadingScreen` (Lyra's own switch): CLAUDE.md, README, CI.
+- **CI ran almost no tests**: it filtered on `SouthernSpear.Unit/Integration/Network/Leak`, of which only `Network`
+  exists. Now `RunTests SouthernSpear`, with `-nosound -NoLoadingScreen`.
+- **Through-cover measurement** (Session 034 NEXT ACTION): `SouthernSpear.Bridge.Ballistics.PenetrationHook` calls the
+  hook Lyra's weapon actually uses (so it also proves the bridge registered it) against engine-cube boards: a 5 cm board
+  is penetrated with 37.5% damage lost (an A88 torso hit 38 → 23.75) and the trace resumes just beyond it; a 40 cm
+  block stops the bullet. `LyraBulletPenetration::GetHook` exported for the test.
+- Changelog repaired: the parallel session's uncommitted copy had dropped Sessions 029–031; restored, and its
+  Session 033 kept. Risk renumbered: Session 034's "R-28" was taken, now **R-36** (added to PROJECT_AUDIT).
+- Committed the parallel session's finished, uncommitted work: Session 033 entry, ASSET_REGISTER,
+  SOURCED_ASSET_REVIEW, DECISION_LOG execution note, TEST_PLAN, the smoke test and its `EngineSettings` dependency,
+  README. Untracked art folders (`Art/Weapons/{A88/New,AKM,C4A1,PKM,_Optics}`, `Content/AUG`, `Content/SouthernSpear`,
+  `Docs/images/conceptart*.png`) left uncommitted: their sources are not recorded in the registers yet.
+
+### FILES CHANGED
+
+`SSSettingsSyncSubsystem.cpp`, `Tests/SSPenetrationHookTests.cpp` (new), Lyra `LyraGameplayAbility_RangedWeapon.h`
+(export), `.github/workflows/build.yml`, `CLAUDE.md`, `README.md`, `Docs/TEST_PLAN.md`, `Docs/PROJECT_AUDIT.md`, this file.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Guard | `python Tools/validate_architecture.py` | 0 | PASS | console |
+| Build | `Build.bat SouthernSpearEditor Win64 Development` | 0 | Succeeded (first try failed to link: `GetHook` not exported; fixed) | console |
+| Network smoke alone, before the flag | `RunTests SouthernSpear.Network` | 255 | Fail: only the loading-screen ensure left after the audio fix | `Build/smoke.log` (not retained) |
+| All tests | `UnrealEditor-Cmd ... -nosound -NoLoadingScreen ... "Automation RunTests SouthernSpear;Quit"` | 0 | 35/35 Success | `Docs/evidence/S035_tests.txt` |
+
+NOT RUN: the CI workflow itself (self-hosted runner); damage through a board in a live match (the execution's
+`1 - PenetrationDepth` factor is verified by reading, not by a measured health change); rendered blood check.
+
+### ASSETS
+
+None.
+
+### RISKS
+
+- R-36 (from Session 034) recorded in PROJECT_AUDIT.
+- The untracked art folders listed above need register entries before they can be committed or used.
+
+### DEFECTS FOUND
+
+- Settings sync triggered Lyra audio ensures in test worlds (callstack in the smoke-test log).
+- CI test filter matched only one of four test groups (reading the workflow).
+- Risk ID collision R-28 (grep of PROJECT_AUDIT).
+
+### NEXT ACTION
+
+**Register or remove the untracked art folders** (`Art/Weapons/*`, `Content/AUG`, `Content/SouthernSpear`, concept art):
+record each source in ASSET_REGISTER / LICENCE_REGISTER, then commit or ignore it.
 
 ---
 

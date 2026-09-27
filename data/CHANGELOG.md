@@ -2098,6 +2098,355 @@ No new assets imported. No licence-register change: the animation clips are cove
 
 ---
 
+## Session 032b — AUG weapon audio imported; the VaultCache inventory
+
+### COMPLETED
+
+- **Imported the 28 ADFRC AUG weapon WAVs** as SoundWave assets into `/Game/AUG/Sound/AUG/Wavs`, with `/Game/AUG/Sound/Attenuation/WeaponShot_att` and `WeaponHandling_att` copied from the AK-47's attenuation so the AUG matches the only weapon in the project that has a complete chain. **28/28 imported, 0 errors**, each verified after import: 2ch/44.1 kHz for the shots, 1ch/44.1 kHz for the mechanical `AUG_closure_*` pair. Report `Build/aug_audio_import.json`.
+- **Established that SoundCue graphs cannot be authored headlessly in UE 5.8.** There is no `SoundCueFactory` (`unreal.SoundFactory` is `/Script/AudioEditor.SoundFactory`, whose `supported_class` is `SoundWave`), `create_asset` for a `SoundCue` returns `None`, and `SoundCue` exposes no `add_node` or node enumeration. The existing AK-47 cues are `SoundNodeModulator` graphs whose properties are not reflected to Python. **Cue wiring is editor work and was not done.**
+- **Inventoried `Content/Downloaded/VaultCache/`**: **34,662 MB**, 18 packs, ~3,700 assets and **25 maps**, of which `git ls-files Content/Downloaded` returns **0** — none of it is tracked and none of it is referenced by the game.
+
+### FILES CHANGED
+
+Created: `Tools/Unreal/import_aug_audio.py` (import + verify + attenuation copy).
+Generated (untracked, `Build/`): `aug_audio_import.json`, `weapon_audio_probe.json`.
+
+### TESTING
+
+- `UnrealEditor-Cmd.exe ... -ExecutePythonScript=Tools/Unreal/import_aug_audio.py` — **PASS**, `imported 28/28`, 0 errors, 2 attenuation assets created and saved.
+- **NOT RUN**: no cue was authored and nothing was played or mixed, so the AUG audio is **not audible in game** until the cues are built in the editor.
+
+### ASSETS
+
+28 new SoundWave assets + 2 SoundAttenuation assets. All 28 are covered by the existing **L-0021** ADFRC entry; the audio licence position is unchanged. No new licence entry is required.
+
+### RISKS
+
+- The AUG sounds exist as assets but are **not wired to anything**, so this work is not yet player-visible. Treating "imported" as "working" is exactly the R-31 pattern.
+
+### DEFECTS FOUND
+
+- **34.6 GB of already-downloaded Fab content is untracked in git.** The packs include a complete first-person AKS-74U weapon set (`A_FP_AKS74U_Reload`, `_Reload_Aimed`, `_Reload_Empty`, `_Reload_Empty_Aimed`, Fire, Aim, Idle, Run, Walk, Equipe, plus `A_WBP_AKS74U_Reload` and `A_WBP_AKS74U_Reload_UnEmpty` blend spaces) and four map packs (Namaqualand 2, Rural Australian 4, Singapore Canal 5, Flags 1). The AKS-74U reload set **answers the R-33 reload gap without any retargeting at all**, which is a materially better route than the blocked ADFRC path.
+
+### NEXT ACTION
+
+**Decide whether the VaultCache packs get promoted into the game** — the AKS-74U FP reload set closes R-33 today; everything else in that 34.6 GB is a scoping decision for the producer.
+
+---
+
+## Session 028 — 2026-09-27 — Website Typography and Front End, Tabbed Settings with Ray Tracing, Developer Messages Off
+
+### COMPLETED
+
+- **Website typefaces in game**: Barlow Condensed (display) and Inter (body) from `Site/fonts` (SIL OFL 1.1),
+  converted to TTF with fontTools (`Art/Fonts`), imported as font faces (`setup_fonts.py`), assembled at
+  runtime by `SSFonts.h` (Core, header-only) and used by every HUD, menu, compass, minimap and banner widget.
+- **Front end matches the website**: header bar with the badge (`T_SS_Logo`) and stacked wordmark, nav
+  (Settings, Quit) and a brass Discord button (opens discord.gg/GHNCFQrDND); status chip; sentence-case
+  headline and lede; operations as a 2x2 grid of framed cards; smooth left gradient; primary brass
+  buttons for Apply and Resume.
+- **Settings** rebuilt with five tabs and a scrolling page each:
+  - Display: window, resolution, VSync, frame limit (30–240, unlimited), field of view, brightness;
+  - Graphics: preset plus ten scalability categories, render resolution 50–100%, anti-aliasing
+    (TSR/TAA/FXAA/off), hardware ray tracing, ray-traced shadows, motion blur;
+  - Audio: master, effects, music; Controls: mouse sensitivity, invert look (applied to Lyra's own
+    settings by the new bridge `USSSettingsSyncSubsystem`, reflection);
+  - Interface: frame rate counter (new HUD readout), developer messages.
+- **On-screen errors**: the messages were the editor AI toolsets' Python tracebacks, Lyra weapon-audio
+  Blueprint warnings and the VSM marking-queue diagnostic (a fixed shader queue size; classic
+  vegetation). Engine developer messages are now off for players (`USSUserPrefsSubsystem`, Core;
+  Settings > Interface turns them back on); editor and PIE sessions are untouched.
+- **Ray tracing**: already enabled at project level (DX12 SM6, Lumen hardware ray tracing); the log
+  confirms it is active on the producer's GPU (D3D12 ray tracing tier 1.1). Now switchable in Settings.
+
+### FILES CHANGED
+
+- Core: `SSUserPrefs.h` (keys, `USSUserPrefsSubsystem`), `SSUserPrefs.cpp` (new), `SSFonts.h` (new);
+- UI: `SSSettingsWidget.{h,cpp}`, `SSMenuWidget.{h,cpp}`, `SSPlayerHudWidget.{h,cpp}`, `SSWidgetKit.h`,
+  `SSUIAssets.h`; ObjectivesUI widgets (fonts);
+- Bridge: `SSSettingsSyncSubsystem.{h,cpp}` (new);
+- `Tools/Unreal/setup_fonts.py` (new), `setup_ui.py` (logo); `Art/Fonts/*.ttf`; UI font and logo assets.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Guard | `python Tools/validate_architecture.py` | 0 | PASS | — |
+| Build | `Build.bat SouthernSpearEditor ...` | 0 | Succeeded | — |
+| Automation | `Automation RunTests SouthernSpear` | 255 | 30 Success; 1 Fail (parallel session's `TwoPlayerAuthoritySmoke`) | `Build/tests.log` |
+| Front end, Settings, HUD | `-game -windowed -SSShotAt`, `-SSOpenSettings=1` | 124 | Website fonts and layout; tabs; FPS counter; no developer messages on screen | screenshots (scratch) |
+| Ray tracing active | game log | — | "Ray tracing is enabled"; D3D12 RT tier 1.1 | log |
+| Sensitivity / volume reach Lyra | — | — | **NOT RUN** (needs play) | — |
+
+### ASSETS
+
+Barlow Condensed, Inter, IBM Plex Mono (SIL OFL 1.1, already used by the website). The producer reports
+ADFRC weapon sounds (EF88/AUG shots with tails, reloads, dry fire): catalogued, not imported yet.
+
+### RISKS
+
+- R-24 (GitHub LFS push) still open: commits are local only.
+- The captured frame rate (30) is Lyra's background cap; real frame rate needs a focused run.
+
+### DEFECTS FOUND
+
+1. On-screen developer messages shown to players (producer).
+
+### NEXT ACTION
+
+**Weapon audio**: play the ADFRC EF88 shot/tail/reload sounds for the A-series weapons in place of
+Lyra's rifle cue.
+
+---
+
+## Session 032c — Blanket ADFRC permission recorded; map documentation written
+
+### COMPLETED
+
+- **Recorded the producer's blanket 100% permission from the ADFRC mod team** in all three places that
+  gate asset use, so they cannot disagree:
+  - `CLAUDE.md` — the ADFRC rule is no longer a hold. It now states that ADFRC models, textures,
+    animations, audio, configs and scripts are **cleared for free use in Southern Spear**, including
+    converted and derived work and as visual/design reference, and that using them as game art is the
+    expected case rather than the exception.
+  - `Docs/LICENCE_REGISTER.md` (L-0021) — the **multi-author scope limit is resolved**. It previously
+    held that "Tonnie" was not among the authors credited in the pack (Brucey, Exer, Growlor, Louetta,
+    Quiggs, ADFU Team, ADF Re-Cut Team), so his grant could only ever have covered his own components
+    and per-component confirmation was required. A blanket permission from the team as a whole closes it.
+  - `Docs/PROJECT_AUDIT.md` (R-24) — **CLOSED** (branding tracked separately as R-27), from
+    "OPEN (partially cleared)".
+- **Two limits are recorded as still standing**, because the mod team cannot lift them: **third-party and
+  service marks** (Crye Precision G3, Ops-Core, PASGT, "Team Wendy", ADF camouflage and insignia belong
+  to those companies and to the ADF), and **redistribution** (use in the project is cleared; pushing the
+  assets through the repository is not, which is why `Art/ADFRC/*` stays git-ignored). APL-SA (Bohemia)
+  is also untouched.
+- **Wrote the two missing map design documents** to the Dry River standard: `Docs/MAPS_SALTBUSH.md` and
+  `Docs/MAPS_SELATCANAL.md`. Both are recorded honestly as **documented but not signed off**, because the
+  evidence does not support signing them off — see DEFECTS FOUND.
+- **Diagnosed the in-game verification blocker.** The recorded claim that "windowed `-game` runs stall
+  during module load" is **no longer true**: `Saved/Logs/SouthernSpear.log` holds a successful windowed
+  `-game` run that loaded `/Game/Maps/L_SS_FrontEnd` in 0.42 s and wrote a 1600x900 screenshot. Added
+  `Tools/run_map_capture.sh` to make that repeatable, and found two causes of silent failure along the
+  way (see DEFECTS FOUND).
+
+### FILES CHANGED
+
+Created: `Docs/MAPS_SALTBUSH.md`, `Docs/MAPS_SELATCANAL.md`, `Tools/run_map_capture.sh`.
+
+Modified: `CLAUDE.md`, `Docs/LICENCE_REGISTER.md` (L-0021), `Docs/PROJECT_AUDIT.md` (R-24),
+`Docs/CHANGELOG.md` (this entry).
+
+### TESTING
+
+- **`bash Tools/run_map_capture.sh /Game/Maps/L_DryRiver_01` — NOT RUN to a passing result.** The script
+  is written and two real bugs are fixed in it, but the run was interrupted before it completed.
+  **No gameplay map has been captured and no in-game verification is claimed.**
+- `python Tools/Unreal/adfrc_animation_survey.py`, the VaultCache inventory and the `armis_f_data.pbo`
+  header analysis — PASS (recorded in Sessions 032 / 032b).
+- All map figures in the two new documents are read from tool reports (`Build/objective_map_*`,
+  `Build/deployment_tags.json`) and `Config/DefaultGame.ini`. None are estimated.
+
+### ASSETS
+
+No new assets. No redistribution implication: the licence change authorises **use**, and `Art/ADFRC/*`
+and `Art/ADFRC_Player/*` remain git-ignored with only their `.md` files tracked. The two new documents
+are documentation and are safe to track.
+
+### RISKS
+
+- **R-27 is now the only thing between the ADFRC material and release.** With R-24 closed, the branding
+  substitution (Crye / Ops-Core / PASGT / Team Wendy / ADF camo) is the single remaining gate, and it is
+  a build task rather than a pending approval. It must not be lost now that the surrounding block has lifted.
+- The captured map docs describe two maps that **should not be played as balanced content yet** (below).
+  Documenting them is not endorsing them.
+
+### DEFECTS FOUND
+
+- **Selat Canal has a 7/8 deployment split.** `Build/deployment_tags.json` records TeamOne 7, TeamTwo 8,
+  against 8/8 on Dry River, Red Gum and Saltbush. Where a dead team rotates back to a start, the team
+  with the extra start has a compounding advantage. Needs a producer decision: add a start, or record
+  the acceptance.
+- **Selat Canal is the worst map in the set for navigation: 35 of 154 sampled grid points reachable
+  (23%)**, against Saltbush's 37% and Dry River's verified full rebuild. All four round legs are walkable
+  only because the nav pass **relocates** any objective it cannot reach — Saltbush's were moved up to
+  22.5 m, so "Stock Yards" may no longer sit on the stock yards. The objective positions on both maps are
+  an artefact of navigation, not a design decision.
+- **Selat Canal deploys teams 70 m apart**, less than half Saltbush's 162 m and a quarter of Red Gum's
+  560 m, and unlike Dry River's deliberately equal 86 m opening this is documented nowhere.
+- **The `-game` harness had two silent-failure modes, both now fixed in `Tools/run_map_capture.sh`.**
+  `-unattended` is a commandlet flag: a `-game` instance given it initialises the engine and then exits,
+  which reads as a stall in the log. And Git Bash rewrites `/Game/Maps/...` into
+  `C:/Program Files/Git/Game/Maps/...`, so the game loads nothing **while still writing a 2.87 MB
+  screenshot of an empty frame** — a capture that looks like success and is not. The script now requires
+  both a map-load line and an image before reporting PASS.
+- **Pre-existing:** `Docs/CHANGELOG.md` contains **two different entries both numbered Session 028** in
+  committed history (line 1798 "Written ADFRC Authorisation Recorded", line 2137 "Website Typography and
+  Front End"). Not introduced here and not renumbered, because renumbering committed history is riskier
+  than the collision.
+- **A false alarm worth recording.** Midway through this session `Docs/CHANGELOG.md` was seen with 65
+  deletions and 0 additions against HEAD, which matched the R-26 silent-truncation signature, and it was
+  restored from HEAD. On inspection this was a **transient mid-write state from the concurrent session**
+  that committed the full entry moments later (`44e073d1`); nothing was lost. Recorded because the
+  temptation in a shared checkout is to "fix" a sibling's in-progress edit, and here the right move was to
+  check the log before acting.
+
+### NEXT ACTION
+
+**Run `Tools/run_map_capture.sh` to completion on a gameplay map** — it has never produced a passing
+result, and until it does, every claim in this log about how the game looks remains an inference.
+
+---
+
+## Session 033 — Map playability measured for the first time; the reference map fails its own rules
+
+Run in parallel with the other session's soldier and locomotion work. Nothing outside `Tools/Unreal/`,
+`Docs/MAPS_PLAYABILITY_AUDIT.md` and this entry was touched, and no map asset was written.
+
+### COMPLETED
+
+- **Wrote `Tools/Unreal/audit_map_playability.py`**, a read-only audit that measures the Dry River design
+  rules against every map. It loads a map, builds nothing, places nothing and saves nothing, so it is safe
+  to run while another tool is dressing the same level. It reports walkable ground, open-crossing distance,
+  hard:soft cover ratio, cover density, close-quarters and long-range sightlines, per-objective cover and
+  overwatch, walk parity between the two teams, and spawn exposure.
+- **Ran it on all four maps**: `ok: true`, 0 errors, report at `Build/map_playability.json`.
+- **Wrote `Docs/MAPS_PLAYABILITY_AUDIT.md`** with the scoreboard, the per-map findings and the method.
+
+Headline results, all measured:
+
+- **Dry River fails its own design rules.** 13% of the ground has no cover within 30 m (the document
+  promises under 20 m), 44 blocking cover props on the whole map against a documented ~120, 0.09 props per
+  walkable cell, a 291.5 m maximum sightline against a 220 m limit, the Farmstead 58% walk-imbalanced
+  between teams, and **35 of 64 spawn pairs can see each other**.
+- **Red Gum is not playable as it stands.** 1020 x 1020 m of paddock whose navigation volume covers
+  **17%** of it, **12 hard and 0 soft cover objects in the entire map**, 50% of ground with no cover within
+  30 m, 310 m median sightline, and 0-1 cover positions within 20 m of any objective.
+- **Saltbush is the best map in the project** (7 rules pass): p90 open crossing 16.0 m, 0 of 64 spawn
+  pairs exposed, 95% nav coverage. Its two failures are the 35% and 22% walk imbalance on Stock Yards and
+  Dry Dam, and a 1:9.97 hard:soft cover ratio where the design wants 1:3.
+- **Selat Canal has the best geometry and the worst fairness.** 2.0 m p50 open crossing and 51.7 m
+  median sightline make it the tightest map in the project, but all three objectives fail walk parity at
+  **63%, 42% and 75%**, on the project's only Special Forces map.
+
+### FILES CHANGED
+
+Created: `Tools/Unreal/audit_map_playability.py`, `Docs/MAPS_PLAYABILITY_AUDIT.md`.
+
+Modified: `Docs/CHANGELOG.md` (this entry). **Left uncommitted on purpose** — this file also carries
+another session's uncommitted edits, and staging it would stage theirs with it.
+
+### TESTING
+
+- `UnrealEditor-Cmd.exe SouthernSpear.uproject -nullrhi -unattended -ExecutePythonScript=Tools/Unreal/audit_map_playability.py`
+  — **PASS**, `ok: true`, 0 errors, all four maps, `Build/map_playability.json`. Three maps in one run
+  (~9 min); Selat Canal separately with `SS_MAPS=L_SelatCanal_01 SS_OUT=mp_canal.json` after a loop bug
+  was fixed, then merged.
+- The script is **not** a game run. No map was played, no screenshot captured, and `run_map_capture.sh`
+  is still unproven.
+
+### ASSETS
+
+None. No asset was created, imported, modified or licensed. The audit is measurement only.
+
+### RISKS
+
+- **R-34 — the map set is documented as finished and is not.** `MAPS_DRYRIVER.md`, `MAPS_SALTBUSH.md`
+  and `MAPS_SELATCANAL.md` read as design intent. Measured, Dry River misses its own cover and sightline
+  rules, Red Gum has no cover and a navmesh on a sixth of the map, and Selat Canal's objectives are
+  badly lopsided. The three "documented, not signed off" notes are correct and must not be relaxed until
+  the maps measure clean.
+- **R-35 — `Tools/Unreal/layout_spawns.py` under-reports spawn exposure.** It traces each candidate
+  start to the enemy **centroid**, one point, rather than to the enemy starts. It reported 3/64 for Dry
+  River; tracing all 64 pairs gives 35/64. Every `exposed_pairs` figure in `Build/spawn_layout.json` is
+  optimistic. Not fixed here because the file belongs to the concurrent session's work.
+
+### DEFECTS FOUND
+
+Four defects in the audit tool itself, all found by running it, and all the kind that would have
+produced confident nonsense:
+
+1. **`get_actor_bounds` returns (origin, extent), not (min, max).** Treating the origin as a corner
+   classified every prop as a kerb and reported **0 cover objects on a map with 290 dressing props**.
+2. **Projecting to navigation from the middle of the map's bounding box** silently misses on any map
+   with a tall z range. It reported Dry River at 31% nav coverage; measured from the traced ground height
+   the figure is 100%. The first version of this audit published that 31%.
+3. **`find_path_to_location_synchronously` floods the navmesh** when the goal is on an island the start
+   cannot reach. On one Dry River objective that took **nine minutes** and nothing can interrupt it.
+   Replaced with a projected polyline, which reports unreachable by failing rather than by stalling.
+4. **A `while len(pairs) < 3000` loop cannot terminate on a small map.** Selat Canal has 31 walkable
+   points, so 465 distinct pairs exist and the loop spun forever. Now bounded by the pair count.
+
+Also corrected in the tool's own method: the "close quarters" rule was unmeasurable as written, because
+a 10 m sample grid means two sampled points are never within 5 m of each other. It now probes 3, 5, 8 and
+15 m in eight directions from every sample point.
+
+### NEXT ACTION
+
+**Fix the Selat Canal objective placement** — three objectives, all three between 42% and 75% walk
+imbalanced, on the only Special Forces map — and make the placement refuse to save a lopsided result
+rather than silently relocating it.
+
+---
+
+## Session 034 — 2026-09-28 — Damage Model, Blood, Bullet Penetration (ADR-026)
+
+### COMPLETED
+
+- **Damage model** (`Tools/Unreal/setup_damage_model.py`): hit zones PM_SS_Head/Torso/Limb (tags SS.Zone.*),
+  set per physics body by bone name in `ASSCharacter::BeginPlay` (head 3, torso 7, limb 12 bodies);
+  per-weapon `B_SS_WeaponInstance_<W>` with zone multipliers and damage flat to 300 m. Rifles: head one hit,
+  torso 3, limbs 5; A25 torso 2. Crash on first death (GC freed the zone materials) fixed: `ZoneMaterials` UPROPERTY.
+- **Blood**: `ASSCharacter::HandleGameplayCue` on `GameplayCue.Character.DamageTaken` spawns the VFX-pack blood
+  burst at the hit point along the shot (clients only).
+- **Hero class (ADR-026, D-08)**: Lyra's `B_Hero_Default` reparented to `ASSCharacter`; `B_SS_Hero*` and
+  `HeroData_SS` deleted (copies broke Lyra's class-identity casts: bots never fired).
+- **Bullet penetration (ADR-026, D-09)**: a marked hook in `ULyraGameplayAbility_RangedWeapon::TraceBulletsInCartridge`
+  (one penetration; hits beyond carry the damage lost in `PenetrationDepth`, which replicates with target data) and
+  in `LyraDamageExecution` (applies it). `USSBallisticsSubsystem` (bridge) measures thickness with a reverse trace
+  on the blocking component; `FSSPenetrationRules` (Core): up to 20 cm, 25-75% damage lost; never terrain or pawns.
+- `Docs/LYRA_ADOPTION.md` D-08, D-09; `Docs/DECISION_LOG.md` ADR-026.
+- Numbered 034: the parallel session's uncommitted changelog already uses 032, 032b, 032c and 033.
+
+### FILES CHANGED
+
+Core `SSBallistics.*`, `Tests/SSBallisticsTests.cpp`, `SSNativeGameplayTags.*`; bridge `SSCharacter.*`,
+`SSCharacterMovementComponent.*`, `SSBallisticsSubsystem.*`, `Build.cs`; Lyra `LyraGameplayAbility_RangedWeapon.*`,
+`LyraDamageExecution.cpp`; `Tools/Unreal/setup_damage_model.py`, `setup_tactical_movement.py`; content listed in ASSETS.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Guard | `python Tools/validate_architecture.py` | 0 | PASS | console |
+| Build | `Build.bat SouthernSpearEditor Win64 Development` | 0 | Succeeded | console |
+| Automation | `Automation RunTests SouthernSpear` | 255 | 33 Success, 1 Fail (`TwoPlayerAuthoritySmoke`, the parallel session's test, failing before this session) | `Docs/evidence/S034_tests.txt` |
+| Live | Dry River, 8 bots, 150 s round, `LogTemp=Verbose` (timeout kill) | 124 | 3 penetrations (1.0 and 9.3 cm surfaces), 175 blood spawns, no crash | `Docs/evidence/S034_penetration_live.txt` |
+| Earlier live | Dry River, 8 bots | 124 | 16 kills in about 2 min after the GC fix; 42 blood spawns in 90 s | session log |
+
+NOT RUN: direct measurement of reduced damage through a wall (Lyra's execution has no per-hit damage log);
+visual confirmation of blood (two rendered captures did not show a splat clearly); multiplayer client-to-server penetration check.
+
+### ASSETS
+
+PM_SS_Head/Torso/Limb, B_SS_WeaponInstance_* (copies of Lyra's weapon instances), WID_SS_* InstanceType,
+Lyra `B_Hero_Default` (reparented), experience and IMC updates; blood uses the already-registered VFX pack.
+
+### RISKS
+
+- **R-28 (new):** two Lyra departures (D-08, D-09) must be re-applied on any Lyra update.
+- Penetration thickness is geometric only (no per-material table); thin rock edges can be shot through.
+
+### DEFECTS FOUND
+
+- Ragdoll crash at first death: zone physical materials garbage-collected (live bot run, fatal assert).
+- Bots never fired with a copied hero class (live bot run: zero kills).
+
+### NEXT ACTION
+
+**Measure through-cover damage**: a scripted test that fires through a 5 cm board at a target and checks the health lost.
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

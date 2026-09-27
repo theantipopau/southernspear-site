@@ -338,7 +338,7 @@
     });
 
     // Reset the panel if the viewport grows past the mobile breakpoint.
-    var wide = window.matchMedia("(min-width: 1001px)");
+    var wide = window.matchMedia("(min-width: 1101px)");
     var onWide = function (e) { if (e.matches && isOpen) setOpen(false); };
     if (wide.addEventListener) wide.addEventListener("change", onWide);
     else if (wide.addListener) wide.addListener(onWide);
@@ -375,10 +375,20 @@
       if (index < 0 || index >= triggers.length) return;
       current = index;
       var trigger = triggers[index];
-      // Prefer the source the browser already picked for the thumbnail, so the
-      // full-size view is the same modern format and never a stale path.
       var thumb = trigger.querySelector("img");
-      var src = (thumb && thumb.currentSrc) || trigger.getAttribute("data-lightbox-src");
+      /* The trigger's declared full-size source is preferred, so "view
+         larger" really is larger than the thumbnail the browser picked. If
+         that path is ever stale, fall back to the resolved thumbnail source,
+         which is the defect that was fixed when the lightbox first shipped. */
+      var fallback = thumb ? thumb.currentSrc : null;
+      image.onerror = function () {
+        if (fallback && image.getAttribute("src") !== fallback) {
+          delete image.dataset.failed;
+          image.style.opacity = "";
+          image.src = fallback;
+        }
+      };
+      var src = trigger.getAttribute("data-lightbox-src") || fallback;
       if (!src) return;
       image.src = src;
       image.alt = trigger.getAttribute("data-lightbox-alt") || "";

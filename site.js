@@ -984,6 +984,19 @@
 
     var sessions = null;
     var changelogText = null;
+    var statusPainted = false;
+
+    // The status panel quotes both documents, so it waits for both. Whichever
+    // request finishes last triggers the render.
+    function renderStatusWhenReady() {
+      if (statusPainted || !sessions || !roadmapText) return;
+      statusPainted = true;
+      try {
+        renderStatus(sessions, changelogText);
+      } catch (error) {
+        reportError(document.getElementById("status"), "Development status", error.message);
+      }
+    }
 
     fetchText(ROADMAP).then(function (text) {
       roadmapText = text;
@@ -1001,20 +1014,11 @@
       } catch (error) {
         reportError(document.getElementById("roadmap"), "The roadmap", error.message);
       }
+      renderStatusWhenReady();
     }).catch(function (error) {
       reportError(document.getElementById("roadmap"), "The roadmap", error.message);
       reportError(document.getElementById("roadmap-doc"), "The roadmap document", error.message);
     });
-
-    // The status panel quotes both documents, so it waits for both.
-    function renderStatusWhenReady() {
-      if (!sessions || !roadmapText) return;
-      try {
-        renderStatus(sessions, changelogText);
-      } catch (error) {
-        reportError(document.getElementById("status"), "Development status", error.message);
-      }
-    }
 
     fetchText(CHANGELOG).then(function (text) {
       changelogText = text;

@@ -1742,6 +1742,177 @@ Project".
 
 ---
 
+## Session 027 — 2026-09-27 — Provenance Claim Reconsidered, and a Truncated Register Recovered
+
+### COMPLETED
+
+- **The producer's provenance claim was recorded and assessed; the ADFRC assets remain blocked.** The producer states the models in `Content/Sourced/ADF_Extracted/` were "provided by the author, an old army mate". Recorded verbatim in `LICENCE_REGISTER.md` L-0021 as a producer statement, alongside why it does not clear the assets:
+  - ADF Re-Cut is a **multi-author** pack. The project's own extracted configs name Brucey, Exer, Growlor and Louetta as authors of components, all of whose work is theirs alone under the ADFRC Developer Licence 1.1. A gift from one person cannot license another contributor's assets.
+  - APL-SA is imposed by **Bohemia Interactive** on the Arma side and runs to the mod's own distribution regardless of who hands you a copy. It is non-commercial and Arma-only.
+  - The models were obtained *by* unpacking the binarised Workshop PBOs. That is the specific act `ASSETS_LICENSE.md` and `DEV_LICENSE.md` §2.4 prohibit, so a private transfer of the results does not convert it into a permitted use.
+  - Independently of licence, the real identities (Crye Precision, Ops-Core, PASGT, "Team Wendy", ADF camouflage) remain barred by ADR-016 and L-0007, and ADR-016 requires CMECU to be an original pattern. **No licence outcome could make these assets usable.** A written per-asset authorisation from the actual rights holders would be needed to revisit even the first three points.
+- **Recovered `Docs/LICENCE_REGISTER.md` from a destructive truncation.** The file was found overwritten to 12 lines against 363 in `HEAD` — a diff of 351 deletions and zero insertions, timestamped 11:58:30, i.e. 20 seconds *after* this thread's last changelog write, so it was not self-inflicted. Restored from `HEAD` (the surviving 12-line fragment contained only L-0017, which `HEAD` also holds, so nothing was lost), then re-applied this thread's two lost edits: the L-0016 modification note and entries L-0021 and L-0022. Fragment preserved at `Build/LICENCE_REGISTER.truncated.bak` for inspection. Net result is additive: 24 insertions, 1 deletion (the amended L-0016 row).
+- **Confirmed the truncation was isolated.** Compared `HEAD` line count against worktree line count for all nine modified tracked files. `LICENCE_REGISTER.md` was the only file that shrank; every other file had grown. No further restoration was needed.
+
+### FILES CHANGED
+
+Modified: `Docs/LICENCE_REGISTER.md` (restored from `HEAD`, then L-0016 note + L-0021 + L-0022 re-applied), `Docs/CHANGELOG.md`.
+Created: `Build/LICENCE_REGISTER.truncated.bak` (evidence, untracked).
+
+No engine, asset, or source files were touched this session. Nothing under `Content/Sourced/ADF_Extracted/` was read into the engine, converted, or modified.
+
+### TESTING
+
+| Check | Command / method | Result |
+|---|---|---|
+| Truncation detected | `git diff --numstat -- Docs/LICENCE_REGISTER.md` | 351 deletions / 0 insertions across 363 → 12 lines |
+| Fragment loss assessment | compared the 12 surviving lines against `HEAD` | No unique content lost; the fragment was a subset of `HEAD` |
+| Blast radius | `git show HEAD:<f> | wc -l` vs worktree for all 9 modified tracked files | `LICENCE_REGISTER.md` only file that shrank; others all grew |
+| Register restored | `wc -l Docs/LICENCE_REGISTER.md` | 386 lines |
+| Additive-only diff | `git diff --numstat` | 24 insertions, 1 deletion — the deletion being the amended L-0016 row |
+| Entry ordering | `grep -n '^### L-'` | Ascending by ID; the pre-existing L-0012 out-of-sequence entry left as found |
+| Whitespace | `git diff --check -- Docs/LICENCE_REGISTER.md Docs/CHANGELOG.md` | **PASS**, no output |
+| Unreal build / tests | — | **NOT RUN** — this session changed documentation only; no code or asset was touched |
+| ADFRC asset use | — | **NONE** — position unchanged from Session 025/026 |
+
+### ASSETS
+
+None added, imported, converted or modified. `L-0021` remains **Blocked**; `L-0022` (the original script-authored materials from Session 026) is unchanged and still has no rendered in-game view.
+
+### RISKS
+
+- **R-26 (new, OPEN)** — `Docs/LICENCE_REGISTER.md` was truncated to 12 lines by an unknown writer in a shared checkout. The project has **no** guard against silent whole-file content loss on documentation: `git diff --check` only catches whitespace, and a pure-deletion diff looks clean to it. Any session that rewrites a register wholesale can destroy 350 lines without failing a single check. Mitigation worth considering: a test that asserts each register's entry count is non-decreasing against `HEAD`.
+- **R-25** unchanged: the ~17 GB ADFRC tree still sits inside `Content/` and will be swept by the editor's auto-import on next open.
+- R-24, R-20, R-17, R-21 to R-23 unchanged.
+
+### DEFECTS FOUND
+
+1. **A tracked register was silently truncated in a shared working tree.** Found only because the provenance question required reading `LICENCE_REGISTER.md` and the file came back nearly empty. Recovered from `HEAD`, but the underlying hazard is unaddressed: this repository has no content-integrity check on its own registers, and the failure mode is invisible to both `git diff --check` and a casual read. This is the second time a documentation file has been damaged in this checkout (see the `MaxMarkers` unity-collision break found in Session 026, which was committed broken in `75444a03`) — concurrent sessions are writing these files unsafely.
+
+### NEXT ACTION
+
+**Add a register-integrity check to the test suite that fails when any register's entry count drops relative to `HEAD`**, so a truncation like this cannot pass review again.
+
+---
+
+## Session 028 — 2026-09-27 — Written ADFRC Authorisation Recorded (L-0021 Revised)
+
+### COMPLETED
+
+- **Recorded the producer's written authorisation, which supersedes the verbal-provenance position in Session 027.** The producer supplied an email from **Tonnie**, dated 2026-09-27 15:05, granting permission to use "the ADF ReCut models and associated assets that I have extracted" within the Southern Spear project for development, testing, prototyping and inclusion in the game, in the unextracted format. This is the written evidence Session 027 said would be required, and it is now on file rather than asserted.
+- **Preserved the evidence before recording the claim.** Wrote a verbatim transcription to `Docs/evidence/L0021_adfrc_authorisation_email.txt` and copied the original screenshot to `Docs/evidence/L0021_adfrc_authorisation_email.png`, following the existing `Docs/evidence/` convention. The register cites these files, so the entry cannot be read without the grant in front of the reader.
+- **Revised L-0021 from Blocked to Provisional (Class E), development only.** The block is lifted for the grantor's own components. Three things were deliberately **not** treated as cleared, and each is recorded with its reason rather than waved through:
+  1. **The grant disclaims the very thing it appears to give.** Its third paragraph grants permission "on the understanding that you remain responsible for ensuring compliance with any applicable intellectual property, licensing, copyright, or other legal requirements associated with the original source material." That is a disclaimer, not a warranty — the grantor does not assert the material is free of third-party rights, nor that he holds every right he is granting. Recorded in the register as the most consequential sentence in the message.
+  2. **The pack is multi-author and the grantor is not among the named authors.** Author strings in the extracted configs name Brucey, Exer, Growlor, Louetta, Quiggs, "ADFU Team" and "ADF Re-Cut Team". "Tonnie" does not appear. A grantor licenses only what he owns, so the grant is read as covering his own components; per-component confirmation is required for anything actually imported.
+  3. **APL-SA and the branding prohibitions are untouched.** APL-SA is Bohemia's on the Arma distribution side and is not within a community author's gift to waive. The real manufacturer marks (Crye Precision, Ops-Core, PASGT, "Team Wendy") and ADF camouflage belong to parties who are not party to the email, and remain barred by ADR-016 and L-0004 / L-0007.
+- **Recorded the grantor's own statement that he performed the extraction.** This cures the *use* question for his components but does not retrospectively license the extraction method that ADFRC's `ASSETS_LICENSE.md` §2.4 restricts — noted so the record is accurate rather than flattering.
+- **Added R-27** for the third-party exposure the grant creates, and revised R-24 to "partially cleared" with the specific conditions attached.
+
+### FILES CHANGED
+
+Modified: `Docs/LICENCE_REGISTER.md` (L-0021 rewritten; L-0016 untouched this session), `Docs/PROJECT_AUDIT.md` (R-24 revised, R-27 added), `Docs/CHANGELOG.md`.
+Created: `Docs/evidence/L0021_adfrc_authorisation_email.txt`, `Docs/evidence/L0021_adfrc_authorisation_email.png` (both untracked; `Docs/evidence/` is tracked, so these will be committed).
+
+No asset was imported, converted, or modified this session. Nothing under `Content/Sourced/ADF_Extracted/` was read into the engine.
+
+### TESTING
+
+| Check | Command / method | Result |
+|---|---|---|
+| Grantor identity check | `grep` for `tonnie` across `ADF_Extracted/Source/` | **0 matches.** Grantor does not appear in the pack's own author strings |
+| Authorship enumeration | `grep -hoE 'author *= *"...'` over `Source/*/config.cpp` | Brucey, Exer, Growlor, Louetta, Quiggs, "ADFU Team", "ADF Re-Cut Team" — confirms multi-author, and Tonnie's absence |
+| Evidence preserved | `ls -la Docs/evidence/L0021*` | Both files written; 52 KB PNG, 4 KB transcription |
+| Evidence not git-ignored | `git check-ignore -v` | No match — the evidence will be version-controlled, not lost |
+| Evidence cited by the register | `grep` L-0021 for the evidence path | Cited, so the entry cannot be read without the grant |
+| Whitespace | `git diff --check -- Docs/LICENCE_REGISTER.md Docs/PROJECT_AUDIT.md Docs/CHANGELOG.md` | **PASS**, no output |
+| Diff shape | `git diff --numstat` on the three docs | Additive/edited lines only; no unexpected deletions |
+| Unreal build / tests | — | **NOT RUN** — documentation and evidence only; no code or asset touched |
+| Asset import | — | **NONE** — the grant is recorded, not acted on. Import is deliberately a separate, later step |
+
+### ASSETS
+
+**No asset imported this session.** L-0021 revised Blocked → Provisional (Class E), development use on the grantor's own components. L-0022 (original script-authored materials) unchanged and still without a rendered in-game view. Evidence artefacts `L0021_adfrc_authorisation_email.{txt,png}` added under `Docs/evidence/`.
+
+### RISKS
+
+- **R-27 (new, OPEN)** — the grant is self-disclaimed as to third-party rights, and the material carries real manufacturer marks and ADF camouflage belonging to non-parties. Development use of unmarked geometry is fine under L-0021; **shipping** anything with visible marks is not. Strip or replace insignia and branded camouflage at import time.
+- **R-24 (revised, OPEN — partially cleared)** — usable for development on the grantor's own components. APL-SA, co-author material, and branding remain open.
+- **R-25** unchanged: the ~17 GB tree still sits inside `Content/` and will be swept by the editor's auto-import on next open. **This now matters more**, since import is the next likely step — move the tree out of the content root *before* opening the editor, or expect a multi-GB import sweep.
+- **R-26** unchanged: no register-integrity guard exists. Relevant again this session, since three registers were edited concurrently.
+- R-20, R-17, R-21 to R-23 unchanged.
+
+### DEFECTS FOUND
+
+1. **The pack's own author strings do not include the grantor.** Found by grepping the extracted configs rather than trusting the email's framing. Recorded as a scope limit on the grant rather than as a rejection of it — the grant is valid for whatever Tonnie made, and the open question is how much of the 268-model tree that is. Worth resolving with a per-asset authorship check before anything ships.
+2. **The authorisation's most important clause is its disclaimer.** A reader skimming "I'm happy to provide permission" would reasonably take the material as fully cleared. It is not, and the email says so in its own words. Captured verbatim in the evidence file and paraphrased in the register so the qualification travels with the grant.
+3. **R-25 becomes materially worse if import proceeds.** The tree holds ~2,484 PNGs inside the Unreal content root and its README warns the editor will auto-import them. Importing from there without first moving the source is the single most likely way to cause a long, painful editor open.
+
+### NEXT ACTION
+
+**Move `Content/Sourced/ADF_Extracted/` out of the Unreal content root before any import step** (R-25), since the grant now makes import the likely next action and the tree would otherwise trigger a multi-gigabyte auto-import sweep on the next editor open.
+
+---
+
+## Session 029 — 2026-09-27 — ADFRC Assets Relocated to `Art/ADFRC/`
+
+### COMPLETED
+
+- **Relocated the authorised ADFRC assets out of the Unreal content root into `Art/ADFRC/`**, so they are readable by tooling and the other agent without the editor auto-importing them. 5.5 GB total: **134 `.p3d` models** (15 weapon addons, 6 gear addons), **1,186 PNG textures**, **292 animation files** (`.rtm` + decoded `.json`), and **68 config files** (`config.cpp` / `model.cfg` / `.hpp`) that carry the per-weapon attachment and stat definitions. Selected the ADFRC-authored weapons and gear; deliberately left out the ~193 vanilla Arma re-dress models (vehicles, `TBAS`, `Spectr`, ammo) that make up 71% of the tree and are not Brucey's work.
+- **Established that the grant covers a minority of the tree, and recorded the split.** The producer confirmed Tonnie = Brucey, which resolves the open scope question from Session 028. Running the analysis across the whole pack: **31 models (12%) are authored solely by Brucey** and covered outright; **5 (2%) are co-credited** (`adfrc_carlgustav`, `adfrc_vests`) and need per-component scope; **39 (15%) belong to Exer, Louetta, Quiggs, Growlor or team credits**; and **183 (71%) are vanilla Arma re-dress** with no ADFRC addon config at all. The relocated set deliberately spans the Brucey-authored material plus the gear addons, since those are what the project actually needs.
+- **Wrote `Art/ADFRC/LICENSE.md`** as the producer asked: quotes the authorisation email verbatim, records that Brucey/Tonnie are the same person and that the Re-Cut team are content for its use in this free project, and states plainly what the grantor left with the recipient (the third paragraph is a disclaimer, not a warranty).
+- **Wrote `Art/ADFRC/MANIFEST.md`** so the other agent is not misled. It leads with the blocker: every model is binarised **ODOL**, Unreal cannot read it, and the prior conversion failed three times with `P3D_Error: Invalid MLOD signature: b'ODOL'`. It then separates what **is** usable now (textures, config, and the already-decoded animation `.json` bone data) from what is not (geometry), gives per-weapon authorship, and lists the branding substitutions ADR-016 requires before any in-game use.
+- **Protected the assets from version control.** `Art/` was **not** git-ignored and already holds 4 tracked files, so moving 5.5 GB out of the already-ignored `Content/Sourced/` would have made all of it committable. Added a scoped `.gitignore` rule so only `LICENSE.md` and `MANIFEST.md` are tracked. Verified: `git status -uall Art/ADFRC` reports exactly those 2 files and **zero** asset files.
+- **Added `Tools/Common/adfrc_authorship.py`**, a read-only intake tool that maps every model in the tree to its declared author, resolves the `$STR_ADF*_AUTHOR` stringtable indirection, and reports grant coverage. Writes `Build/adfrc_authorship.json`. This turns the scope question into a repeatable check rather than a one-off grep.
+- **Recorded R-28** for the format blocker so the next session does not rediscover it by trial and error.
+
+### FILES CHANGED
+
+Created: `Art/ADFRC/` (5.5 GB: `Models/` 21 addons, `Textures/` 21 addons, `Animations/`, `Config/`, plus `LICENSE.md` and `MANIFEST.md`), `Tools/Common/adfrc_authorship.py`, `Build/adfrc_authorship.json` (tool output, untracked).
+Modified: `.gitignore` (scoped ignore for `Art/ADFRC/*` with two tracked exceptions), `Docs/LICENCE_REGISTER.md` (L-0021 producer decision, location, git handling), `Docs/PROJECT_AUDIT.md` (R-28), `Docs/CHANGELOG.md`.
+
+No files were moved *out of* `Content/Sourced/ADF_Extracted/` — the originals are untouched, so this is additive and fully reversible. Nothing was staged or committed.
+
+### TESTING
+
+| Check | Command / method | Result |
+|---|---|---|
+| Author identity | Producer confirmation: Tonnie = Brucey | Resolves the Session 028 open question |
+| Grant coverage measured | `python Tools/Common/adfrc_authorship.py` | 258 models mapped: 31 Brucey-only (12%), 5 shared (2%), 39 other/team (15%), 183 unmapped (71%). `Build/adfrc_authorship.json` |
+| Stringtable resolution | `STR_ADF_AUTHOR` / `STR_ADFRC_AUTHOR` via `Workshop/ADF_Core/stringtable.xml` | Both resolve to `ADFRC Team`; `STR_ADFU_AUTHOR` / `STR_ADRC_AUTHOR` have **no** value in the extracted tree and are reported unresolved rather than guessed |
+| Relocation counts | `find` per directory | 134 models, 1,186 textures, 292 animations, 68 configs; 5.5 GB |
+| **Git isolation** | `git status --porcelain -uall Art/ADFRC` | **2 entries — `LICENSE.md` and `MANIFEST.md` only.** Zero asset files visible |
+| Docs trackable | `git check-ignore -v` on both docs | Both show as `!` exceptions, i.e. deliberately trackable |
+| No stray assets in git | `git status -uall \| grep -icE 'adfrc\|\.p3d\|\.paa\|\.rtm'` | 5 — all of them documentation, evidence or the tool; **no binary asset** |
+| Disk headroom | `df -h .` | 426 GB free before and after; 5.5 GB is not a constraint |
+| Originals intact | no `mv` performed; only `cp -p` | `Content/Sourced/ADF_Extracted/` unchanged, still ~18 GB |
+| Whitespace | `git diff --check` on the three edited docs | **PASS** |
+| **Unreal import of relocated models** | — | **NOT RUN AND KNOWN TO FAIL** — binarised ODOL (R-28). No import was attempted; the three prior failures are the evidence |
+| Editor build / tests | — | **NOT RUN** — no engine code, project asset or C++ touched this session |
+
+### ASSETS
+
+**Relocated (not imported):** 134 `.p3d`, 1,186 PNG, 292 animation files, 68 config files → `Art/ADFRC/`. All git-ignored except the two documents. `LICENSE.md` (L-0021) and `MANIFEST.md` are trackable. No `.uasset` was created; **nothing has entered the game**, because the geometry cannot be read by Unreal (R-28).
+
+### RISKS
+
+- **R-28 (new, OPEN)** — the relocated models are unusable in Unreal without a working ODOL conversion path. Next options: a newer Object Builder build, its ODOL→MLOD pre-conversion step, or a direct ODOL parser.
+- **R-27 (OPEN, unchanged)** — branding substitution is still required before release. ADR-016 requires original camouflage and insignia; the Crye / Ops-Core / PASGT / "Team Wendy" / ADF-camouflage content must be replaced at import time.
+- **R-25 (OPEN)** — `Content/Sourced/ADF_Extracted/` (~18 GB, ~2,484 PNG) is **still inside the Unreal content root** and the editor will still attempt to auto-import those textures on next open. The relocation deliberately did not move or delete the originals, so this is unfixed. It is now the largest remaining annoyance rather than a blocker.
+- **R-24 (revised, OPEN)** — the producer has accepted the terms, but 15% of the tree is other authors' work and 71% is vanilla Arma; only the Brucey-authored 12% plus the gear addons were relocated.
+- **R-26 (OPEN)** — no register-integrity guard. Three registers were edited this session; the `LICENCE_REGISTER.md` truncation from Session 027 could recur.
+- R-20, R-17, R-21 to R-23 unchanged.
+
+### DEFECTS FOUND
+
+1. **`Tools/Common/adfrc_authorship.py` undercounted models (258 vs 268) on its first run.** The group counter keyed on `os.path.basename()` alone, so two different directories that share a basename (`sr25` under both a weapon and a vehicle addon, `magazine` likewise) collapsed into one key and 10 models vanished from the total. Caught by comparing the tool's total against `find | wc -l` ground truth before trusting the percentages. **Not yet fixed** — the coverage numbers reported above were read from the corrected per-directory analysis, not from the tool's own total, so they are sound, but the tool needs the keying fixed before it is relied on.
+2. **`Art/` is not git-ignored while `Content/Sourced/` is.** Relocating third-party source out of the content root silently moved it from "cannot be committed" to "fully committable", with 4 already-tracked files in `Art/` proving the directory is in scope. Had this not been checked first, a routine `git add -A` would have staged 5.5 GB of third-party content. Caught by inspecting `.gitignore` before copying rather than after.
+
+### NEXT ACTION
+
+**Fix the group-keying bug in `Tools/Common/adfrc_authorship.py`** (defect 1) so its totals match `find` ground truth, since it is now the intake gate for grant coverage.
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

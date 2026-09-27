@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://theantipopau.github.io/southernspear-site/sitemap.xml

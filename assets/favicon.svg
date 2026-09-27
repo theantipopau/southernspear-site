@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" role="img" aria-label="Southern Spear">
+  <title>Southern Spear</title>
+  <!-- The approved emblem, raster-embedded. Nothing here redraws the mark. -->
+  <rect width="64" height="64" rx="6" fill="#0B1310"/>
+  <image x="4" y="4" width="56" height="56" preserveAspectRatio="xMidYMid slice"
+         xlink:href="brand/southern-spear-emblem.png" href="brand/southern-spear-emblem.png"/>
+  <rect x="0.5" y="0.5" width="63" height="63" rx="5.5" fill="none" stroke="#C8AB72" stroke-opacity="0.55"/>
+</svg>

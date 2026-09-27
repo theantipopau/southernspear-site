@@ -3,105 +3,446 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Southern Spear</title>
-<meta name="description" content="Southern Spear is a free, community-developed, Australian-inspired tactical multiplayer FPS in active development. Fictional; not endorsed by any government or defence organisation.">
-<meta property="og:title" content="Southern Spear">
-<meta property="og:description" content="A free, team-based tactical FPS in a fictional Australian-inspired world. Both teams play as 3 ACR; each sees the other as the MAF. In active development.">
-<meta property="og:image" content="assets/keyart.jpg">
-<link rel="icon" type="image/png" href="assets/logo.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
-</head>
-<body>
-<a class="skip" href="#main">Skip to content</a>
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#07100B">
 
-<header class="site-header">
-  <nav class="nav wrap" aria-label="Primary">
-    <a class="brand" href="#top" aria-label="Southern Spear home">
-      <img src="assets/logo.png" alt="" width="44" height="44">
-      <span>Southern<br>Spear</span>
+<title>Southern Spear — Australian-inspired tactical multiplayer FPS (pre-alpha)</title>
+<meta name="description" content="Southern Spear is a free, original, Australian-inspired tactical multiplayer FPS in active pre-alpha development, built on Unreal Engine 5.8 and the Lyra Starter Game. Read the public roadmap and changelog.">
+<link rel="canonical" href="https://theantipopau.github.io/southernspear-site/">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Southern Spear">
+<meta property="og:locale" content="en_AU">
+<meta property="og:title" content="Southern Spear — Australian-inspired tactical multiplayer FPS">
+<meta property="og:description" content="Original, free, community-developed tactical multiplayer FPS set in a fictional Australian-inspired world. Pre-alpha and in active development.">
+<meta property="og:url" content="https://theantipopau.github.io/southernspear-site/">
+<meta property="og:image" content="https://theantipopau.github.io/southernspear-site/assets/social/social-preview-1200x630.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Southern Spear key art: a soldier overlooking a red-earth valley at sunset beneath a brass-framed emblem of Australia, the Southern Cross and a spear.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Southern Spear — Australian-inspired tactical multiplayer FPS">
+<meta name="twitter:description" content="Original, free, community-developed tactical multiplayer FPS. Pre-alpha, in active development.">
+<meta name="twitter:image" content="https://theantipopau.github.io/southernspear-site/assets/social/social-preview-1200x630.jpg">
+
+<link rel="icon" href="assets/favicon.ico" sizes="32x32">
+<link rel="icon" href="assets/favicon-192.png" type="image/png" sizes="192x192">
+<link rel="icon" href="assets/favicon-512.png" type="image/png" sizes="512x512">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+
+<link rel="preload" href="fonts/fonts.css" as="style">
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="styles.css">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "VideoGame",
+      "name": "Southern Spear",
+      "alternateName": "Southern Spear",
+      "url": "https://theantipopau.github.io/southernspear-site/",
+      "image": "https://theantipopau.github.io/southernspear-site/assets/social/social-preview-1200x630.jpg",
+      "description": "An original, free, Australian-inspired tactical multiplayer first-person shooter in active pre-alpha development. Fictional project, not endorsed by any government or defence organisation.",
+      "inLanguage": "en-AU",
+      "genre": ["Tactical shooter", "First-person shooter", "Multiplayer"],
+      "gamePlatform": "Unreal Engine 5.8 development build",
+      "playMode": "Multiplayer",
+      "applicationCategory": "Game",
+      "operatingSystem": "Windows (development target)",
+      "author": { "@type": "Organization", "name": "Southern Spear Project" },
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "AUD",
+        "availability": "https://schema.org/PreOrder"
+      }
+    },
+    {
+      "@type": "WebSite",
+      "name": "Southern Spear",
+      "url": "https://theantipopau.github.io/southernspear-site/",
+      "inLanguage": "en-AU",
+      "publisher": { "@id": "https://theantipopau.github.io/southernspear-site/#project" }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://theantipopau.github.io/southernspear-site/#project",
+      "name": "Southern Spear Project",
+      "url": "https://theantipopau.github.io/southernspear-site/",
+      "description": "Independent, community-developed original game project. Fictional; not endorsed, sponsored, developed or approved by the Australian Government, the Department of Defence, the Australian Defence Force or the Australian Army."
+    }
+  ]
+}
+</script>
+</head>
+
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header" id="site-header" data-nav-state="top">
+  <div class="site-header__inner">
+    <a class="brand" href="#top" aria-label="Southern Spear — back to top">
+      <img class="brand__mark" src="assets/brand/southern-spear-emblem.png" alt="" width="256" height="188" decoding="async">
+      <span class="brand__text">
+        <span class="brand__name">Southern Spear</span>
+        <span class="brand__meta">Pre&#8209;alpha</span>
+      </span>
     </a>
-    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
-    <ul id="nav-links" class="nav-links">
-      <li><a href="#about">About</a></li>
-      <li><a href="#mirror">Factions</a></li>
-      <li><a href="#build">The build</a></li>
-      <li><a href="#how-to-play">How to play</a></li>
-      <li><a href="#download">Download</a></li>
-      <li><a href="#roadmap">Roadmap</a></li>
-      <li><a href="#changelog">Changelog</a></li>
-      <li><a href="#community">Community</a></li>
-      <li><a class="nav-cta" href="https://discord.gg/GHNCFQrDND" rel="noopener">Discord</a></li>
-    </ul>
-  </nav>
+
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">
+      <span class="nav-toggle__bars" aria-hidden="true"><span></span><span></span><span></span></span>
+      <span class="nav-toggle__label">Menu</span>
+    </button>
+
+    <nav class="primary-nav" id="primary-nav" aria-label="Primary">
+      <ul class="primary-nav__list">
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#training">Training</a></li>
+        <li><a href="#operations">Operations</a></li>
+        <li><a href="#development">Development</a></li>
+        <li><a href="#roadmap">Roadmap</a></li>
+        <li><a href="#changelog">Changelog</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+      <div class="primary-nav__aside">
+        <a class="btn btn--brass btn--sm" href="https://discord.gg/GHNCFQrDND" rel="noopener">Discord</a>
+      </div>
+    </nav>
+  </div>
 </header>
 
 <main id="main">
-  <section id="top" class="hero" aria-labelledby="hero-title">
-    <div class="hero-bg" aria-hidden="true"><img src="assets/keyart.jpg" alt="" width="1536" height="1024"></div>
-    <div class="wrap hero-copy">
-      <p class="eyebrow reveal">Free &middot; Community developed &middot; Tactical FPS</p>
-      <h1 id="hero-title" class="reveal">Team. Train.<br>Operate. Overcome.</h1>
-      <p class="lede reveal">A free, team-based tactical shooter set in a fictional Australian-inspired world. Slow down, move as a section, and take the objective together.</p>
-      <div class="actions reveal">
-        <a class="btn btn-primary" href="#about">What is Southern Spear?</a>
-        <a class="btn btn-ghost" href="#build">See the build</a>
-        <a class="btn btn-ghost" href="https://discord.gg/GHNCFQrDND" rel="noopener">Join the Discord</a>
+
+  <!-- ============================ HERO ============================ -->
+  <section class="hero" id="top" aria-labelledby="hero-title">
+    <div class="hero__media">
+      <picture>
+        <source media="(max-width: 767px)" type="image/avif"
+                srcset="assets/hero/hero-outback-mobile-480.avif 480w, assets/hero/hero-outback-mobile-700.avif 700w"
+                sizes="100vw">
+        <source media="(max-width: 767px)" type="image/webp"
+                srcset="assets/hero/hero-outback-mobile-480.webp 480w, assets/hero/hero-outback-mobile-700.webp 700w"
+                sizes="100vw">
+        <source media="(max-width: 767px)" type="image/jpeg"
+                srcset="assets/hero/hero-outback-mobile-480.jpg 480w, assets/hero/hero-outback-mobile-700.jpg 700w"
+                sizes="100vw">
+        <source type="image/avif"
+                srcset="assets/hero/hero-outback-wide-640.avif 640w, assets/hero/hero-outback-wide-960.avif 960w, assets/hero/hero-outback-wide-1280.avif 1280w, assets/hero/hero-outback-wide-1536.avif 1536w"
+                sizes="100vw">
+        <source type="image/webp"
+                srcset="assets/hero/hero-outback-wide-640.webp 640w, assets/hero/hero-outback-wide-960.webp 960w, assets/hero/hero-outback-wide-1280.webp 1280w, assets/hero/hero-outback-wide-1536.webp 1536w"
+                sizes="100vw">
+        <img class="hero__image" src="assets/hero/hero-outback-wide-1280.jpg"
+             srcset="assets/hero/hero-outback-wide-640.jpg 640w, assets/hero/hero-outback-wide-960.jpg 960w, assets/hero/hero-outback-wide-1280.jpg 1280w, assets/hero/hero-outback-wide-1536.jpg 1536w"
+             sizes="100vw" width="1536" height="1024" alt=""
+             fetchpriority="high" decoding="async">
+      </picture>
+    </div>
+    <div class="hero__scrim" aria-hidden="true"></div>
+    <div class="hero__grain" aria-hidden="true"></div>
+
+    <div class="shell hero__inner">
+      <div class="hero__copy">
+        <p class="hero__eyebrow">
+          <span class="status-dot" aria-hidden="true"></span>
+          Pre-alpha <span aria-hidden="true">&middot;</span> In active development
+        </p>
+        <h1 class="hero__title" id="hero-title">
+          <span class="u-visually-hidden">Southern Spear: </span>An Australian&#8209;inspired tactical multiplayer experience.
+        </h1>
+        <p class="hero__lede">
+          Built around teamwork, training, communication and objective&#8209;focused infantry combat.
+        </p>
+        <div class="hero__actions">
+          <a class="btn btn--brass btn--lg" href="#development">Explore Development</a>
+          <a class="btn btn--outline btn--lg" href="#roadmap">View Roadmap</a>
+          <a class="btn btn--quiet btn--lg" href="https://github.com/theantipopau/southernspear-site" rel="noopener">
+            GitHub <span class="u-visually-hidden">repository for this website</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <a class="hero__scroll" href="#overview">
+      <span class="hero__scroll-line" aria-hidden="true"></span>
+      Scroll
+    </a>
+  </section>
+
+  <!-- ========================= OVERVIEW ========================= -->
+  <section class="section" id="overview" aria-labelledby="overview-title">
+    <div class="shell">
+      <header class="section__head">
+        <p class="eyebrow">Overview</p>
+        <h2 id="overview-title" class="section__title">A tactical shooter built in the open</h2>
+        <p class="section__lede">
+          Southern Spear is a first-person tactical shooter in the tradition of classic team&#8209;based
+          military shooters: realistic pacing, small teams, clear roles, and objectives that only fall
+          to coordinated play. It is set in a fictional world inspired by Australia.
+        </p>
+      </header>
+
+      <div class="overview">
+        <div class="overview__text">
+          <p class="lead">
+            You fight across outback stations, dry creek lines and red&#8209;earth country as a soldier of
+            the fictional <strong>3rd Battalion, Australian Commonwealth Regiment (3 ACR)</strong>. Matches
+            are <strong>Objective Assault</strong>: two teams fight over a chain of objectives that fall in
+            order, round after round.
+          </p>
+          <p>
+            There are no loot boxes, no pay&#8209;to&#8209;win and no hero classes. Every weapon and every
+            character is mechanically identical on both sides &mdash; only how they look changes, and only
+            to the viewer.
+          </p>
+
+          <dl class="fact-grid">
+            <div class="fact">
+              <dt>Status</dt>
+              <dd>Pre&#8209;alpha &mdash; in active development</dd>
+            </div>
+            <div class="fact">
+              <dt>Engine</dt>
+              <dd>Unreal Engine 5.8.3</dd>
+            </div>
+            <div class="fact">
+              <dt>Foundation</dt>
+              <dd>Lyra Starter Game 5.8</dd>
+            </div>
+            <div class="fact">
+              <dt>Mode</dt>
+              <dd>Objective Assault</dd>
+            </div>
+            <div class="fact">
+              <dt>Price</dt>
+              <dd>Free</dd>
+            </div>
+            <div class="fact">
+              <dt>Public build</dt>
+              <dd>None yet</dd>
+            </div>
+          </dl>
+
+          <p class="callout callout--fiction">
+            <strong>A fictional entertainment project.</strong> Southern Spear is not endorsed, sponsored,
+            developed or approved by the Australian Government, the Department of Defence, the Australian
+            Defence Force or the Australian Army. All organisations, units, forces and weapons are
+            fictional, and no map reproduces a real base, installation or operationally useful site.
+          </p>
+        </div>
+
+        <figure class="overview__figure">
+          <picture>
+            <source type="image/avif"
+                    srcset="assets/concepts/environment-detail-01.avif, assets/concepts/environment-detail-02.avif">
+            <source type="image/webp"
+                    srcset="assets/concepts/environment-detail-01.webp, assets/concepts/environment-detail-02.webp">
+            <img src="assets/concepts/environment-detail-01.jpg" width="768" height="512" loading="lazy" decoding="async"
+                 alt="Title&#8209;screen artwork detail: a soldier in camouflage overlooking a wide red-earth valley and a dry creek line at sunset.">
+          </picture>
+          <figcaption>
+            <span class="badge badge--concept">Concept art</span>
+            Detail from the main&#8209;menu concept. Not captured gameplay.
+          </figcaption>
+        </figure>
       </div>
     </div>
   </section>
 
-  <section class="wrap facts" aria-label="Project facts">
-    <dl class="reveal">
-      <div><dt>Current status</dt><dd>Active development &mdash; pre-alpha</dd></div>
-      <div><dt>Platform</dt><dd>Windows (planned)</dd></div>
-      <div><dt>Price</dt><dd>Free</dd></div>
-      <div><dt>Gameplay</dt><dd>Tactical team multiplayer</dd></div>
-      <div><dt>Design principle</dt><dd>Fair &middot; cosmetic symmetry</dd></div>
-    </dl>
-  </section>
+  <!-- ========================= FEATURES ========================= -->
+  <section class="section section--band" id="features" aria-labelledby="features-title">
+    <div class="shell">
+      <header class="section__head">
+        <p class="eyebrow">Systems</p>
+        <h2 id="features-title" class="section__title">Four pillars of the design</h2>
+        <p class="section__lede">
+          These are the intended systems from the project's design documents. They are what the roadmap
+          is building towards, not features that exist in a playable build today.
+        </p>
+      </header>
 
-  <section id="about" class="wrap section" aria-labelledby="about-title">
-    <p class="eyebrow reveal">The rundown</p>
-    <h2 id="about-title" class="reveal">What is Southern Spear?</h2>
-    <div class="rundown">
-      <div class="measure reveal">
-        <p class="big">Southern Spear is a first-person tactical shooter in the tradition of the classic team-based military shooters: realistic pacing, small teams, clear roles, and objectives that only fall to coordinated play.</p>
-        <p>It is set in a fictional world inspired by Australia. You fight across outback stations, dry creek lines and red-earth country as a soldier of the fictional <strong>3rd Battalion, Australian Commonwealth Regiment (3 ACR)</strong>. Matches are <strong>Objective Assault</strong>: two teams fight over a chain of objectives that fall in order, round after round.</p>
-        <p>There are no loot boxes, no pay-to-win and no hero classes. Every weapon and every character is mechanically identical on both sides.</p>
+      <div class="pillar-list">
+        <article class="pillar">
+          <div class="pillar__index" aria-hidden="true">01</div>
+          <div class="pillar__body">
+            <h3 class="pillar__title">Train</h3>
+            <p class="pillar__text">
+              Training is a core progression system, not a tutorial. It is replayable, stores your best
+              results, and unlocks multiplayer roles.
+            </p>
+            <ul class="pillar__points">
+              <li>Five graded modules, from Induction to Leadership</li>
+              <li>Scored weapons and support&#8209;weapon qualifications</li>
+              <li>Field skills, including medic and identification training</li>
+              <li>Leadership strictly gated behind prerequisites</li>
+            </ul>
+            <p class="pillar__link"><a href="#training">See the training framework<span class="u-visually-hidden"> in detail</span></a></p>
+          </div>
+        </article>
+
+        <article class="pillar">
+          <div class="pillar__index" aria-hidden="true">02</div>
+          <div class="pillar__body">
+            <h3 class="pillar__title">Operate</h3>
+            <p class="pillar__text">
+              Objectives are taken by holding the ring. Opposing soldiers inside contest it, so the
+              fight comes to you.
+            </p>
+            <ul class="pillar__points">
+              <li>Objective Assault &mdash; sequential objectives, round lifecycle</li>
+              <li>Secure and Hold &mdash; capture and hold, ticket scoring</li>
+              <li>Radio procedure and tactical communication as first-class systems</li>
+              <li>Role&#8209;based sections with data&#8209;driven limits</li>
+            </ul>
+            <p class="pillar__link"><a href="#operations">See the operations model<span class="u-visually-hidden"> in detail</span></a></p>
+          </div>
+        </article>
+
+        <article class="pillar">
+          <div class="pillar__index" aria-hidden="true">03</div>
+          <div class="pillar__body">
+            <h3 class="pillar__title">Progress</h3>
+            <p class="pillar__text">
+              Six separate concepts, kept apart on purpose. That separation is what stops progression
+              collapsing into a kill counter.
+            </p>
+            <ul class="pillar__points">
+              <li>Service record and a displayed service rank</li>
+              <li>Role and per&#8209;weapon qualifications as binary unlocks</li>
+              <li>Named commendations for specific achievements</li>
+              <li>Rewards for objectives, teamwork, revives and conduct &mdash; not for kill ratio</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="pillar">
+          <div class="pillar__index" aria-hidden="true">04</div>
+          <div class="pillar__body">
+            <h3 class="pillar__title">Adapt</h3>
+            <p class="pillar__text">
+              Every map ships as data, not code. A layer bundles mode, time of day, weather, objectives,
+              deployment, roles, respawn model and ticket allocation.
+            </p>
+            <ul class="pillar__points">
+              <li>Five original map concepts</li>
+              <li>Objective Assault, Secure and Hold, Day and low&#8209;light layers per map</li>
+              <li>Configurable modes without recompiling</li>
+              <li>Accessibility and settings available throughout</li>
+            </ul>
+            <p class="pillar__link"><a href="#maps">See the map concepts<span class="u-visually-hidden"> in detail</span></a></p>
+          </div>
+        </article>
       </div>
-      <ul class="pillars">
-        <li class="reveal"><span class="pillar-n">01</span><h3>Grounded</h3><p>First-person only, measured movement, weapons that reward fundamentals.</p></li>
-        <li class="reveal"><span class="pillar-n">02</span><h3>Team first</h3><p>Objectives are taken by holding the ring. Opposing soldiers inside contest it, so the fight comes to you.</p></li>
-        <li class="reveal"><span class="pillar-n">03</span><h3>Fair by design</h3><p>Both teams are identical. Only how they look changes, and only to the viewer.</p></li>
-      </ul>
     </div>
   </section>
 
-  <section id="mirror" class="band" aria-labelledby="mirror-title">
-    <div class="wrap section">
-      <p class="eyebrow reveal">One battle, two perspectives</p>
-      <h2 id="mirror-title" class="reveal">Everyone is 3 ACR. Everyone else is the enemy.</h2>
-      <p class="measure reveal">Both teams play as the same side. On your screen, your team wears 3 ACR's CMECU uniform and carries the A88. The other team appears as the <strong>Murasian Armed Forces (MAF)</strong>: a fictional conventional opposing force in red-earth colours. On their screens it is exactly the reverse. Nobody is ever stuck playing the bad guys.</p>
-      <div class="mirror reveal" role="img" aria-label="Diagram: Team One sees itself as 3 ACR and Team Two as MAF; Team Two sees itself as 3 ACR and Team One as MAF.">
-        <div class="mirror-side">
-          <p class="mirror-who">Team One's screen</p>
-          <div class="chip friendly">Team One &rarr; 3 ACR</div>
-          <div class="chip opposing">Team Two &rarr; MAF</div>
+  <!-- ========================= TRAINING ========================= -->
+  <section class="section" id="training" aria-labelledby="training-title">
+    <div class="shell">
+      <header class="section__head">
+        <p class="eyebrow">Train</p>
+        <h2 id="training-title" class="section__title">Training and qualification framework</h2>
+        <p class="section__lede">
+          Five modules, each granting specific roles. Leadership cannot be reached by skill alone in a
+          firing range, and a qualification you have earned is never invalidated by a server being down.
+        </p>
+      </header>
+
+      <ol class="module-list">
+        <li class="module">
+          <p class="module__num" aria-hidden="true">01</p>
+          <div>
+            <h3 class="module__title">Induction</h3>
+            <p class="module__grants">Grants basic rifleman access</p>
+            <p>Movement, interaction, HUD, stance, communication and rules of engagement.</p>
+          </div>
+        </li>
+        <li class="module">
+          <p class="module__num" aria-hidden="true">02</p>
+          <div>
+            <h3 class="module__title">Weapons Qualification</h3>
+            <p class="module__grants">Grants Automatic Rifleman, Marksman</p>
+            <p>Familiarisation, controlled pairs, supported firing, reloading and fire&#8209;mode selection. Scored.</p>
+          </div>
+        </li>
+        <li class="module">
+          <p class="module__num" aria-hidden="true">03</p>
+          <div>
+            <h3 class="module__title">Support Weapons Qualification</h3>
+            <p class="module__grants">Grants Section Support Gunner</p>
+            <p>Bipod handling, deployment, suppression and ammunition management. Scored.</p>
+          </div>
+        </li>
+        <li class="module">
+          <p class="module__num" aria-hidden="true">04</p>
+          <div>
+            <h3 class="module__title">Field Skills</h3>
+            <p class="module__grants">Grants Medic</p>
+            <p>Navigation, observation, friendly and opposing identification, objective interaction and basic medical treatment.</p>
+          </div>
+        </li>
+        <li class="module">
+          <p class="module__num" aria-hidden="true">05</p>
+          <div>
+            <h3 class="module__title">Leadership Qualification</h3>
+            <p class="module__grants">Grants Fireteam Leader, Section Commander</p>
+            <p>Fireteam command, waypoint and order placement, radio procedure and objective planning.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="card-grid card-grid--3">
+        <article class="card">
+          <h3 class="card__title">Role prerequisites</h3>
+          <p>Rifleman and Grenadier are open after Induction. Support Gunner, Marksman and Medic are limited to two per section. Fireteam Leaders and Section Commanders are limited to one per fireteam and section.</p>
+        </article>
+        <article class="card">
+          <h3 class="card__title">Read silhouettes, not colours</h3>
+          <p>Identification training is explicit, because contextual appearance is only safe if players are trained to read silhouettes and insignia rather than colour.</p>
+        </article>
+        <article class="card">
+          <h3 class="card__title">Stated failure conditions</h3>
+          <p>Failure conditions are stated clearly before an exercise starts, and accessibility options are available throughout.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= OPERATIONS ========================= -->
+  <section class="section section--band" id="operations" aria-labelledby="operations-title">
+    <div class="shell">
+      <header class="section__head">
+        <p class="eyebrow">Operate</p>
+        <h2 id="operations-title" class="section__title">One match, two perspectives</h2>
+        <p class="section__lede">
+          Both teams are mechanically identical. Only the presentation differs, and only per viewer.
+        </p>
+      </header>
+
+      <div class="mirror" role="img"
+           aria-label="Diagram. On Team One's screen, Team One appears as 3 ACR and Team Two appears as the Murasian Armed Forces. On Team Two's screen the arrangement is exactly reversed. Both teams are mechanically identical.">
+        <div class="mirror__side">
+          <p class="mirror__who">Team One&rsquo;s screen</p>
+          <p class="chip chip--friendly"><span class="chip__key">Team One</span> 3 ACR</p>
+          <p class="chip chip--opposing"><span class="chip__key">Team Two</span> MAF</p>
         </div>
-        <div class="mirror-axis" aria-hidden="true"><span>Same match</span></div>
-        <div class="mirror-side">
-          <p class="mirror-who">Team Two's screen</p>
-          <div class="chip friendly">Team Two &rarr; 3 ACR</div>
-          <div class="chip opposing">Team One &rarr; MAF</div>
+        <p class="mirror__axis" aria-hidden="true"><span>Same match</span></p>
+        <div class="mirror__side">
+          <p class="mirror__who">Team Two&rsquo;s screen</p>
+          <p class="chip chip--friendly"><span class="chip__key">Team Two</span> 3 ACR</p>
+          <p class="chip chip--opposing"><span class="chip__key">Team One</span> MAF</p>
         </div>
       </div>
-      <div class="cards two">
-        <article class="card friendly reveal">
-          <p class="card-num">How you see your team</p>
-          <h3>3rd Battalion, Australian Commonwealth Regiment</h3>
+
+      <div class="faction-grid">
+        <article class="faction faction--friendly">
+          <p class="faction__label">How you see your own team</p>
+          <h3 class="faction__title">3rd Battalion, Australian Commonwealth Regiment</h3>
           <p>Conventional infantry of the fictional Commonwealth Land Service.</p>
           <dl class="kv">
             <div><dt>Primary weapon</dt><dd>A88 Standard Service Rifle</dd></div>
@@ -109,10 +450,10 @@
             <div><dt>Organisation</dt><dd>Commonwealth Defence Service</dd></div>
           </dl>
         </article>
-        <article class="card opposing reveal">
-          <p class="card-num">How you see the other team</p>
-          <h3>Murasian Armed Forces</h3>
-          <p>A fictional, competent conventional army with original red-earth camouflage, insignia and equipment.</p>
+        <article class="faction faction--opposing">
+          <p class="faction__label">How you see the opposing team</p>
+          <h3 class="faction__title">Murasian Armed Forces</h3>
+          <p>A fictional, competent conventional army with original red&#8209;earth camouflage, insignia and equipment.</p>
           <dl class="kv">
             <div><dt>Balance</dt><dd>Mechanically equivalent weapons</dd></div>
             <div><dt>Characters</dt><dd>Identical gameplay hitboxes</dd></div>
@@ -120,130 +461,476 @@
           </dl>
         </article>
       </div>
-      <p class="planned">The swap is decided on each player's own machine and never touches gameplay: damage, movement and hitboxes are the same for everyone. All units, forces and weapons are fictional.</p>
-    </div>
-  </section>
 
-  <section id="build" class="wrap section" aria-labelledby="build-title">
-    <p class="eyebrow reveal">In development</p>
-    <h2 id="build-title" class="reveal">In the build today</h2>
-    <p class="measure reveal">What runs in internal development builds right now. None of it has been released; there is no public download yet.</p>
-    <div class="cards three">
-      <article class="card reveal">
-        <p class="card-num">Mode</p>
-        <h3>Objective Assault</h3>
-        <p>Full round loop with bots: pre-round, sequential objectives captured by presence, round results and resets.</p>
-        <p class="tag ok">Working in dev builds</p>
-      </article>
-      <article class="card reveal">
-        <p class="card-num">Maps</p>
-        <h3>Red Gum Station &middot; Dry River</h3>
-        <p>An outback cattle station with three objectives, and an original dry-creek blockout with two.</p>
-        <p class="tag ok">Working in dev builds</p>
-      </article>
-      <article class="card reveal">
-        <p class="card-num">Presentation</p>
-        <h3>First person, mirrored soldiers</h3>
-        <p>First-person camera with a weapon view model; each viewer sees their team as 3 ACR and the other as MAF.</p>
-        <p class="tag wip">In progress: arms, animation polish</p>
-      </article>
-      <article class="card reveal">
-        <p class="card-num">Interface</p>
-        <h3>Southern Spear HUD</h3>
-        <p>Objective panel, minimap and full map, compass, health and ammunition, round banners, match menu and settings.</p>
-        <p class="tag wip">In progress: visual tuning</p>
-      </article>
-      <article class="card reveal">
-        <p class="card-num">Weapons</p>
-        <h3>A-series</h3>
-        <p>A88 rifle and A89 support weapon, on shared gameplay definitions for both sides.</p>
-        <p class="tag wip">In progress: effects, more models</p>
-      </article>
-      <article class="card reveal">
-        <p class="card-num">Next</p>
-        <h3>Roles and training</h3>
-        <p>Rifleman, grenadier, support gunner, medic and command roles, unlocked by training.</p>
-        <p class="tag todo">Planned</p>
-      </article>
-    </div>
-  </section>
+      <p class="callout">
+        The swap is decided on each player&rsquo;s own machine and never touches gameplay: damage, movement
+        and hitboxes are the same for everyone. All units, forces and weapons are fictional.
+      </p>
 
-  <section id="how-to-play" class="band" aria-labelledby="htp-title">
-    <div class="wrap section">
-      <p class="eyebrow">Player journey</p>
-      <h2 id="htp-title">How to play</h2>
-      <ol class="steps">
-        <li><span class="step-n" aria-hidden="true">1</span><h3>Download</h3><p>Get the latest verified build from the official release page, once one exists.</p></li>
-        <li><span class="step-n" aria-hidden="true">2</span><h3>Set up</h3><p>Configure controls, audio, accessibility and callsign.</p></li>
-        <li><span class="step-n" aria-hidden="true">3</span><h3>Train</h3><p>Complete foundational training and role qualifications.</p></li>
-        <li><span class="step-n" aria-hidden="true">4</span><h3>Deploy</h3><p>Join a server, select an available role and communicate.</p></li>
-      </ol>
-      <p class="planned">There is no playable build yet. This is the intended flow.</p>
-    </div>
-  </section>
-
-  <section id="roadmap" class="band" aria-labelledby="roadmap-title">
-    <div class="wrap section">
-      <p class="eyebrow">Development status</p>
-      <h2 id="roadmap-title">Follow the build in public</h2>
-      <p class="measure">Status below is loaded from the project's own roadmap and changelog. No completion percentages or release dates are shown, because none have been set.</p>
-      <div id="status" class="status" aria-live="polite"><p>Loading status&hellip;</p></div>
-      <details class="doc">
-        <summary>Full development roadmap</summary>
-        <div id="roadmap-doc" class="md"></div>
-      </details>
-    </div>
-  </section>
-
-  <section id="changelog" class="wrap section" aria-labelledby="changelog-title">
-    <p class="eyebrow">Rolling changelog</p>
-    <h2 id="changelog-title">What changed, session by session</h2>
-    <p class="measure">Every working session adds an entry: what was completed, how it was tested, the risks, and the one next action.</p>
-    <div id="changelog-list" class="sessions"><p>Loading changelog&hellip;</p></div>
-  </section>
-
-  <section id="download" class="band" aria-labelledby="dl-title">
-    <div class="wrap section">
-      <p class="eyebrow">Latest verified release</p>
-      <h2 id="dl-title">Ready to deploy?</h2>
-      <div class="card download">
-        <h3>No public build yet</h3>
-        <p>Southern Spear is pre-alpha. There is no release to download. When one exists, this panel will show its version, file size, checksum and date from the release metadata.</p>
-        <p><span class="btn btn-disabled" aria-disabled="true">Download for Windows &mdash; not yet available</span></p>
+      <div class="card-grid card-grid--2">
+        <article class="card">
+          <h3 class="card__title">Objective Assault</h3>
+          <p>Sequential or parallel objectives; attackers take, defenders hold; limited respawns or round&#8209;based elimination.</p>
+        </article>
+        <article class="card">
+          <h3 class="card__title">Secure and Hold</h3>
+          <p>Capture and hold tactical locations, with ticket or round&#8209;based scoring.</p>
+        </article>
       </div>
     </div>
   </section>
 
-  <section id="community" class="wrap section" aria-labelledby="comm-title">
-    <p class="eyebrow">Community development</p>
-    <h2 id="comm-title">Follow &middot; contribute &middot; support</h2>
-    <div class="cards three">
-      <article class="card">
-        <h3>GitHub</h3>
-        <p>This website and the published changelog live in a public repository.</p>
-        <p><a class="link" href="https://github.com/theantipopau/southernspear-site">theantipopau/southernspear-site</a></p>
-      </article>
-      <article class="card">
-        <h3>Discord</h3>
-        <p>Talk to the team, follow development and join playtests when they open.</p>
-        <p><a class="btn btn-primary" href="https://discord.gg/GHNCFQrDND" rel="noopener">Join the Discord</a></p>
-      </article>
-      <article class="card">
-        <h3>Donate</h3>
-        <p>Donations are not being accepted.</p>
-      </article>
+  <!-- =========================== MAPS =========================== -->
+  <section class="section" id="maps" aria-labelledby="maps-title">
+    <div class="shell">
+      <header class="section__head">
+        <p class="eyebrow">Adapt</p>
+        <h2 id="maps-title" class="section__title">Map concepts</h2>
+        <p class="section__lede">
+          Five original environments, each planned to ship with at least an Objective Assault layer, a
+          Secure and Hold layer, a Day layer and a low&#8209;light layer. Layouts are designed from the
+          gameplay brief &mdash; sightlines, cover rhythm, rotation distances &mdash; not surveyed from any
+          real location.
+        </p>
+      </header>
+
+      <ul class="map-grid">
+        <li class="map-card">
+          <p class="map-card__state"><span class="badge badge--wip">In production</span></p>
+          <h3 class="map-card__name">Dry River</h3>
+          <p class="map-card__terrain">Rural Australian training area</p>
+          <p>Dry creek bed, scrub and farm structures, with long sightlines and concealed approaches.</p>
+          <dl class="map-card__meta">
+            <div><dt>Engagement</dt><dd>Long sightlines, concealed approach</dd></div>
+            <div><dt>Layers</dt><dd>Objective Assault &middot; Secure and Hold &middot; Day &middot; Low&#8209;light</dd></div>
+          </dl>
+        </li>
+        <li class="map-card">
+          <p class="map-card__state"><span class="badge">Concept</span></p>
+          <h3 class="map-card__name">Red Ridge</h3>
+          <p class="map-card__terrain">Semi&#8209;arid ridgeline</p>
+          <p>Radio installation and rocky terrain with strong elevation changes.</p>
+          <dl class="map-card__meta">
+            <div><dt>Engagement</dt><dd>Elevation&#8209;driven, line of sight</dd></div>
+            <div><dt>Layers</dt><dd>Objective Assault &middot; Secure and Hold &middot; Day &middot; Low&#8209;light</dd></div>
+          </dl>
+        </li>
+        <li class="map-card">
+          <p class="map-card__state"><span class="badge">Concept</span></p>
+          <h3 class="map-card__name">Ironbark</h3>
+          <p class="map-card__terrain">Eucalypt woodland</p>
+          <p>Training compound with mixed close and medium engagement ranges, in a fictional bushfire&#8209;safe setting.</p>
+          <dl class="map-card__meta">
+            <div><dt>Engagement</dt><dd>Close to medium, broken by cover</dd></div>
+            <div><dt>Layers</dt><dd>Objective Assault &middot; Secure and Hold &middot; Day &middot; Low&#8209;light</dd></div>
+          </dl>
+        </li>
+        <li class="map-card">
+          <p class="map-card__state"><span class="badge">Concept</span></p>
+          <h3 class="map-card__name">Port Wakefield</h3>
+          <p class="map-card__terrain">Fictional industrial port</p>
+          <p>Warehouses, container yards, administrative buildings and a maritime edge.</p>
+          <dl class="map-card__meta">
+            <div><dt>Engagement</dt><dd>Hard cover, vertical and horizontal</dd></div>
+            <div><dt>Layers</dt><dd>Objective Assault &middot; Secure and Hold &middot; Day &middot; Low&#8209;light</dd></div>
+          </dl>
+        </li>
+        <li class="map-card">
+          <p class="map-card__state"><span class="badge">Concept</span></p>
+          <h3 class="map-card__name">Wattle Creek</h3>
+          <p class="map-card__terrain">Small regional settlement</p>
+          <p>Service station, houses, council facilities and drainage corridors.</p>
+          <dl class="map-card__meta">
+            <div><dt>Engagement</dt><dd>Short&#8209;range, dense structures</dd></div>
+            <div><dt>Layers</dt><dd>Objective Assault &middot; Secure and Hold &middot; Day &middot; Low&#8209;light</dd></div>
+          </dl>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- =========================== MEDIA =========================== -->
+  <section class="section section--band" id="media" aria-labelledby="media-title">
+    <div class="shell">
+      <header class="section__head">
+        <p class="eyebrow">Media</p>
+        <h2 id="media-title" class="section__title">Main menu concept</h2>
+        <p class="section__lede">
+          This artwork demonstrates the intended visual direction of the main menu and loading screen.
+          It is <strong>not</strong> final gameplay imagery and does not show a playable build.
+        </p>
+      </header>
+
+      <figure class="showcase">
+        <button class="showcase__frame" type="button"
+                data-lightbox-src="assets/concepts/main-menu-concept-01-1280.jpg"
+                data-lightbox-alt="Southern Spear main menu concept: a soldier in camouflage stands on a rocky outcrop above a red-earth valley at sunset. A brass-framed emblem showing Australia, the Southern Cross and a spear is centred above the words Southern Spear, with menu-style labels in the corners."
+                data-lightbox-caption="Main menu concept &mdash; intended visual direction, not captured gameplay.">
+          <picture>
+            <source type="image/avif" srcset="assets/concepts/main-menu-concept-01.avif">
+            <source type="image/webp" srcset="assets/concepts/main-menu-concept-01.webp">
+            <img src="assets/concepts/main-menu-concept-01.jpg" width="1536" height="1024" loading="lazy" decoding="async"
+                 alt="Southern Spear main menu concept: a soldier in camouflage stands on a rocky outcrop above a red-earth valley at sunset, with a brass emblem of Australia, the Southern Cross and a spear above the words Southern Spear.">
+          </picture>
+          <span class="showcase__zoom" aria-hidden="true">View larger</span>
+        </button>
+        <figcaption>
+          <span class="badge badge--concept">Main menu concept</span>
+          <span class="showcase__caption-text">Intended visual direction for the front end. The corner labels are part of the concept artwork and are not part of this website.</span>
+        </figcaption>
+      </figure>
+
+      <ul class="gallery" role="list">
+        <li class="gallery__item">
+          <button class="gallery__btn" type="button"
+                  data-lightbox-src="assets/concepts/environment-detail-01-768.jpg"
+                  data-lightbox-alt="Title-screen artwork detail: a soldier in camouflage on a rocky ledge above a wide red-earth valley with a dry creek line, eucalyptus in the foreground and low sun flare."
+                  data-lightbox-caption="Environment detail &mdash; concept art from the main menu artwork.">
+            <picture>
+              <source type="image/avif" srcset="assets/concepts/environment-detail-01.avif">
+              <source type="image/webp" srcset="assets/concepts/environment-detail-01.webp">
+              <img src="assets/concepts/environment-detail-01.jpg" width="768" height="512" loading="lazy" decoding="async"
+                   alt="Concept art detail: a soldier above a wide red-earth valley with a dry creek line and eucalyptus, lit by low sun.">
+            </picture>
+            <span class="gallery__meta"><span class="badge badge--concept">Concept</span> Environment detail</span>
+          </button>
+        </li>
+        <li class="gallery__item">
+          <button class="gallery__btn" type="button"
+                  data-lightbox-src="assets/concepts/environment-detail-02-768.jpg"
+                  data-lightbox-alt="Title-screen artwork detail: a red rock gorge and river bend in the foreground, with layered mesas and a burning orange sky behind."
+                  data-lightbox-caption="Environment detail &mdash; concept art from the main menu artwork.">
+            <picture>
+              <source type="image/avif" srcset="assets/concepts/environment-detail-02.avif">
+              <source type="image/webp" srcset="assets/concepts/environment-detail-02.webp">
+              <img src="assets/concepts/environment-detail-02.jpg" width="768" height="408" loading="lazy" decoding="async"
+                   alt="Concept art detail: a red rock gorge and river bend with layered mesas under an orange sky.">
+            </picture>
+            <span class="gallery__meta"><span class="badge badge--concept">Concept</span> Gorge and mesas</span>
+          </button>
+        </li>
+        <li class="gallery__item">
+          <div class="gallery__static">
+            <img src="assets/brand/southern-spear-emblem.png" width="256" height="188" loading="lazy" decoding="async"
+                 alt="Southern Spear emblem: a spear head over a map of Australia marked with the Southern Cross, on topographic contour lines in a brass frame.">
+            <span class="gallery__meta"><span class="badge">Brand</span> Emblem</span>
+          </div>
+        </li>
+      </ul>
+      <p class="section__note">
+        Captured in-engine gameplay screenshots have not been published yet. Development captures are
+        added here as they are frozen and captioned, and are always labelled separately from concept art.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================= DEVELOPMENT ======================== -->
+  <section class="section" id="development" aria-labelledby="development-title">
+    <div class="shell">
+      <header class="section__head">
+        <p class="eyebrow">Development</p>
+        <h2 id="development-title" class="section__title">Where the project actually is</h2>
+        <p class="section__lede">
+          Everything below is read directly from the project&rsquo;s own roadmap and changelog. Nothing is
+          estimated or rounded for effect, and no completion percentage is shown because none is tracked.
+        </p>
+      </header>
+
+      <p class="prealpha-banner" role="note">
+        <strong>Pre&#8209;alpha.</strong> There is no playable build and no public download. Numbers below
+        describe internal development progress only.
+      </p>
+
+      <div id="status" class="status-grid" aria-busy="true">
+        <p class="loading-note">Loading development status&hellip;</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= ROADMAP ========================= -->
+  <section class="section section--band" id="roadmap" aria-labelledby="roadmap-title">
+    <div class="shell">
+      <header class="section__head">
+        <p class="eyebrow">Roadmap</p>
+        <h2 id="roadmap-title" class="section__title">Seven phases, one proven at a time</h2>
+        <p class="section__lede">
+          The project proves the expensive&#8209;to&#8209;get&#8209;wrong parts first: networking, team
+          presentation, authority and persistence. Art is deliberately deferred until the systems hold.
+        </p>
+      </header>
+
+      <div id="roadmap" class="roadmap" aria-busy="true">
+        <p class="loading-note">Loading roadmap&hellip;</p>
+      </div>
+
+      <details class="doc-panel">
+        <summary>Read the full roadmap document</summary>
+        <div id="roadmap-doc" class="markdown-body"></div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ======================== CHANGELOG ========================= -->
+  <section class="section" id="changelog" aria-labelledby="changelog-title">
+    <div class="shell">
+      <header class="section__head">
+        <p class="eyebrow">Changelog</p>
+        <h2 id="changelog-title" class="section__title">What changed, session by session</h2>
+        <p class="section__lede">
+          Every working session adds an entry: what was completed, how it was tested, the risks, and the
+          one next action. This log records evidence, not narrative.
+        </p>
+      </header>
+
+      <div class="changelog-controls">
+        <div class="field">
+          <label class="field__label" for="changelog-search">Search the changelog</label>
+          <input class="field__input" id="changelog-search" type="search" autocomplete="off"
+                 placeholder="e.g. navigation, weapon, replication" aria-describedby="changelog-count">
+        </div>
+        <fieldset class="filters">
+          <legend class="field__label">Filter by category</legend>
+          <div class="filters__row" id="changelog-filters"></div>
+        </fieldset>
+      </div>
+
+      <p class="result-count" id="changelog-count" role="status" aria-live="polite"></p>
+
+      <div id="changelog-list" class="sessions" aria-busy="true">
+        <p class="loading-note">Loading changelog&hellip;</p>
+      </div>
+
+      <p class="section__note">
+        The complete log is also published as plain Markdown at
+        <a href="data/CHANGELOG.md">data/CHANGELOG.md</a>.
+      </p>
+    </div>
+  </section>
+
+  <!-- =========================== FAQ =========================== -->
+  <section class="section section--band" id="faq" aria-labelledby="faq-title">
+    <div class="shell shell--narrow">
+      <header class="section__head">
+        <p class="eyebrow">FAQ</p>
+        <h2 id="faq-title" class="section__title">Questions people actually ask</h2>
+      </header>
+
+      <div class="faq">
+        <details class="faq__item">
+          <summary>What is Southern Spear?</summary>
+          <div class="faq__body">
+            <p>An original, free, community&#8209;developed Australian&#8209;inspired tactical multiplayer
+            first&#8209;person shooter. It is built on Unreal Engine 5.8.3 using the Lyra Starter Game as
+            its foundation, and is in pre&#8209;alpha development.</p>
+          </div>
+        </details>
+        <details class="faq__item">
+          <summary>Is the game playable?</summary>
+          <div class="faq__body">
+            <p>No. There is no public build and no playable release. The editor target compiles cleanly
+            and the project is developed in internal builds, but nothing has been released for others to
+            play.</p>
+          </div>
+        </details>
+        <details class="faq__item">
+          <summary>Is there a release date?</summary>
+          <div class="faq__body">
+            <p>No release date has been announced. The project publishes its phases and session log
+            instead, and has not committed to a schedule.</p>
+          </div>
+        </details>
+        <details class="faq__item">
+          <summary>Is the project associated with the Australian Defence Force?</summary>
+          <div class="faq__body">
+            <p>No. Southern Spear is a work of fiction. It is not endorsed, sponsored, developed or
+            approved by the Australian Government, the Department of Defence, the Australian Defence Force
+            or the Australian Army. All units, forces and weapons are fictional, and no map reproduces a
+            real base, installation or operationally useful site.</p>
+          </div>
+        </details>
+        <details class="faq__item">
+          <summary>Is it connected to America&rsquo;s Army?</summary>
+          <div class="faq__body">
+            <p>No. Southern Spear is not affiliated with America&rsquo;s Army or any similar title. It is an
+            original project with its own fictional setting, units and artwork.</p>
+          </div>
+        </details>
+        <details class="faq__item">
+          <summary>Will the game be free?</summary>
+          <div class="faq__body">
+            <p>The project is being developed as free to play, with no loot boxes and no pay&#8209;to&#8209;win
+            mechanics. Donations are not currently being accepted.</p>
+          </div>
+        </details>
+        <details class="faq__item">
+          <summary>Which engine does it use?</summary>
+          <div class="faq__body">
+            <p>Unreal Engine 5.8.3, with the Lyra Starter Game 5.8 vendored in as the multiplayer
+            foundation. Unreal Engine is a trademark of Epic Games, Inc.</p>
+          </div>
+        </details>
+        <details class="faq__item">
+          <summary>How can people follow development?</summary>
+          <div class="faq__body">
+            <p>This website publishes the roadmap and a session&#8209;by&#8209;session changelog generated
+            from the project's own documents. The website and its published documentation live in a
+            <a href="https://github.com/theantipopau/southernspear-site" rel="noopener">public GitHub
+            repository</a>, and there is a <a href="https://discord.gg/GHNCFQrDND" rel="noopener">Discord
+            server</a> for discussion.</p>
+          </div>
+        </details>
+        <details class="faq__item">
+          <summary>Can people contribute?</summary>
+          <div class="faq__body">
+            <p>Not at present. The game repository is private, and the game itself is not open source.
+            The website and the documentation published alongside it are in a public repository.</p>
+          </div>
+        </details>
+        <details class="faq__item">
+          <summary>Will there be community testing?</summary>
+          <div class="faq__body">
+            <p>Community testing has not yet been announced or scheduled. The roadmap includes a phase
+            for online hardening and load testing, and the Discord is where testing calls would be
+            posted first.</p>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== COMMUNITY / JOIN ===================== -->
+  <section class="section section--join" id="community" aria-labelledby="community-title">
+    <div class="shell">
+      <header class="section__head section__head--center">
+        <p class="eyebrow">Follow</p>
+        <h2 id="community-title" class="section__title">Follow the build</h2>
+        <p class="section__lede">
+          There is nothing to download yet. The honest way to follow the project is to read the log and
+          join the conversation.
+        </p>
+      </header>
+
+      <div class="card-grid card-grid--3">
+        <article class="card card--action">
+          <h3 class="card__title">Read the changelog</h3>
+          <p>Every session, with test results, defects and the next action.</p>
+          <p><a class="btn btn--outline btn--sm" href="#changelog">Open the changelog</a></p>
+        </article>
+        <article class="card card--action">
+          <h3 class="card__title">Join the Discord</h3>
+          <p>Talk to the team, follow development and hear about playtests when they open.</p>
+          <p><a class="btn btn--brass btn--sm" href="https://discord.gg/GHNCFQrDND" rel="noopener">Join the Discord</a></p>
+        </article>
+        <article class="card card--action">
+          <h3 class="card__title">Website source</h3>
+          <p>This site and its published documentation are in a public repository.</p>
+          <p><a class="btn btn--outline btn--sm" href="https://github.com/theantipopau/southernspear-site" rel="noopener">View on GitHub</a></p>
+        </article>
+      </div>
+
+      <div class="notice notice--muted">
+        <h3 class="notice__title">No public build</h3>
+        <p>
+          Southern Spear is pre&#8209;alpha. There is no release to download. Donations are not being
+          accepted. When a verified build exists, this page will state its version and date from the
+          release metadata.
+        </p>
+      </div>
     </div>
   </section>
 </main>
 
 <footer class="site-footer">
-  <div class="wrap">
-    <p><strong>Southern Spear is a fictional entertainment product.</strong> It is not endorsed, sponsored, developed or approved by the Australian Government, the Department of Defence, the Australian Defence Force or the Australian Army. All organisations, units, forces and weapons are fictional. Not affiliated with America's Army.</p>
-    <p class="small">Built on Unreal Engine and the Lyra Starter Game. Unreal and Unreal Engine are trademarks of Epic Games, Inc.</p>
+  <div class="shell">
+    <div class="site-footer__top">
+      <div class="site-footer__brand">
+        <img class="site-footer__mark" src="assets/brand/southern-spear-emblem.png" alt="" width="256" height="188" loading="lazy" decoding="async">
+        <p class="site-footer__name">Southern Spear</p>
+        <p class="site-footer__tag">
+          An original, Australian&#8209;inspired tactical multiplayer shooter, built in the open.
+        </p>
+        <p class="site-footer__status">
+          <span class="badge badge--wip">Pre&#8209;alpha</span>
+          In active development &mdash; no playable build
+        </p>
+      </div>
+
+      <nav class="site-footer__nav" aria-label="Footer">
+        <div>
+          <h2 class="site-footer__heading">Explore</h2>
+          <ul>
+            <li><a href="#overview">Overview</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#training">Training</a></li>
+            <li><a href="#operations">Operations</a></li>
+            <li><a href="#maps">Maps</a></li>
+            <li><a href="#media">Media</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="site-footer__heading">Development</h2>
+          <ul>
+            <li><a href="#development">Status</a></li>
+            <li><a href="#roadmap">Roadmap</a></li>
+            <li><a href="#changelog">Changelog</a></li>
+            <li><a href="data/DEVELOPMENT_ROADMAP.md">Roadmap (Markdown)</a></li>
+            <li><a href="data/CHANGELOG.md">Changelog (Markdown)</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="site-footer__heading">Project</h2>
+          <ul>
+            <li><a href="#faq">FAQ</a></li>
+            <li><a href="https://github.com/theantipopau/southernspear-site" rel="noopener">GitHub</a></li>
+            <li><a href="https://discord.gg/GHNCFQrDND" rel="noopener">Discord</a></li>
+          </ul>
+        </div>
+      </nav>
+    </div>
+
+    <div class="site-footer__legal">
+      <p>
+        <strong>Southern Spear is a fictional entertainment product.</strong> It is not endorsed,
+        sponsored, developed or approved by the Australian Government, the Department of Defence, the
+        Australian Defence Force or the Australian Army. All organisations, units, forces and weapons are
+        fictional, and no map reproduces a real base, installation or operationally useful site. Not
+        affiliated with America&rsquo;s Army.
+      </p>
+      <p>
+        Built on Unreal Engine and the Lyra Starter Game. Unreal, Unreal Engine and the Unreal Engine logo
+        are trademarks of Epic Games, Inc. Lyra is a sample project provided by Epic Games, Inc.
+      </p>
+    </div>
+
+    <div class="site-footer__base">
+      <p>&copy; <span id="year">2026</span> Southern Spear Project. Original work of fiction.</p>
+      <a class="to-top" href="#top">Back to top</a>
+    </div>
   </div>
 </footer>
 
-<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
-<script src="site.js"></script>
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-labelledby="lightbox-caption" hidden>
+  <div class="lightbox__backdrop" data-lightbox-close></div>
+  <figure class="lightbox__figure">
+    <img class="lightbox__image" id="lightbox-image" src="" alt="">
+    <figcaption class="lightbox__caption">
+      <p id="lightbox-caption"></p>
+      <button class="lightbox__close" type="button" data-lightbox-close>
+        Close <span class="u-visually-hidden">image viewer</span>
+      </button>
+    </figcaption>
+  </figure>
+  <button class="lightbox__nav lightbox__nav--prev" type="button" data-lightbox-step="-1">
+    <span class="u-visually-hidden">Previous image</span>
+    <span aria-hidden="true">&#8249;</span>
+  </button>
+  <button class="lightbox__nav lightbox__nav--next" type="button" data-lightbox-step="1">
+    <span class="u-visually-hidden">Next image</span>
+    <span aria-hidden="true">&#8250;</span>
+  </button>
+</div>
+
+<script src="site.js" defer></script>
 </body>
 </html>

@@ -1,125 +1,1017 @@
-// Southern Spear site: menu toggle, and status/changelog rendered from the
-// project's own Markdown (published alongside this page by Tools/publish_site.py).
+/* ==========================================================================
+   Southern Spear — website behaviour
+   No framework, no dependencies. Everything here is progressive enhancement:
+   with JavaScript disabled the page is still complete and readable, and the
+   roadmap, changelog and status panels simply report that they could not load.
+
+   Data comes from data/CHANGELOG.md and data/DEVELOPMENT_ROADMAP.md, which
+   Tools/publish_site.py copies from the private game repository. Nothing on
+   this page is hard-coded from those documents.
+   ========================================================================== */
 (function () {
   "use strict";
 
-  // Scroll reveal: fade sections in as they enter the viewport.
-  document.documentElement.classList.add("js");
-  var reveals = document.querySelectorAll(".reveal");
-  if ("IntersectionObserver" in window) {
+  var root = document.documentElement;
+  root.classList.add("js");
+
+  /* ---------------------------------------------------------------- utils */
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined && text !== null) node.textContent = text;
+    return node;
+  }
+
+  function clear(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  function fetchText(url) {
+    return fetch(url, { credentials: "omit" })
+      .then(function (res) {
+        if (!res.ok) throw new Error(url + " -> " + res.status);
+        // The published Markdown may carry CRLF. Normalising here keeps every
+        // heading and table row matching the same way in every browser.
+        return res.text().then(function (text) { return text.replace(/\r\n?/g, "\n"); });
+      });
+  }
+
+  function reportError(target, what, detail) {
+    if (!target) return;
+    clear(target);
+    target.setAttribute("aria-busy", "false");
+    var box = el("p", "error-note");
+    box.appendChild(el("strong", null, what + " could not be loaded. "));
+    box.appendChild(document.createTextNode(
+      "It is published with this site as Markdown in "));
+    box.appendChild(el("code", null, "data/"));
+    box.appendChild(document.createTextNode(detail ? " (" + detail + ")." : "."));
+    target.appendChild(box);
+  }
+
+  /* ------------------------------------------------------- markdown subset
+     A deliberately small renderer covering exactly the constructs used by the
+     project's own documents: ATX headings, paragraphs, lists (nested),
+     tables, blockquotes, fenced code, thematic breaks, and inline strong,
+     emphasis, code and strikethrough. Input is escaped before any of it runs,
+     so document text can never inject markup.
+     ---------------------------------------------------------------------- */
+
+  function escapeHtml(text) {
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  // Code spans are stashed behind a token that cannot occur in the project's
+  // documents, so their contents are never re-processed as emphasis or links.
+  var CODE_TOKEN = "ss-code-";
+  var CODE_TOKEN_RE = /ss-code-(\d+)ss-code-/g;
+
+  function inline(text) {
+    var out = escapeHtml(text);
+    var codes = [];
+    out = out.replace(/`([^`]+)`/g, function (_, code) {
+      codes.push(code);
+      return CODE_TOKEN + (codes.length - 1) + CODE_TOKEN;
+    });
+    out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    out = out.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
+    out = out.replace(/~~([^~]+)~~/g, "<del>$1</del>");
+    out = out.replace(CODE_TOKEN_RE, function (_, i) {
+      return "<code>" + codes[Number(i)] + "</code>";
+    });
+    return out;
+  }
+
+  function splitTableRow(line) {
+    var trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+    var cells = [];
+    var current = "";
+    for (var i = 0; i < trimmed.length; i++) {
+      if (trimmed[i] === "\\" && trimmed[i + 1] === "|") {
+        current += "|";
+        i++;
+      } else if (trimmed[i] === "|") {
+        cells.push(current.trim());
+        current = "";
+      } else {
+        current += trimmed[i];
+      }
+    }
+    cells.push(current.trim());
+    return cells;
+  }
+
+  function isTableDivider(line) {
+    return /^\s*\|?[\s:-]*-[-\s:|]*\|?\s*$/.test(line) && line.indexOf("-") !== -1;
+  }
+
+  function renderMarkdown(source) {
+    var lines = String(source).replace(/\r\n?/g, "\n").split("\n");
+    var html = [];
+    var i = 0;
+
+    function closeList() {
+      while (listStack.length) html.push(listStack.pop() === "ul" ? "</ul>" : "</ol>");
+    }
+
+    var listStack = [];
+
+    while (i < lines.length) {
+      var line = lines[i];
+
+      if (!line.trim()) { closeList(); i++; continue; }
+
+      // Fenced code
+      if (/^\s*```/.test(line)) {
+        closeList();
+        var lang = line.replace(/^\s*```/, "").trim();
+        var body = [];
+        i++;
+        while (i < lines.length && !/^\s*```/.test(lines[i])) { body.push(lines[i]); i++; }
+        i++;
+        html.push('<pre><code' + (lang ? ' class="lang-' + escapeHtml(lang) + '"' : "") + ">" +
+          escapeHtml(body.join("\n")) + "</code></pre>");
+        continue;
+      }
+
+      // Thematic break
+      if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
+        closeList();
+        html.push("<hr>");
+        i++;
+        continue;
+      }
+
+      // Heading
+      var heading = line.match(/^(#{1,6})\s+(.*)$/);
+      if (heading) {
+        closeList();
+        var level = Math.min(heading[1].length, 6);
+        html.push("<h" + level + ">" + inline(heading[2].trim()) + "</h" + level + ">");
+        i++;
+        continue;
+      }
+
+      // Table
+      if (line.indexOf("|") !== -1 && i + 1 < lines.length && isTableDivider(lines[i + 1])) {
+        closeList();
+        var head = splitTableRow(line);
+        i += 2;
+        var rows = [];
+        while (i < lines.length && lines[i].indexOf("|") !== -1 && lines[i].trim()) {
+          rows.push(splitTableRow(lines[i]));
+          i++;
+        }
+        html.push("<table><thead><tr>");
+        head.forEach(function (cell) { html.push("<th>" + inline(cell) + "</th>"); });
+        html.push("</tr></thead><tbody>");
+        rows.forEach(function (row) {
+          html.push("<tr>");
+          for (var c = 0; c < head.length; c++) {
+            html.push("<td>" + inline(row[c] || "") + "</td>");
+          }
+          html.push("</tr>");
+        });
+        html.push("</tbody></table>");
+        continue;
+      }
+
+      // Blockquote
+      if (/^\s*>/.test(line)) {
+        closeList();
+        var quote = [];
+        while (i < lines.length && /^\s*>/.test(lines[i])) {
+          quote.push(lines[i].replace(/^\s*>\s?/, ""));
+          i++;
+        }
+        html.push("<blockquote>" + renderMarkdown(quote.join("\n")) + "</blockquote>");
+        continue;
+      }
+
+      // Lists, including one level of nesting
+      var listItem = line.match(/^(\s*)([-*+]|\d+\.)\s+(.*)$/);
+      if (listItem) {
+        var indent = listItem[1].length;
+        var kind = /^\d/.test(listItem[2]) ? "ol" : "ul";
+        var depth = indent >= 2 ? 1 : 0;
+        while (listStack.length > depth + 1) html.push(listStack.pop() === "ul" ? "</ul>" : "</ol>");
+        if (listStack.length === depth + 1) {
+          if (listStack[listStack.length - 1] !== kind) {
+            html.push(listStack.pop() === "ul" ? "</ul>" : "</ol>");
+            listStack.push(kind);
+            html.push(kind === "ul" ? "<ul>" : "<ol>");
+          }
+        } else {
+          listStack.push(kind);
+          html.push(kind === "ul" ? "<ul>" : "<ol>");
+        }
+        html.push("<li>" + inline(listItem[3]) + "</li>");
+        i++;
+        continue;
+      }
+
+      // Paragraph
+      closeList();
+      var para = [];
+      while (i < lines.length && lines[i].trim() &&
+             !/^(#{1,6}\s|\s*[-*+]\s|\s*\d+\.\s|\s*>|\s*```)/.test(lines[i]) &&
+             lines[i].indexOf("|") === -1) {
+        para.push(lines[i]);
+        i++;
+      }
+      if (para.length) html.push("<p>" + inline(para.join(" ")) + "</p>");
+      else i++;
+    }
+
+    closeList();
+    return html.join("");
+  }
+
+  /* ------------------------------------------------------- scroll reveal */
+
+  function initReveal() {
+    var targets = document.querySelectorAll(".reveal");
+    if (!("IntersectionObserver" in window)) {
+      Array.prototype.forEach.call(targets, function (n) { n.classList.add("is-in"); });
+      return;
+    }
     var io = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
         if (entry.isIntersecting) {
-          entry.target.classList.add("in");
+          entry.target.classList.add("is-in");
           io.unobserve(entry.target);
         }
       });
-    }, { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
-    reveals.forEach(function (el, i) {
-      el.style.transitionDelay = Math.min(i % 6, 5) * 60 + "ms";
-      if (el.closest(".hero")) {
-        // Above the fold: animate in on load rather than on scroll.
-        setTimeout(function () { el.classList.add("in"); }, 40);
-      } else {
-        io.observe(el);
-      }
-    });
-  } else {
-    reveals.forEach(function (el) { el.classList.add("in"); });
+    }, { rootMargin: "0px 0px -6% 0px", threshold: 0.06 });
+    Array.prototype.forEach.call(targets, function (node) { io.observe(node); });
   }
 
-  var btn = document.querySelector(".menu-btn");
-  var links = document.getElementById("nav-links");
-  if (btn && links) {
-    btn.addEventListener("click", function () {
-      var open = links.classList.toggle("open");
-      btn.setAttribute("aria-expanded", open ? "true" : "false");
-    });
-    links.addEventListener("click", function (e) {
-      if (e.target.tagName === "A" && links.classList.contains("open")) {
-        links.classList.remove("open");
-        btn.setAttribute("aria-expanded", "false");
-      }
-    });
-  }
+  /* ------------------------------------------------------------ navigation */
 
-  function md(text) {
-    if (window.marked) {
-      // Our own trusted repo docs; raw HTML is still stripped defensively.
-      return window.marked.parse(text.replace(/<[^>]+>/g, ""));
-    }
-    var pre = document.createElement("pre");
-    pre.textContent = text;
-    return pre.outerHTML;
-  }
+  function initNav() {
+    var header = document.getElementById("site-header");
+    var toggle = document.querySelector(".nav-toggle");
+    var nav = document.getElementById("primary-nav");
+    var links = Array.prototype.slice.call(nav ? nav.querySelectorAll("a[href^='#']") : []);
+    var sections = links
+      .map(function (a) { return document.getElementById(a.getAttribute("href").slice(1)); })
+      .filter(Boolean);
 
-  function el(tag, cls, html) {
-    var n = document.createElement(tag);
-    if (cls) n.className = cls;
-    if (html !== undefined) n.innerHTML = html;
-    return n;
-  }
-
-  function fail(target, what) {
-    target.innerHTML = "";
-    target.appendChild(el("p", null, "Could not load " + what + ". It is published with this site as <code>data/</code> Markdown."));
-  }
-
-  // Split the changelog into "## Session ..." sections, newest first.
-  function sessions(text) {
-    var parts = text.split(/\n(?=## )/);
-    return parts.filter(function (p) { return /^## Session/.test(p); }).reverse();
-  }
-
-  function sectionOf(sessionText, heading) {
-    var re = new RegExp("### " + heading + "\\s*\\n([\\s\\S]*?)(?=\\n### |\\n---|$)");
-    var m = sessionText.match(re);
-    return m ? m[1].trim() : "";
-  }
-
-  fetch("data/CHANGELOG.md").then(function (r) {
-    if (!r.ok) throw new Error(r.status);
-    return r.text();
-  }).then(function (text) {
-    var list = sessions(text);
-    var box = document.getElementById("changelog-list");
-    box.innerHTML = "";
-    list.forEach(function (s, i) {
-      var title = s.split("\n")[0].replace(/^## /, "");
-      var d = el("details");
-      if (i === 0) d.open = true;
-      d.appendChild(el("summary", null, title.replace(/</g, "&lt;")));
-      d.appendChild(el("div", "md", md(s.split("\n").slice(1).join("\n"))));
-      box.appendChild(d);
-    });
-
-    var status = document.getElementById("status");
-    status.innerHTML = "";
-    if (list.length) {
-      var latest = list[0];
-      var cards = [
-        ["Latest session", "**" + latest.split("\n")[0].replace(/^## /, "") + "**"],
-        ["Next action", sectionOf(latest, "NEXT ACTION") || "Not recorded."],
-        ["Open risks", sectionOf(latest, "RISKS") || "Not recorded."]
-      ];
-      cards.forEach(function (c) {
-        var card = el("article", "card md");
-        card.appendChild(el("h3", null, c[0]));
-        card.appendChild(el("div", null, md(c[1])));
-        status.appendChild(card);
+    // Scroll state. Only toggles a data attribute so there is no layout shift.
+    var ticking = false;
+    function onScroll() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(function () {
+        var scrolled = window.scrollY > 24;
+        header.setAttribute("data-nav-state", scrolled ? "scrolled" : "top");
+        ticking = false;
       });
     }
-  }).catch(function () {
-    fail(document.getElementById("changelog-list"), "the changelog");
-    fail(document.getElementById("status"), "the status");
-  });
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
 
-  fetch("data/DEVELOPMENT_ROADMAP.md").then(function (r) {
-    if (!r.ok) throw new Error(r.status);
-    return r.text();
-  }).then(function (text) {
-    document.getElementById("roadmap-doc").innerHTML = md(text);
-  }).catch(function () {
-    fail(document.getElementById("roadmap-doc"), "the roadmap");
-  });
+    if (!toggle || !nav) return;
+
+    var isOpen = false;
+
+    function focusable() {
+      return Array.prototype.filter.call(
+        nav.querySelectorAll("a[href], button:not([disabled])"),
+        function (node) { return node.offsetParent !== null; }
+      );
+    }
+
+    function setOpen(open) {
+      isOpen = open;
+      nav.setAttribute("data-open", open ? "true" : "false");
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      var label = toggle.querySelector(".nav-toggle__label");
+      if (label) label.textContent = open ? "Close" : "Menu";
+      document.body.setAttribute("data-nav-open", open ? "true" : "false");
+      if (open) {
+        var first = focusable()[0];
+        if (first) first.focus();
+      }
+    }
+
+    toggle.addEventListener("click", function () { setOpen(!isOpen); });
+
+    // Escape closes and returns focus to the toggle that opened it.
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && isOpen) {
+        setOpen(false);
+        toggle.focus();
+      }
+    });
+
+    // Focus trap: Tab cycles inside the panel while it is open.
+    nav.addEventListener("keydown", function (event) {
+      if (event.key !== "Tab" || !isOpen) return;
+      var items = focusable();
+      if (!items.length) return;
+      var first = items[0];
+      var last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
+
+    // Following a link closes the panel.
+    nav.addEventListener("click", function (event) {
+      var anchor = event.target.closest ? event.target.closest("a[href^='#']") : null;
+      if (anchor && isOpen) setOpen(false);
+    });
+
+    // Reset the panel if the viewport grows past the mobile breakpoint.
+    var wide = window.matchMedia("(min-width: 1001px)");
+    var onWide = function (e) { if (e.matches && isOpen) setOpen(false); };
+    if (wide.addEventListener) wide.addEventListener("change", onWide);
+    else if (wide.addListener) wide.addListener(onWide);
+
+    // Active-section indicator.
+    if (!("IntersectionObserver" in window) || !sections.length) return;
+    var visible = new Map();
+    var spy = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) { visible.set(entry.target.id, entry.isIntersecting); });
+      var activeId = null;
+      sections.forEach(function (section) {
+        if (visible.get(section.id)) activeId = section.id;
+      });
+      links.forEach(function (a) {
+        if (a.getAttribute("href") === "#" + activeId) a.setAttribute("aria-current", "true");
+        else a.removeAttribute("aria-current");
+      });
+    }, { rootMargin: "-45% 0px -50% 0px", threshold: 0 });
+    sections.forEach(function (section) { spy.observe(section); });
+  }
+
+  /* ------------------------------------------------------------- lightbox */
+
+  function initLightbox() {
+    var box = document.getElementById("lightbox");
+    if (!box) return;
+    var image = document.getElementById("lightbox-image");
+    var caption = document.getElementById("lightbox-caption");
+    var triggers = Array.prototype.slice.call(document.querySelectorAll("[data-lightbox-src]"));
+    var current = -1;
+    var opener = null;
+
+    function show(index) {
+      if (index < 0 || index >= triggers.length) return;
+      current = index;
+      var trigger = triggers[index];
+      image.src = trigger.getAttribute("data-lightbox-src");
+      image.alt = trigger.getAttribute("data-lightbox-alt") || "";
+      caption.textContent = trigger.getAttribute("data-lightbox-caption") || "";
+      box.hidden = false;
+      document.body.setAttribute("data-nav-open", "true");
+      var close = box.querySelector(".lightbox__close");
+      if (close) close.focus();
+    }
+
+    function close() {
+      box.hidden = true;
+      image.removeAttribute("src");
+      document.body.setAttribute("data-nav-open", "false");
+      if (opener) opener.focus();
+    }
+
+    triggers.forEach(function (trigger, index) {
+      trigger.addEventListener("click", function () {
+        opener = trigger;
+        show(index);
+      });
+    });
+
+    box.addEventListener("click", function (event) {
+      if (event.target.hasAttribute("data-lightbox-close")) close();
+      var step = event.target.getAttribute && event.target.getAttribute("data-lightbox-step");
+      if (step) show((current + Number(step) + triggers.length) % triggers.length);
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (box.hidden) return;
+      if (event.key === "Escape") { event.preventDefault(); close(); }
+      if (event.key === "ArrowRight") show((current + 1) % triggers.length);
+      if (event.key === "ArrowLeft") show((current - 1 + triggers.length) % triggers.length);
+      if (event.key === "Tab") {
+        // Keep focus inside the dialog.
+        var items = Array.prototype.filter.call(
+          box.querySelectorAll("button, [href]"),
+          function (n) { return n.offsetParent !== null; }
+        );
+        if (!items.length) return;
+        var first = items[0];
+        var last = items[items.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }
+    });
+  }
+
+  /* ------------------------------------------------------------ data utils */
+
+  // Extracts the body of a named "### HEADING" or "## HEADING" section.
+  // Done by walking lines rather than with a lookahead, because JavaScript has
+  // no end-of-input anchor that behaves like Python's \Z.
+  function sectionOf(text, heading) {
+    var wanted = heading.toUpperCase();
+    var out = [];
+    var collecting = false;
+    text.split("\n").forEach(function (line) {
+      var match = line.match(/^#{1,6}\s+(.*?)\s*$/);
+      if (match) {
+        if (collecting) { collecting = false; }
+        // Headings in these documents are numbered, e.g. "## 2. Phase Summary".
+        else if (normaliseHeading(match[1]) === wanted) { collecting = true; }
+        return;
+      }
+      if (collecting) out.push(line);
+    });
+    return out.join("\n").replace(/^\s*\n/, "").trim();
+  }
+
+  function normaliseHeading(heading) {
+    return String(heading).replace(/^\d+(\.\d+)*\.?\s+/, "").trim().toUpperCase();
+  }
+
+  function listItems(markdown, limit) {
+    return markdown
+      .split("\n")
+      .map(function (line) { return line.match(/^\s*[-*+]\s+(.*)$/); })
+      .filter(Boolean)
+      .map(function (m) { return m[1].trim(); })
+      .filter(function (s) { return s.length > 2; })
+      .slice(0, limit || 4);
+  }
+
+  // Trims an over-long value for a card without cutting mid-word.
+  function clip(text, max) {
+    var value = plain(text);
+    if (value.length <= max) return value;
+    var cut = value.slice(0, max);
+    return cut.slice(0, cut.lastIndexOf(" ")) + "\u2026";
+  }
+
+  function plain(markdown) {
+    return String(markdown)
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/\*[^*]+\*/g, "$1")
+      .replace(/~~([^~]+)~~/g, "$1")
+      .replace(/^[-*+]\s+/gm, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function parseSessions(text) {
+    return text
+      .split(/\n(?=## )/)
+      .filter(function (chunk) { return /^## Session/.test(chunk); })
+      .map(function (chunk) {
+        var lines = chunk.split("\n");
+        var heading = lines[0].replace(/^##\s+/, "").trim();
+        var dateMatch = heading.match(/(\d{4}-\d{2}-\d{2})/);
+        var numberMatch = heading.match(/Session\s+(\d+)/i);
+        return {
+          heading: heading,
+          number: numberMatch ? Number(numberMatch[1]) : 0,
+          date: dateMatch ? dateMatch[1] : "",
+          title: heading.replace(/^Session\s+\d+\s*—?\s*/, "").replace(/^\d{4}-\d{2}-\d{2}\s*—?\s*/, ""),
+          body: lines.slice(1).join("\n"),
+          slug: "session-" + (numberMatch ? numberMatch[1] : Math.abs(hash(heading))),
+          source: chunk
+        };
+      })
+      .sort(function (a, b) { return b.number - a.number; });
+  }
+
+  function hash(text) {
+    var h = 0;
+    for (var i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) | 0;
+    return h;
+  }
+
+  /* Categories are only claimed when a keyword is unambiguous. Anything that
+     does not match confidently stays as "Development". */
+  var CATEGORIES = [
+    { id: "networking", label: "Networking", re: /\b(netcode|replicat\w*|dedicated server|server build|latency|jitter|packet loss|network emulation|lobby|session host|eos\b|reconnect\w*|authority|authoritative)\b/i },
+    { id: "maps", label: "Maps", re: /\b(map|level|greybox|graybox|blockout|dry river|terrain|landscape|navmesh|navigation mesh|world partition|streaming|dressing|objective actor|spawn|encounter)\b/i },
+    { id: "gameplay", label: "Gameplay", re: /\b(weapon|recoil|damage|health|ammunition|grenade|suppression|revive|round|scoring|game mode|objective|gas\b|ability|role|training|qualification|fire team|fireteam|movement|melee|reload)\b/i },
+    { id: "ui", label: "UI", re: /\b(widget|hud|menu|interface|ui\b|compass|minimap|screen|front end|settings|typography|font|layout|icon)\b/i },
+    { id: "audio", label: "Audio", re: /\b(sound|audio|music|footstep|ambience|voice|soundbank|attenuation)\b/i },
+    { id: "assets", label: "Assets", re: /\b(model|texture|mesh|animation|anim\b|asset|import\w*|blender|fab\b|material|skeleton|rig\b)\b/i },
+    { id: "accessibility", label: "Accessibility", re: /\b(accessib\w*|colour|color|colourblind|colorblind|subtitle|caption|font scale|remap|contrast|reduced motion)\b/i },
+    { id: "performance", label: "Performance", re: /\b(performance|fps|frame rate|profil\w*|optimis\w*|optimiz\w*|budget|memory|lod\b|draw call)\b/i },
+    { id: "documentation", label: "Documentation", re: /\b(document\w*|readme|adr\b|decision log|register\b|test plan|changelog|roadmap|spec\b)\b/i }
+  ];
+
+  function categoriesFor(session) {
+    var haystack = sectionOf(session.source, "COMPLETED") + " " +
+                   sectionOf(session.source, "ASSETS") + " " +
+                   session.title;
+    var found = CATEGORIES.filter(function (cat) { return cat.re.test(haystack); });
+    if (!found.length) return ["development"];
+    return found.slice(0, 2).map(function (cat) { return cat.id; });
+  }
+
+  /* ------------------------------------------------------ status + roadmap */
+
+  var CHANGELOG = "data/CHANGELOG.md";
+  var ROADMAP = "data/DEVELOPMENT_ROADMAP.md";
+
+  // Held between the two fetches so the status panel can quote the roadmap's
+  // own Current Status table rather than a stale copy in the changelog.
+  var roadmapText = "";
+  var currentPhase = null;
+
+  function readCurrentPhase(text) {
+    var block = sectionOf(text, "Current Status");
+    if (!block) return null;
+    var names = {
+      0: "Audit & Architecture", 1: "Greybox Vertical Slice", 2: "Infantry Combat",
+      3: "Training & Progression", 4: "Maps & Layers", 5: "Online Hardening",
+      6: "Content & Polish"
+    };
+    var cells = block.split("\n")
+      .map(function (l) {
+        return l.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(function (c) { return c.trim(); });
+      })
+      .filter(function (c) { return c.length >= 2; });
+    var active = cells.filter(function (c) {
+      return /^Phase\s+\d/.test(c[0]) && /active|in progress/i.test(c[1]);
+    })[0];
+    if (!active) return null;
+    var num = Number(active[0].match(/^Phase\s+(\d+)/)[1]);
+    return {
+      num: num,
+      label: "Phase " + num + " \u2014 " + (names[num] || ""),
+      detail: clip(active[1], 190)
+    };
+  }
+
+  function renderStatus(sessions, changelogText) {
+    var host = document.getElementById("status");
+    if (!host) return;
+    clear(host);
+
+    var glance = {};
+    var glanceBlock = sectionOf(changelogText, "Status At A Glance");
+    if (glanceBlock) {
+      glanceBlock.split("\n").forEach(function (line) {
+        if (line.indexOf("|") === -1) return;
+        var cells = line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|");
+        var key = cells[0].trim().toLowerCase().replace(/\?/g, "");
+        if (cells.length >= 2 && key && !/^-{2,}$/.test(key)) {
+          glance[key] = cells[1].trim();
+        }
+      });
+    }
+
+    var latest = sessions[0];
+    var nextAction = plain(sectionOf(latest.source, "NEXT ACTION"));
+    var risks = plain(sectionOf(latest.source, "RISKS"));
+    var completed = listItems(sectionOf(latest.source, "COMPLETED"), 4);
+
+    var cards = [
+      {
+        label: "Current phase", accent: true,
+        value: currentPhase ? currentPhase.label : clip(glance["current phase"] || "Not recorded", 80),
+        state: currentPhase ? "progress" : "planned",
+        meta: currentPhase ? currentPhase.detail : "From the changelog's Status At A Glance table."
+      },
+      {
+        label: "Current milestone",
+        value: latest ? "Session " + latest.number : "Not recorded",
+        state: "progress",
+        body: latest ? clip(latest.title, 120) : "",
+        meta: latest && latest.date ? "Recorded " + latest.date : ""
+      },
+      {
+        label: "Recently completed",
+        value: latest ? "Latest session" : "Not recorded",
+        state: "complete",
+        list: completed.map(function (item) { return clip(item, 150); }),
+        meta: glance["buildable"] ? "Buildable: " + plain(glance["buildable"]) : ""
+      },
+      {
+        label: "Next major objective",
+        value: "The single next action",
+        state: "planned",
+        body: clip(nextAction || "Not recorded.", 220),
+        meta: glance["playable"] ? "Playable: " + plain(glance["playable"]) : ""
+      },
+      {
+        label: "Open risks",
+        value: risks ? "Carried forward" : "None recorded",
+        state: /blocked|not run/i.test(risks) ? "blocked" : "testing",
+        body: clip(risks || "Not recorded.", 220),
+        meta: glance["current phase"] ? "Changelog Status At A Glance: " + clip(glance["current phase"], 90) : ""
+      }
+    ];
+
+    cards.forEach(function (card) {
+      var node = el("article", "status-card" + (card.accent ? " status-card--accent" : ""));
+      node.appendChild(el("p", "status-card__label", card.label));
+
+      var head = el("div", "phase__meta");
+      var state = el("span", "state state--" + (card.state || "planned"));
+      state.appendChild(el("span", null, ({
+        planned: "Planned", progress: "In progress", testing: "Testing",
+        complete: "Complete", blocked: "Blocked"
+      })[card.state] || "Planned"));
+      head.appendChild(state);
+      node.appendChild(head);
+
+      node.appendChild(el("p", "status-card__value", card.value));
+
+      if (card.body) node.appendChild(el("p", "status-card__body", card.body));
+      if (card.list && card.list.length) {
+        var ul = el("ul", "status-card__body");
+        card.list.forEach(function (item) {
+          var li = el("li");
+          li.innerHTML = inline(item);
+          ul.appendChild(li);
+        });
+        node.appendChild(ul);
+      }
+      if (card.meta) node.appendChild(el("p", "status-card__meta", card.meta));
+      host.appendChild(node);
+    });
+
+    host.setAttribute("aria-busy", "false");
+  }
+
+  function renderRoadmap(text) {
+    var host = document.getElementById("roadmap");
+    if (!host) return;
+    clear(host);
+
+    // Phase summary table gives goal and exit criterion for every phase.
+    var summary = {};
+    var summaryBlock = sectionOf(text, "Phase Summary");
+    if (summaryBlock) {
+      summaryBlock.split("\n").forEach(function (line) {
+        var trimmed = line.trim();
+        if (!trimmed.startsWith("|")) return;
+        var cells = trimmed.replace(/^\|/, "").replace(/\|$/, "").split("|").map(function (c) { return c.trim(); });
+        if (cells.length < 3) return;
+        if (/^:?-{2,}:?$/.test(cells[0])) return;
+        var head = cells[0].replace(/^\*\*/, "").replace(/\*\*$/, "").trim();
+        var num = head.match(/^(\d+)\.\s*(.+)$/);
+        if (!num) return;
+        summary[num[1]] = { name: num[2].trim(), goal: cells[1], exit: cells[2] };
+      });
+    }
+
+    // Current Status table gives the authoritative per-phase state.
+    var states = {};
+    var stateBlock = sectionOf(text, "Current Status");
+    if (stateBlock) {
+      stateBlock.split("\n").forEach(function (line) {
+        var trimmed = line.trim();
+        if (trimmed.indexOf("|") === -1) return;
+        var cells = trimmed.replace(/^\|/, "").replace(/\|$/, "").split("|").map(function (c) { return c.trim(); });
+        var label = cells[0] || "";
+        var value = cells[1] || "";
+        if (!value) return;
+        if (/^Phase\s+\d/.test(label)) {
+          states[label.match(/\d+/)[0]] = value;
+        } else {
+          var range = label.match(/^Phases?\s+(\d+)\s*[\u2013\u2014-]\s*(\d+)/);
+          if (range) {
+            for (var n = Number(range[1]); n <= Number(range[2]); n++) states[n] = value;
+          }
+        }
+      });
+    }
+
+    // Long-form body for each phase, used by the expandable details. The match
+    // is deliberately not anchored to the end of the chunk, which is
+    // multi-line, so it is restricted to the heading line only.
+    var bodies = {};
+    var sections = text.split(/\n(?=##\s)/);
+    sections.forEach(function (chunk) {
+      var m = chunk.match(/^##\s+\d+\.\s+Phase\s+(\d+)\s*[\u2014\u2013-]\s*([^\n]+)/);
+      if (!m) return;
+      var body = chunk.split("\n").slice(1).join("\n")
+        .replace(/^\*\*Status:.*$/m, "")
+        .trim();
+      bodies[m[1]] = { name: m[2].trim(), body: body };
+    });
+
+    var numbers = Object.keys(summary).sort(function (a, b) { return Number(a) - Number(b); });
+    if (!numbers.length) {
+      numbers = Object.keys(bodies).sort(function (a, b) { return Number(a) - Number(b); });
+    }
+
+    var LABELS = {
+      complete: "Complete", active: "In progress", progress: "In progress",
+      blocked: "Blocked", "not started": "Planned"
+    };
+
+    numbers.forEach(function (num) {
+      var info = summary[num] || bodies[num] || {};
+      var rawState = states[num] || "";
+      var key = /complete/i.test(rawState) ? "complete"
+        : /active|in progress/i.test(rawState) ? "progress"
+        : /block/i.test(rawState) ? "blocked"
+        : "planned";
+      var label = rawState.replace(/\*\*/g, "").split("—")[0].trim() ||
+        (LABELS[key] || "Planned");
+
+      var phase = el("article", "phase phase--" + (key === "progress" ? "current" : key === "complete" ? "done" : "todo"));
+      phase.id = "phase-" + num;
+
+      var rail = el("div", "phase__rail");
+      rail.appendChild(el("span", "phase__node"));
+      rail.appendChild(el("p", "phase__num", "Phase " + num));
+      phase.appendChild(rail);
+
+      var body = el("div", "phase__body");
+      body.appendChild(el("h3", "phase__title", info.name || "Phase " + num));
+
+      var meta = el("div", "phase__meta");
+      var state = el("span", "state state--" + key);
+      state.appendChild(el("span", null, LABELS[key] || "Planned"));
+      meta.appendChild(state);
+      body.appendChild(meta);
+
+      if (info.goal) body.appendChild(el("p", "phase__goal", plain(info.goal)));
+
+      var bodyText = bodies[num] ? bodies[num].body : "";
+      if (bodyText) {
+        var details = el("details", "phase__details");
+        details.id = "phase-" + num + "-details";
+        details.appendChild(el("summary", null, "Phase detail"));
+        var md = el("div", "markdown-body");
+        md.innerHTML = renderMarkdown(bodyText);
+        details.appendChild(md);
+        body.appendChild(details);
+      }
+
+      if (info.exit) {
+        var exit = el("p", "phase__exit");
+        exit.appendChild(el("strong", null, "Exit criterion: "));
+        exit.appendChild(el("span", null, plain(info.exit)));
+        body.appendChild(exit);
+      }
+
+      phase.appendChild(body);
+      host.appendChild(phase);
+    });
+
+    host.setAttribute("aria-busy", "false");
+  }
+
+  /* -------------------------------------------------------------- changelog */
+
+  function renderChangelog(sessions) {
+    var host = document.getElementById("changelog-list");
+    var filterHost = document.getElementById("changelog-filters");
+    var search = document.getElementById("changelog-search");
+    var count = document.getElementById("changelog-count");
+    if (!host) return;
+
+    clear(host);
+
+    // Bodies are rendered on first open. Thirty fully rendered sessions is
+    // several thousand DOM nodes before the reader has scrolled to them; the
+    // search index and the filters are built from the session source instead.
+    var EAGER = 4;
+
+    function buildBody(node, session) {
+      var body = el("div", "session__body markdown-body");
+      body.innerHTML = renderMarkdown(session.body);
+
+      var actions = el("div", "session__actions");
+      var anchor = el("a", "session__link", "Link to this session");
+      anchor.href = "#" + session.slug;
+      actions.appendChild(anchor);
+
+      var copy = el("button", "session__link", "Copy link");
+      copy.type = "button";
+      copy.addEventListener("click", function () {
+        var url = window.location.origin + window.location.pathname + "#" + session.slug;
+        var reset = function (text) {
+          copy.textContent = text;
+          window.setTimeout(function () { copy.textContent = "Copy link"; }, 2000);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(function () { reset("Link copied"); },
+            function () { reset("Copy failed"); });
+        } else {
+          reset("Link copied");
+        }
+      });
+      actions.appendChild(copy);
+      body.appendChild(actions);
+      node.appendChild(body);
+    }
+
+    var records = sessions.map(function (session, index) {
+      var node = el("details", "session" + (index === 0 ? " session--latest" : ""));
+      node.id = session.slug;
+      node.setAttribute("data-date", session.date);
+      node.setAttribute("data-search", plain(session.source).toLowerCase());
+      node.setAttribute("data-categories", categoriesFor(session).join(" "));
+
+      var summary = el("summary", "session__summary");
+      summary.appendChild(el("span", "session__date", session.date || "—"));
+      var main = el("div");
+      main.appendChild(el("h3", "session__title", session.title || session.heading));
+      if (index === 0) {
+        var tags = el("div", "session__tags");
+        tags.appendChild(el("span", "badge badge--wip", "Latest update"));
+        main.appendChild(tags);
+      }
+      summary.appendChild(main);
+      node.appendChild(summary);
+
+      if (index < EAGER) {
+        buildBody(node, session);
+      } else {
+        node.addEventListener("toggle", function () {
+          if (node.open && !node.querySelector(".session__body")) buildBody(node, session);
+        });
+      }
+
+      return {
+        node: node,
+        session: session,
+        date: session.date,
+        categories: node.getAttribute("data-categories").split(" "),
+        haystack: node.getAttribute("data-search")
+      };
+    });
+
+    var currentDay = null;
+    var group = null;
+    records.forEach(function (record) {
+      if (record.date !== currentDay) {
+        currentDay = record.date;
+        group = el("div", "day-group");
+        var label = el("h3", "day-group__label", currentDay || "Undated");
+        group.appendChild(label);
+        host.appendChild(group);
+      }
+      group.appendChild(record.node);
+    });
+
+    // Filters, built from the categories actually present.
+    var present = {};
+    records.forEach(function (record) {
+      record.categories.forEach(function (id) { present[id] = (present[id] || 0) + 1; });
+    });
+    var all = el("button", "filter", "All");
+    all.type = "button";
+    all.setAttribute("aria-pressed", "true");
+    all.appendChild(el("span", "filter__count", String(records.length)));
+    filterHost.appendChild(all);
+
+    var active = "all";
+    var term = "";
+
+    Object.keys(present).sort().forEach(function (id) {
+      var meta = CATEGORIES.filter(function (c) { return c.id === id; })[0];
+      var button = el("button", "filter", (meta ? meta.label : "Development"));
+      button.type = "button";
+      button.setAttribute("aria-pressed", "false");
+      button.setAttribute("data-filter", id);
+      button.appendChild(el("span", "filter__count", String(present[id])));
+      filterHost.appendChild(button);
+    });
+
+    function apply() {
+      var shown = 0;
+      records.forEach(function (record) {
+        var matchesTerm = !term || record.haystack.indexOf(term) !== -1;
+        var matchesCat = active === "all" || record.categories.indexOf(active) !== -1;
+        var show = matchesTerm && matchesCat;
+        record.node.hidden = !show;
+        if (show) shown++;
+      });
+      // Hide day headings that no longer contain a visible session.
+      Array.prototype.forEach.call(host.querySelectorAll(".day-group"), function (dayGroup) {
+        var any = Array.prototype.some.call(dayGroup.querySelectorAll(".session"), function (n) { return !n.hidden; });
+        dayGroup.hidden = !any;
+      });
+      count.textContent = shown === records.length
+        ? records.length + " sessions"
+        : shown + " of " + records.length + " sessions match";
+    }
+
+    filterHost.addEventListener("click", function (event) {
+      var button = event.target.closest(".filter");
+      if (!button) return;
+      active = button.getAttribute("data-filter") || "all";
+      Array.prototype.forEach.call(filterHost.querySelectorAll(".filter"), function (b) {
+        b.setAttribute("aria-pressed", b === button ? "true" : "false");
+      });
+      apply();
+    });
+
+    if (search) {
+      var debounce;
+      search.addEventListener("input", function () {
+        window.clearTimeout(debounce);
+        debounce = window.setTimeout(function () {
+          term = search.value.trim().toLowerCase();
+          apply();
+        }, 140);
+      });
+    }
+
+    // Deep links open their session.
+    if (window.location.hash) {
+      var target = document.getElementById(window.location.hash.slice(1));
+      if (target && target.classList.contains("session")) {
+        target.open = true;
+        if (!target.querySelector(".session__body")) {
+          target.dispatchEvent(new Event("toggle"));
+        }
+      }
+    }
+
+    host.setAttribute("aria-busy", "false");
+    apply();
+  }
+
+  /* ------------------------------------------------------------------ init */
+
+  function init() {
+    initReveal();
+    initNav();
+    initLightbox();
+
+    var year = document.getElementById("year");
+    if (year) year.textContent = String(new Date().getFullYear());
+
+    // Broken images should degrade to their alt text, not a broken icon.
+    document.addEventListener("error", function (event) {
+      var target = event.target;
+      if (target && target.tagName === "IMG" && !target.dataset.failed) {
+        target.dataset.failed = "true";
+        target.style.opacity = "0.25";
+      }
+    }, true);
+
+    var sessions = null;
+    var changelogText = null;
+
+    fetchText(ROADMAP).then(function (text) {
+      roadmapText = text;
+      currentPhase = readCurrentPhase(text);
+      try {
+        renderRoadmap(text);
+        var doc = document.getElementById("roadmap-doc");
+        if (doc) doc.innerHTML = renderMarkdown(text);
+      } catch (error) {
+        reportError(document.getElementById("roadmap"), "The roadmap", error.message);
+      }
+    }).catch(function (error) {
+      reportError(document.getElementById("roadmap"), "The roadmap", error.message);
+      reportError(document.getElementById("roadmap-doc"), "The roadmap document", error.message);
+    });
+
+    // The status panel quotes both documents, so it waits for both.
+    function renderStatusWhenReady() {
+      if (!sessions || !roadmapText) return;
+      try {
+        renderStatus(sessions, changelogText);
+      } catch (error) {
+        reportError(document.getElementById("status"), "Development status", error.message);
+      }
+    }
+
+    fetchText(CHANGELOG).then(function (text) {
+      changelogText = text;
+      sessions = parseSessions(text);
+      try {
+        renderChangelog(sessions);
+      } catch (error) {
+        reportError(document.getElementById("changelog-list"), "The changelog", error.message);
+      }
+      renderStatusWhenReady();
+    }).catch(function (error) {
+      reportError(document.getElementById("changelog-list"), "The changelog", error.message);
+      reportError(document.getElementById("status"), "Development status", error.message);
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
 })();

@@ -295,8 +295,13 @@
       if (label) label.textContent = open ? "Close" : "Menu";
       document.body.setAttribute("data-nav-open", open ? "true" : "false");
       if (open) {
-        var first = focusable()[0];
-        if (first) first.focus();
+        // The panel is still display:none or visibility:hidden until the
+        // opening transition starts, so offsetParent is null and focusable()
+        // finds nothing. Wait for layout before reaching into it.
+        requestAnimationFrame(function () {
+          var first = focusable()[0];
+          if (first) first.focus();
+        });
       }
     }
 
@@ -797,6 +802,7 @@
     var filterHost = document.getElementById("changelog-filters");
     var search = document.getElementById("changelog-search");
     var count = document.getElementById("changelog-count");
+    var empty = document.getElementById("changelog-empty");
     if (!host) return;
 
     clear(host);
@@ -925,6 +931,25 @@
       count.textContent = shown === records.length
         ? records.length + " sessions"
         : shown + " of " + records.length + " sessions match";
+
+      // An empty result set needs to say so, and offer a way out, rather than
+      // leaving a blank column under a count of zero.
+      if (empty) empty.hidden = shown !== 0;
+    }
+
+    function resetFilters() {
+      active = "all";
+      term = "";
+      if (search) search.value = "";
+      Array.prototype.forEach.call(filterHost.querySelectorAll(".filter"), function (b) {
+        b.setAttribute("aria-pressed", b.getAttribute("data-filter") === "all" ? "true" : "false");
+      });
+      apply();
+      if (search) search.focus();
+    }
+    if (empty) {
+      var reset = empty.querySelector("[data-changelog-reset]");
+      if (reset) reset.addEventListener("click", resetFilters);
     }
 
     filterHost.addEventListener("click", function (event) {
@@ -948,19 +973,65 @@
       });
     }
 
-    // Deep links open their session.
-    if (window.location.hash) {
-      var target = document.getElementById(window.location.hash.slice(1));
-      if (target && target.classList.contains("session")) {
+    // Exposed so a deep link into a filtered-out session can clear the filter
+    // and reveal itself.
+    clearChangelogFilters = function () {
+      resetFilters();
+      if (search) search.blur();
+    };
+
+    host.setAttribute("aria-busy", "false");
+    apply();
+    revealFragment();
+  }
+
+  /* -------------------------------------------------------------- fragments */
+
+  // The roadmap and changelog are rendered after load, so the browser's own
+  // fragment navigation runs before their anchors exist and silently gives up.
+  // This re-runs it once the content is in the DOM, expands whatever was
+  // linked to, and clears any active filter that would hide the target.
+  var clearChangelogFilters = null;
+  var fragmentTimer = null;
+
+  function revealFragment() {
+    window.clearTimeout(fragmentTimer);
+    // The two documents resolve independently; retry briefly so a link into
+    // the changelog still lands if the roadmap fetch is the slow one.
+    fragmentTimer = window.setTimeout(function () {
+      var id = (window.location.hash || "").replace(/^#/, "");
+      if (!id) return;
+      var target = document.getElementById(id);
+      if (!target) return;
+
+      if (target.classList.contains("session")) {
+        // A live search or filter would keep the target hidden.
+        var list = document.getElementById("changelog-list");
+        if (list && target.hidden && clearChangelogFilters) clearChangelogFilters();
+        target.hidden = false;
         target.open = true;
         if (!target.querySelector(".session__body")) {
           target.dispatchEvent(new Event("toggle"));
         }
+      } else if (target.classList.contains("phase")) {
+        var details = target.querySelector(".phase__details");
+        if (details) {
+          details.open = true;
+          if (!details.querySelector(".markdown-body")) {
+            details.dispatchEvent(new Event("toggle"));
+          }
+        }
+      } else {
+        return;
       }
-    }
 
-    host.setAttribute("aria-busy", "false");
-    apply();
+      var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+      // Move focus without a second scroll, so keyboard users continue from
+      // the linked item rather than the top of the document.
+      if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+      target.focus({ preventScroll: true });
+    }, 60);
   }
 
   /* ------------------------------------------------------------------ init */
@@ -969,6 +1040,7 @@
     initReveal();
     initNav();
     initLightbox();
+    window.addEventListener("hashchange", revealFragment);
 
     var year = document.getElementById("year");
     if (year) year.textContent = String(new Date().getFullYear());
@@ -1018,7 +1090,7 @@
     }).catch(function (error) {
       reportError(document.getElementById("roadmap"), "The roadmap", error.message);
       reportError(document.getElementById("roadmap-doc"), "The roadmap document", error.message);
-    });
+    }).then(revealFragment);
 
     fetchText(CHANGELOG).then(function (text) {
       changelogText = text;
@@ -1032,7 +1104,7 @@
     }).catch(function (error) {
       reportError(document.getElementById("changelog-list"), "The changelog", error.message);
       reportError(document.getElementById("status"), "Development status", error.message);
-    });
+    }).then(revealFragment);
   }
 
   if (document.readyState === "loading") {

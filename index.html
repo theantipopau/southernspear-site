@@ -154,9 +154,13 @@
 
     <div class="shell hero__inner">
       <div class="hero__copy">
+        <!-- The approved lockup, rendered as its own element rather than
+             composited into the background image. -->
+        <img class="hero__logo" src="assets/brand/southern-spear-logo-stacked.png"
+             width="420" height="424" alt="" fetchpriority="high" decoding="async">
         <p class="hero__eyebrow">
           <span class="status-dot" aria-hidden="true"></span>
-          Pre-alpha <span aria-hidden="true">&middot;</span> In active development
+          Pre-alpha <span aria-hidden="true">&middot;</span> Coming to Steam
         </p>
         <h1 class="hero__title" id="hero-title">
           <span class="u-visually-hidden">Southern Spear: </span>An Australian&#8209;inspired tactical multiplayer experience.
@@ -219,11 +223,15 @@
             </div>
             <div class="fact">
               <dt>Engine</dt>
-              <dd>Unreal Engine 5.8.3</dd>
+              <dd>Unreal Engine 5.8</dd>
             </div>
             <div class="fact">
               <dt>Foundation</dt>
-              <dd>Lyra Starter Game 5.8</dd>
+              <dd>Lyra Starter Game</dd>
+            </div>
+            <div class="fact">
+              <dt>Platform</dt>
+              <dd>Coming to Steam</dd>
             </div>
             <div class="fact">
               <dt>Mode</dt>
@@ -236,6 +244,10 @@
             <div class="fact">
               <dt>Public build</dt>
               <dd>None yet</dd>
+            </div>
+            <div class="fact">
+              <dt>Inspiration</dt>
+              <dd>Classic <span class="nowrap">America&rsquo;s Army</span> design philosophy</dd>
             </div>
           </dl>
 
@@ -583,7 +595,7 @@
       <figure class="showcase">
         <button class="showcase__frame" type="button"
                 data-lightbox-src="assets/concepts/main-menu-concept-01.jpg"
-                data-lightbox-alt="Southern Spear main menu concept: a soldier in camouflage stands on a rocky outcrop above a red-earth valley at sunset. A brass-framed emblem showing Australia, the Southern Cross and a spear is centred above the words Southern Spear, with menu-style labels in the corners."
+                data-lightbox-alt="Southern Spear main menu concept: a soldier in camouflage stands on a rocky outcrop above a red-earth valley at sunset, with a brass emblem of Australia, the Southern Cross and a spear above the words Southern Spear."
                 data-lightbox-caption="Main menu concept &mdash; intended visual direction, not captured gameplay.">
           <picture>
             <source type="image/avif" srcset="assets/concepts/main-menu-concept-01.avif">
@@ -595,35 +607,78 @@
         </button>
         <figcaption>
           <span class="badge badge--concept">Main menu concept</span>
-          <span class="showcase__caption-text">Intended visual direction for the front end. The corner labels are part of the concept artwork and are not part of this website.</span>
+          <span class="showcase__caption-text">Intended visual direction for the front end. The emblem and wordmark are approved brand assets; they are not a screenshot of a working interface.</span>
         </figcaption>
       </figure>
 
+      <h3 class="subhead">Title screen and environment concepts</h3>
       <ul class="gallery" role="list">
         <li class="gallery__item">
           <button class="gallery__btn" type="button"
-                  data-lightbox-src="assets/concepts/environment-detail-01.jpg"
-                  data-lightbox-alt="Title-screen artwork detail: a soldier in camouflage on a rocky ledge above a wide red-earth valley with a dry creek line, eucalyptus in the foreground and low sun flare."
-                  data-lightbox-caption="Environment detail &mdash; concept art from the main menu artwork.">
+                  data-lightbox-src="assets/concepts/loading-screen-concept-01.jpg"
+                  data-lightbox-alt="Southern Spear loading screen design: a soldier in camouflage on a rocky ledge above a wide red-earth valley, with the brass emblem and the words Southern Spear centred in the frame and menu-style labels in the top corners."
+                  data-lightbox-caption="Loading screen design &mdash; concept art. The corner labels are part of the artwork.">
             <picture>
-              <source type="image/avif" srcset="assets/concepts/environment-detail-01.avif">
-              <source type="image/webp" srcset="assets/concepts/environment-detail-01.webp">
-              <img src="assets/concepts/environment-detail-01.jpg" width="768" height="512" loading="lazy" decoding="async"
-                   alt="Concept art detail: a soldier above a wide red-earth valley with a dry creek line and eucalyptus, lit by low sun.">
+              <source type="image/avif" srcset="assets/concepts/loading-screen-concept-01.avif">
+              <source type="image/webp" srcset="assets/concepts/loading-screen-concept-01.webp">
+              <img src="assets/concepts/loading-screen-concept-01.jpg" width="1536" height="1024" loading="lazy" decoding="async"
+                   alt="Loading screen concept: a soldier above a red-earth valley with the brass emblem and the words Southern Spear centred in the frame.">
             </picture>
-            <span class="gallery__meta"><span class="badge badge--concept">Concept</span> Environment detail</span>
+            <span class="gallery__meta"><span class="badge badge--concept">Concept</span> Loading screen design</span>
           </button>
         </li>
         <li class="gallery__item">
           <button class="gallery__btn" type="button"
+                  data-lightbox-src="assets/concepts/concept-art-01.jpg"
+                  data-lightbox-alt="Environment concept art: a wide Australian outback vista under a cool grey-blue sky, with red-brown ridges, scattered eucalypt and a dark foreground of scrub and rock."
+                  data-lightbox-caption="Environment concept &mdash; intended art direction for open terrain. Not captured gameplay.">
+            <picture>
+              <source type="image/avif" srcset="assets/concepts/concept-art-01.avif">
+              <source type="image/webp" srcset="assets/concepts/concept-art-01.webp">
+              <img src="assets/concepts/concept-art-01.jpg" width="1536" height="1024" loading="lazy" decoding="async"
+                   alt="Environment concept: a wide outback vista of red-brown ridges and scattered eucalypt under a cool grey-blue sky.">
+            </picture>
+            <span class="gallery__meta"><span class="badge badge--concept">Concept</span> Open terrain</span>
+          </button>
+        </li>
+        <li class="gallery__item gallery__item--wide">
+          <button class="gallery__btn" type="button"
+                  data-lightbox-src="assets/concepts/concept-art-02.jpg"
+                  data-lightbox-alt="Environment concept art in a wide cinematic format: a low horizon beneath a large pale sky, layered ridgelines receding into haze, and dark silhouetted ground in the foreground."
+                  data-lightbox-caption="Environment concept &mdash; intended art direction for long sightlines. Not captured gameplay.">
+            <picture>
+              <source type="image/avif" srcset="assets/concepts/concept-art-02.avif">
+              <source type="image/webp" srcset="assets/concepts/concept-art-02.webp">
+              <img src="assets/concepts/concept-art-02.jpg" width="1672" height="941" loading="lazy" decoding="async"
+                   alt="Environment concept: a low horizon beneath a large pale sky, layered ridgelines receding into haze above dark silhouetted ground.">
+            </picture>
+            <span class="gallery__meta"><span class="badge badge--concept">Concept</span> Long sightlines</span>
+          </button>
+        </li>
+        <li class="gallery__item">
+          <button class="gallery__btn" type="button"
+                  data-lightbox-src="assets/concepts/environment-detail-01.jpg"
+                  data-lightbox-alt="Detail crop from the main menu artwork: a soldier in camouflage on a rocky ledge above a wide red-earth valley with a dry creek line, eucalyptus in the foreground and low sun flare."
+                  data-lightbox-caption="Detail crop &mdash; taken from the main menu artwork.">
+            <picture>
+              <source type="image/avif" srcset="assets/concepts/environment-detail-01.avif">
+              <source type="image/webp" srcset="assets/concepts/environment-detail-01.webp">
+              <img src="assets/concepts/environment-detail-01.jpg" width="768" height="512" loading="lazy" decoding="async"
+                   alt="Detail crop: a soldier above a wide red-earth valley with a dry creek line and eucalyptus, lit by low sun.">
+            </picture>
+            <span class="gallery__meta"><span class="badge badge--concept">Concept</span> Valley detail</span>
+          </button>
+        </li>
+        <li class="gallery__item gallery__item--wide">
+          <button class="gallery__btn" type="button"
                   data-lightbox-src="assets/concepts/environment-detail-02.jpg"
-                  data-lightbox-alt="Title-screen artwork detail: a red rock gorge and river bend in the foreground, with layered mesas and a burning orange sky behind."
-                  data-lightbox-caption="Environment detail &mdash; concept art from the main menu artwork.">
+                  data-lightbox-alt="Detail crop from the main menu artwork: a red rock gorge and river bend in the foreground, with layered mesas and a burning orange sky behind."
+                  data-lightbox-caption="Detail crop &mdash; taken from the main menu artwork.">
             <picture>
               <source type="image/avif" srcset="assets/concepts/environment-detail-02.avif">
               <source type="image/webp" srcset="assets/concepts/environment-detail-02.webp">
-              <img src="assets/concepts/environment-detail-02.jpg" width="768" height="408" loading="lazy" decoding="async"
-                   alt="Concept art detail: a red rock gorge and river bend with layered mesas under an orange sky.">
+              <img src="assets/concepts/environment-detail-02.jpg" width="768" height="432" loading="lazy" decoding="async"
+                   alt="Detail crop: a red rock gorge and river bend with layered mesas under an orange sky.">
             </picture>
             <span class="gallery__meta"><span class="badge badge--concept">Concept</span> Gorge and mesas</span>
           </button>
@@ -637,8 +692,9 @@
         </li>
       </ul>
       <p class="section__note">
-        Captured in-engine gameplay screenshots have not been published yet. Development captures are
-        added here as they are frozen and captioned, and are always labelled separately from concept art.
+        Every image above is concept art. Captured in-engine gameplay screenshots have not been published
+        yet; they are added as they are frozen and captioned, and are always labelled separately from art
+        produced outside the game.
       </p>
     </div>
   </section>
@@ -648,11 +704,11 @@
     <div class="shell">
       <header class="section__head">
         <p class="eyebrow">Development</p>
-        <h2 id="development-title" class="section__title">Where the project actually is</h2>
-        <p class="section__lede">
-          Everything below is read directly from the project&rsquo;s own roadmap and changelog. Nothing is
-          estimated or rounded for effect, and no completion percentage is shown because none is tracked.
-        </p>
+        <h2 id="development-title" class="section__title">Where the project actually is</h2>          <p class="section__lede">
+            Everything below is read directly from the project&rsquo;s own roadmap and changelog. Nothing is
+            estimated or rounded for effect, and no completion percentage is shown because none is tracked.
+            Southern Spear is pre&#8209;alpha and is planned for Steam; no release date has been set.
+          </p>
       </header>
 
       <p class="prealpha-banner" role="note">
@@ -715,6 +771,17 @@
 
       <p class="result-count" id="changelog-count" role="status" aria-live="polite"></p>
 
+      <div class="empty-state" id="changelog-empty" hidden>
+        <p class="empty-state__title">No sessions match</p>
+        <p class="empty-state__body">
+          Nothing in the changelog matches that search and filter combination. Try a
+          shorter term, or clear the filters to see every session.
+        </p>
+        <button class="btn btn--outline btn--sm" type="button" data-changelog-reset>
+          Clear search and filters
+        </button>
+      </div>
+
       <div id="changelog-list" class="sessions" aria-busy="true">
         <p class="loading-note">Loading changelog&hellip;</p>
       </div>
@@ -739,8 +806,8 @@
           <summary>What is Southern Spear?</summary>
           <div class="faq__body">
             <p>An original, free, community&#8209;developed Australian&#8209;inspired tactical multiplayer
-            first&#8209;person shooter. It is built on Unreal Engine 5.8.3 using the Lyra Starter Game as
-            its foundation, and is in pre&#8209;alpha development.</p>
+            first&#8209;person shooter, coming to Steam. It is built on Unreal Engine 5.8 using the Lyra
+            Starter Game as its foundation, and is in pre&#8209;alpha development.</p>
           </div>
         </details>
         <details class="faq__item">
@@ -782,6 +849,14 @@
           </div>
         </details>
         <details class="faq__item">
+          <summary>Where will it be available?</summary>
+          <div class="faq__body">
+            <p>Steam is the planned storefront. Development is pre&#8209;alpha, so nothing is listed
+            and no release date has been announced. Announcements will be posted on this site and in
+            the Discord first.</p>
+          </div>
+        </details>
+        <details class="faq__item">
           <summary>Will the game be free?</summary>
           <div class="faq__body">
             <p>The project is being developed as free to play, with no loot boxes and no pay&#8209;to&#8209;win
@@ -791,7 +866,7 @@
         <details class="faq__item">
           <summary>Which engine does it use?</summary>
           <div class="faq__body">
-            <p>Unreal Engine 5.8.3, with the Lyra Starter Game 5.8 vendored in as the multiplayer
+            <p>Unreal Engine 5.8, with the Lyra Starter Game vendored in as the multiplayer
             foundation. Unreal Engine is a trademark of Epic Games, Inc.</p>
           </div>
         </details>

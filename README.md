@@ -3,7 +3,7 @@
 # Southern Spear — website
 
 Public website and development portal for **Southern Spear**, a free, community-developed,
-Australian-inspired tactical multiplayer FPS built on Unreal Engine 5.8.3 and the Lyra
+Australian-inspired tactical multiplayer FPS built on Unreal Engine 5.8 and the Lyra
 Starter Game, and inspired by the design philosophy of the classic America's Army games.
 
 **Status:** pre-alpha, in active development. There is no playable release and no download.

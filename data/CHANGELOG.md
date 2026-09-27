@@ -1983,6 +1983,70 @@ Tooling lives **outside** the project at `E:/_tools/UKSFTA-P3D` and `E:/_tools/A
 
 ---
 
+## Session 031 — 2026-09-27 — Further ADFRC Assets Found; Conversion Count Corrected Downward
+
+### COMPLETED
+
+- **Surveyed the whole extraction for anything still buried, and found four unused categories plus 212 sounds.** The earlier passes only walked `Models/ADF_Weapons`, so these were never touched:
+  - **212 WAV weapon sounds** → `Art/ADFRC/Sounds/`. Close/mid/dist shots, dry-fire, reload, bolt and magazine handling, and per-environment tails (forest, houses, interior, meadows, trees). **No conversion needed — these are usable in Unreal immediately**, and are the highest-value/lowest-effort asset in the whole ADFRC set.
+  - **`adfrc_nvgs`** (3) — `pvs_optic` and the `psq36` monocular in up/down positions. Missed previously because NVGs live under `ADF_Gear`, not `ADF_Weapons`.
+  - **`adfrc_accessories`** (26) — PEQ15 laser units, silencers, weapon lights, L3Squad rails, X400, Ryder9, NT4, Zev, SOCOM, WARCOMP, Foxtrot2, Atlas, Grippod, and per-weapon laser/light variants.
+  - **`adfrc_usp`** (2, pistol + mag), **`adfrc_f1grenade`** (2, grenade + spoon), **`adfrc_weaponbox`** (1).
+  - Relocated 34 models and 151 textures for these, converted all 34 to MLOD (100%), and linked textures — **0 models left without a texture folder**.
+- **Found and explained the real conversion blocker: `class = man`.** The 20 models that would not convert are declared **character/skinned geometry**, not rigid props. `bpy.ops.arma3tools.import_p3d` **never returns** on them — it tries to build a skeleton the file does not carry. Proven by instrumenting the call: the addon enables successfully, then the import call itself hangs indefinitely on files as small as 3.6 MB, so it is neither a size nor a timeout problem. `--model-cfg` does not help. Added `Tools/Common/adfrc_class_scan.py` to identify them (report: `Build/adfrc_model_classes.tsv`).
+- **Corrected a false claim from Session 030.** That session reported "179/179 converted, zero empty files". Per-model verification shows that was wrong: the count was taken from what existed on disk after several timed-out runs, not from a per-model check, so 20 silent failures were counted as successes. True state after this session: **211 MLOD (100%), 209 `.blend`, 2 blocked** — and the 20 `man`-class models are the real gap.
+- **Confirmed a related quality problem.** `TBAS_T5_MG` exists as a `.blend` from the partial run but reads back as **87 meshes and 0 armatures** — geometry without a skeleton, so not usable as rigged gear. The manifest now marks all 20 as blocked rather than counting them as converted.
+
+### FILES CHANGED
+
+Created: `Art/ADFRC/Sounds/` (212 WAV, 108 MB), `Art/ADFRC/Models/adfrc_nvgs` (3), `adfrc_accessories` (26), `adfrc_usp` (2), `adfrc_f1grenade` (2), `adfrc_weaponbox` (1) plus their textures; `Tools/Common/adfrc_class_scan.py`; `Build/adfrc_model_classes.tsv`; `Art/ADFRC_BLEND/` grew to 209 `.blend`.
+Modified: `Art/ADFRC/MANIFEST.md` (corrected totals, new sections), `Art/ADFRC_Player/` (refreshed from BLEND), `Docs/CHANGELOG.md`.
+
+### TESTING
+
+| Check | Command / method | Result |
+|---|---|---|
+| Full-tree survey | `find` over all 10 model groups | 268 `.p3d` total; counted what was already taken vs. still buried |
+| Sound extraction | `find -iname '*.wav'` | **212 files**, 108 MB, copied intact |
+| New models → MLOD | debinarizer over 34 models | **34/34**, all `MLOD` signature-verified |
+| New models → `.blend` | `BIS.CLI p3d export` + Blender, serial | **34/34 converted** (26 accessories, USP, grenade, weaponbox) |
+| Texture linking | token matcher over the enlarged set | **209/209** models have a sibling `_textures/` dir; **0 bare** |
+| Class diagnosis | `Tools/Common/adfrc_class_scan.py` | 211 scanned; **20 `class = man`** identified as the blocker |
+| Hang proof | instrumented `bpy.ops.arma3tools.import_p3d` with timestamps | addon enables at T+0.0s, import call never returns — confirms the addon, not the exporter |
+| Size ruled out | file sizes of hanging models | 3.6 MB — not a size problem |
+| `--model-cfg` tried | `p3d export --model-cfg` | **does not resolve** the hang |
+| Armature check | read back `TBAS_T5_MG_MLOD.blend` | **0 armatures, 87 meshes** — skeleton-less geometry |
+| Player folder | rebuild from BLEND | 57 models, 1,538 textures, 7.3 GB |
+| Git isolation | `git status -uall Art/` | 4 documentation files, **0 binaries** |
+| Whitespace | `git diff --check` | **PASS** |
+| Unreal import | — | **NOT RUN** — still no FBX, no materials, nothing in game |
+
+### ASSETS
+
+211 MLOD, **209 `.blend`**, 1,471+ source PNG with **209 texture folders**, **212 WAV sounds**, 57 models in `Art/ADFRC_Player/`. All git-ignored except four docs. Authorisation unchanged (L-0021). Branding substitution still required (R-27).
+
+### RISKS
+
+- **R-27 (OPEN)** — branding substitution still required before release.
+- **R-28 (CLOSED)** — conversion path exists and works for rigid props.
+- **R-29 (OPEN)** — no FBX, no Unreal materials, textures unpacked. Unchanged.
+- **R-30 (new, OPEN)** — **the 20 `class = man` skinned garments cannot be converted** by the available pipeline. These are the most character-relevant items (TBAS role vests, Crye G3, JPC, Peacekeeper, NVGs, boonie, facewear, field dress), so the player-gear set is materially incomplete until solved. Needs a skinned-mesh import path, or re-export from source as rigid props.
+- **R-31 (new, OPEN)** — **an over-confident completion claim reached the changelog.** Session 030 stated 179/179 converted with zero failures; ~10% were in fact failing silently. Root cause: success was measured by counting output files after a run that had already timed out, rather than per-model. Any future batch must report `converted / attempted` and list failures.
+- **R-25, R-26, R-24, R-20, R-17, R-21 to R-23** unchanged.
+
+### DEFECTS FOUND
+
+1. **Session 030's "179/179, zero empty files" was false.** Around 20 models were failing silently; the count came from what was on disk, not from a per-model check, and several runs had hit the command timeout mid-batch. Corrected here: 209/211.
+2. **Silent failure mode in the conversion pipeline.** A hung Blender produces no error, no output, and no log line — the script just never reaches `save_as_mainfile`. Combined with a batch driver that reports only what it finds, this is indistinguishable from success unless every input is checked individually. Now covered by `adfrc_class_scan.py` and a per-model diff.
+3. **`bpy.ops.mesh.separate(type='MATERIAL')` hang is a red herring for these models.** Session 030 attributed high-poly failures to that operator. The actual cause for the 20 blocked models is the importer's skeleton handling — instrumenting the call showed the import itself never returns, before any separation happens. The earlier attribution was wrong.
+4. **The `class` field is the discriminating factor and was never checked.** One `p3d info` per model would have identified all 20 immediately, instead of several hours of batch timeouts.
+
+### NEXT ACTION
+
+**Decide how to handle the 20 skinned `class = man` garments (R-30)** — either find a skinned-mesh import path, or accept them as reference-only and cover those gear slots with the rigid props that did convert.
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

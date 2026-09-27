@@ -86,7 +86,7 @@
 <header class="site-header" id="site-header" data-nav-state="top">
   <div class="site-header__inner">
     <a class="brand" href="#top">
-      <img class="brand__mark" src="assets/brand/southern-spear-emblem.png" alt="" width="256" height="188" decoding="async">
+      <img class="brand__mark" src="assets/brand/southern-spear-emblem-128.png" alt="" width="128" height="94" decoding="async">
       <span class="brand__text">
         <span class="brand__name">Southern Spear</span>
         <span class="brand__meta">Pre&#8209;alpha</span>
@@ -156,8 +156,14 @@
       <div class="hero__copy">
         <!-- The approved lockup, rendered as its own element rather than
              composited into the background image. -->
-        <img class="hero__logo" src="assets/brand/southern-spear-logo-stacked.png"
-             width="420" height="424" alt="" fetchpriority="high" decoding="async">
+        <picture>
+          <source type="image/avif" srcset="assets/brand/southern-spear-logo-stacked-256.avif 256w, assets/brand/southern-spear-logo-stacked-420.avif 420w" sizes="(max-width: 600px) 90px, 128px">
+          <source type="image/webp" srcset="assets/brand/southern-spear-logo-stacked-256.webp 256w, assets/brand/southern-spear-logo-stacked-420.webp 420w" sizes="(max-width: 600px) 90px, 128px">
+          <img class="hero__logo" src="assets/brand/southern-spear-logo-stacked-420.png"
+               srcset="assets/brand/southern-spear-logo-stacked-256.png 256w, assets/brand/southern-spear-logo-stacked-420.png 420w"
+               sizes="(max-width: 600px) 90px, 128px"
+               width="420" height="424" alt="" fetchpriority="high" decoding="async">
+        </picture>
         <p class="hero__eyebrow">
           <span class="status-dot" aria-hidden="true"></span>
           Pre-alpha <span aria-hidden="true">&middot;</span> Coming to Steam
@@ -685,7 +691,7 @@
         </li>
         <li class="gallery__item">
           <div class="gallery__static">
-            <img src="assets/brand/southern-spear-emblem.png" width="256" height="188" loading="lazy" decoding="async"
+            <img src="assets/brand/southern-spear-emblem-256.png" width="256" height="188" loading="lazy" decoding="async"
                  alt="Southern Spear emblem: a spear head over a map of Australia marked with the Southern Cross, on topographic contour lines in a brass frame.">
             <span class="gallery__meta"><span class="badge">Brand</span> Emblem</span>
           </div>
@@ -945,7 +951,7 @@
   <div class="shell">
     <div class="site-footer__top">
       <div class="site-footer__brand">
-        <img class="site-footer__mark" src="assets/brand/southern-spear-emblem.png" alt="" width="256" height="188" loading="lazy" decoding="async">
+        <img class="site-footer__mark" src="assets/brand/southern-spear-emblem-128.png" alt="" width="128" height="94" loading="lazy" decoding="async">
         <p class="site-footer__name">Southern Spear</p>
         <p class="site-footer__tag">
           An original, Australian&#8209;inspired tactical multiplayer shooter, built in the open.

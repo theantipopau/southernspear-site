@@ -810,7 +810,10 @@
     // Bodies are rendered on first open. Thirty fully rendered sessions is
     // several thousand DOM nodes before the reader has scrolled to them; the
     // search index and the filters are built from the session source instead.
-    var EAGER = 4;
+    // Only the two most recent stay eager, which is all the fold needs and
+    // keeps the document under the size where style recalculation starts to
+    // show up in Total Blocking Time.
+    var EAGER = 2;
 
     function buildBody(node, session) {
       var body = el("div", "session__body markdown-body");

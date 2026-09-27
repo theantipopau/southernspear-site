@@ -584,6 +584,7 @@ body[data-nav-open="true"] { overflow: hidden; }
 /* The approved lockup sits above the copy as its own element, so the artwork
    stays free of composited branding and the wordmark stays selectable text
    in the document outline. */
+.hero__copy picture { display: block; }
 .hero__logo {
   display: block;
   height: clamp(84px, 12.5vh, 128px);

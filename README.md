@@ -10,7 +10,8 @@ Starter Game, and inspired by the design philosophy of the classic America's Arm
 release, no download, and no announced release date.
 
 - Live site: https://theantipopau.github.io/southernspear-site/
-- Rolling changelog: [`data/CHANGELOG.md`](data/CHANGELOG.md), one entry per working session
+- Rolling changelog: [`data/CHANGELOG.md`](data/CHANGELOG.md), one entry per working session,
+  presented at [changelog.html](changelog.html)
 - Roadmap: [`data/DEVELOPMENT_ROADMAP.md`](data/DEVELOPMENT_ROADMAP.md)
 
 ## What is in this repository
@@ -20,12 +21,13 @@ It contains only the website and published documentation. No engine, Lyra or gam
 present, and none is ever published.
 
 ```
-index.html      the site
+index.html      the site home
+changelog.html  the full development changelog (search, filters, deep links)
 styles.css      design tokens and components
 site.js         navigation, Markdown subset renderer, status / roadmap / changelog
 404.html        not-found page
 robots.txt      crawler policy
-sitemap.xml     single-page sitemap with section anchors
+sitemap.xml     sitemap: home sections plus the changelog page
 manifest.webmanifest
 assets/         optimised image derivatives (brand, hero, concepts, social, favicons)
 fonts/          self-hosted latin subsets (Barlow Condensed, Inter, IBM Plex Mono)

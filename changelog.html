@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#07100B">
+
+<title>Development changelog — Southern Spear</title>
+<meta name="description" content="The complete Southern Spear development changelog: every working session with what was completed, how it was tested, the risks carried forward and the next action. Pre-alpha, in active development, coming to Steam.">
+<link rel="canonical" href="https://theantipopau.github.io/southernspear-site/changelog.html">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Southern Spear">
+<meta property="og:locale" content="en_AU">
+<meta property="og:title" content="Development changelog — Southern Spear">
+<meta property="og:description" content="Every working session of the Southern Spear project: what was completed, how it was tested, the risks carried forward and the next action. Evidence, not narrative.">
+<meta property="og:url" content="https://theantipopau.github.io/southernspear-site/changelog.html">
+<meta property="og:image" content="https://theantipopau.github.io/southernspear-site/assets/social/social-preview-1200x630.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Southern Spear key art: a soldier overlooking a red-earth valley at sunset beneath a brass-framed emblem of Australia, the Southern Cross and a spear.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Development changelog — Southern Spear">
+<meta name="twitter:description" content="Every working session of the Southern Spear project: what was completed, how it was tested, the risks carried forward and the next action.">
+<meta name="twitter:image" content="https://theantipopau.github.io/southernspear-site/assets/social/social-preview-1200x630.jpg">
+
+<link rel="icon" href="assets/favicon.ico" sizes="32x32">
+<link rel="icon" href="assets/favicon-192.png" type="image/png" sizes="192x192">
+<link rel="icon" href="assets/favicon-512.png" type="image/png" sizes="512x512">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+
+<link rel="preload" href="fonts/fonts.css" as="style">
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header" id="site-header" data-nav-state="top">
+  <div class="site-header__inner">
+    <a class="brand" href="index.html">
+      <img class="brand__mark" src="assets/brand/southern-spear-emblem-128.png" alt="" width="128" height="94" decoding="async">
+      <span class="brand__text">
+        <span class="brand__name">Southern Spear</span>
+        <span class="brand__meta">Pre&#8209;alpha</span>
+        <span class="u-visually-hidden">&#8212; back to the home page</span>
+      </span>
+    </a>
+
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">
+      <span class="nav-toggle__bars" aria-hidden="true"><span></span><span></span><span></span></span>
+      <span class="nav-toggle__label">Menu</span>
+    </button>
+
+    <nav class="primary-nav" id="primary-nav" aria-label="Primary">
+      <ul class="primary-nav__list">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="index.html#roadmap">Roadmap</a></li>
+        <li><a href="index.html#faq">FAQ</a></li>
+      </ul>
+      <div class="primary-nav__aside">
+        <a class="btn btn--brass btn--sm" href="https://discord.gg/GHNCFQrDND" rel="noopener">Discord</a>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <div class="page-head">
+    <div class="shell">
+      <p class="eyebrow">Changelog</p>
+      <h1 class="section__title">Every session, in full</h1>
+      <p class="section__lede">
+        Every working session adds an entry: what was completed, how it was tested, the risks, and the
+        one next action. This log records evidence, not narrative &mdash; a line here means a command was
+        run and its result observed.
+      </p>
+      <p class="page-head__meta">
+        Southern Spear is pre&#8209;alpha. There is no playable build; this log describes internal
+        development only. The home page carries the <a href="index.html#roadmap">roadmap</a> and
+        <a href="index.html#development">current status</a>.
+      </p>
+    </div>
+  </div>
+
+  <section class="section section--tight" id="changelog" aria-labelledby="changelog-title">
+    <div class="shell">
+      <h2 class="u-visually-hidden" id="changelog-title">Session log</h2>
+
+      <div class="changelog-controls">
+        <div class="field">
+          <label class="field__label" for="changelog-search">Search the changelog</label>
+          <input class="field__input" id="changelog-search" type="search" autocomplete="off"
+                 placeholder="e.g. navigation, weapon, replication" aria-describedby="changelog-count">
+        </div>
+        <fieldset class="filters">
+          <legend class="field__label">Filter by category</legend>
+          <div class="filters__row" id="changelog-filters"></div>
+        </fieldset>
+      </div>
+
+      <p class="result-count" id="changelog-count" role="status" aria-live="polite"></p>
+
+      <div class="empty-state" id="changelog-empty" hidden>
+        <p class="empty-state__title">No sessions match</p>
+        <p class="empty-state__body">
+          Nothing in the changelog matches that search and filter combination. Try a
+          shorter term, or clear the filters to see every session.
+        </p>
+        <button class="btn btn--outline btn--sm" type="button" data-changelog-reset>
+          Clear search and filters
+        </button>
+      </div>
+
+      <div id="changelog-list" class="sessions" aria-busy="true">
+        <p class="loading-note">Loading changelog&hellip;</p>
+      </div>
+
+      <p class="section__note">
+        The complete log is also published as plain Markdown at
+        <a href="data/CHANGELOG.md">data/CHANGELOG.md</a>, and the phases it works through are on the
+        <a href="index.html#roadmap">roadmap</a>.
+      </p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="shell">
+    <div class="site-footer__top">
+      <div class="site-footer__brand">
+        <img class="site-footer__mark" src="assets/brand/southern-spear-emblem-128.png" alt="" width="128" height="94" loading="lazy" decoding="async">
+        <p class="site-footer__name">Southern Spear</p>
+        <p class="site-footer__tag">
+          An original, Australian&#8209;inspired tactical multiplayer shooter, built in the open.
+        </p>
+        <p class="site-footer__status">
+          <span class="badge badge--wip">Pre&#8209;alpha</span>
+          In active development &mdash; no playable build
+        </p>
+      </div>
+
+      <nav class="site-footer__nav" aria-label="Footer">
+        <div>
+          <h2 class="site-footer__heading">Explore</h2>
+          <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="index.html#overview">Overview</a></li>
+            <li><a href="index.html#features">Features</a></li>
+            <li><a href="index.html#operations">Operations</a></li>
+            <li><a href="index.html#media">Media</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="site-footer__heading">Development</h2>
+          <ul>
+            <li><a href="index.html#development">Status</a></li>
+            <li><a href="index.html#roadmap">Roadmap</a></li>
+            <li><a href="changelog.html">Changelog</a></li>
+            <li><a href="data/DEVELOPMENT_ROADMAP.md">Roadmap (Markdown)</a></li>
+            <li><a href="data/CHANGELOG.md">Changelog (Markdown)</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="site-footer__heading">Project</h2>
+          <ul>
+            <li><a href="index.html#faq">FAQ</a></li>
+            <li><a href="https://github.com/theantipopau/southernspear-site" rel="noopener">GitHub</a></li>
+            <li><a href="https://discord.gg/GHNCFQrDND" rel="noopener">Discord</a></li>
+          </ul>
+        </div>
+      </nav>
+    </div>
+
+    <div class="site-footer__legal">
+      <p>
+        <strong>Southern Spear is a fictional entertainment product.</strong> It is not endorsed,
+        sponsored, developed or approved by the Australian Government, the Department of Defence, the
+        Australian Defence Force or the Australian Army. All organisations, units, forces and weapons are
+        fictional, and no map reproduces a real base, installation or operationally useful site.
+      </p>
+      <p>
+        <strong>Inspired by the classic America&rsquo;s Army games, but not affiliated with them.</strong>
+        Southern Spear takes its design philosophy from them and nothing else: no source code, map
+        layout, mission name, interface, audio, dialogue or artwork is copied or reused, and none of
+        their marks, names or insignia are used. It is not endorsed, sponsored or approved by
+        America&rsquo;s Army or the United States Army. <em>America&rsquo;s Army</em> is a trademark of
+        its respective owners, who do not endorse or sponsor this project.
+      </p>
+      <p>
+        Built on Unreal Engine and the Lyra Starter Game. Unreal, Unreal Engine and the Unreal Engine logo
+        are trademarks of Epic Games, Inc. Lyra is a sample project provided by Epic Games, Inc.
+      </p>
+    </div>
+
+    <div class="site-footer__base">
+      <p>&copy; <span id="year">2026</span> Southern Spear Project. Original work of fiction.</p>
+      <a class="to-top" href="#main">Back to top</a>
+    </div>
+  </div>
+</footer>
+
+<script src="site.js" defer></script>
+</body>
+</html>

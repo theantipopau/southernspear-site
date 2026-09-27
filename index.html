@@ -107,7 +107,7 @@
         <li><a href="#operations">Operations</a></li>
         <li><a href="#development">Development</a></li>
         <li><a href="#roadmap">Roadmap</a></li>
-        <li><a href="#changelog">Changelog</a></li>
+        <li><a href="changelog.html">Changelog</a></li>
         <li><a href="#faq">FAQ</a></li>
       </ul>
       <div class="primary-nav__aside">
@@ -284,7 +284,7 @@
           </picture>
           <figcaption>
             <span class="badge badge--concept">Concept art</span>
-            Detail from the main&#8209;menu concept. Not captured gameplay.
+            Detail from the title&#8209;screen artwork. Not captured gameplay.
           </figcaption>
         </figure>
       </div>
@@ -591,28 +591,29 @@
     <div class="shell">
       <header class="section__head">
         <p class="eyebrow">Media</p>
-        <h2 id="media-title" class="section__title">Main menu concept</h2>
+        <h2 id="media-title" class="section__title">Title screen artwork</h2>
         <p class="section__lede">
-          This artwork demonstrates the intended visual direction of the main menu and loading screen.
-          It is <strong>not</strong> final gameplay imagery and does not show a playable build.
+          This artwork is the project&rsquo;s approved title&#8209;screen design, shown here as the intended
+          visual direction for the main menu and loading screen. It is <strong>not</strong> final gameplay
+          imagery and does not show a playable build.
         </p>
       </header>
 
       <figure class="showcase">
         <button class="showcase__frame" type="button"
                 data-lightbox-src="assets/concepts/main-menu-concept-01.jpg"
-                data-lightbox-alt="Southern Spear main menu concept: a soldier in camouflage stands on a rocky outcrop above a red-earth valley at sunset, with a brass emblem of Australia, the Southern Cross and a spear above the words Southern Spear."
-                data-lightbox-caption="Main menu concept &mdash; intended visual direction, not captured gameplay.">
+                data-lightbox-alt="Southern Spear title-screen artwork: a soldier in camouflage stands on a rocky outcrop above a red-earth valley at sunset, with a brass emblem of Australia, the Southern Cross and a spear above the words Southern Spear."
+                data-lightbox-caption="Title screen artwork &mdash; the approved front-end design, not captured gameplay.">
           <picture>
             <source type="image/avif" srcset="assets/concepts/main-menu-concept-01.avif">
             <source type="image/webp" srcset="assets/concepts/main-menu-concept-01.webp">
             <img src="assets/concepts/main-menu-concept-01.jpg" width="1536" height="1024" loading="lazy" decoding="async"
-                 alt="Southern Spear main menu concept: a soldier in camouflage stands on a rocky outcrop above a red-earth valley at sunset, with a brass emblem of Australia, the Southern Cross and a spear above the words Southern Spear.">
+                 alt="Southern Spear title-screen artwork: a soldier in camouflage stands on a rocky outcrop above a red-earth valley at sunset, with a brass emblem of Australia, the Southern Cross and a spear above the words Southern Spear.">
           </picture>
           <span class="showcase__zoom" aria-hidden="true">View larger</span>
         </button>
         <figcaption>
-          <span class="badge badge--concept">Main menu concept</span>
+          <span class="badge badge--concept">Title screen artwork</span>
           <span class="showcase__caption-text">Intended visual direction for the front end. The emblem and wordmark are approved brand assets; they are not a screenshot of a working interface.</span>
         </figcaption>
       </figure>
@@ -623,7 +624,7 @@
           <button class="gallery__btn" type="button"
                   data-lightbox-src="assets/concepts/loading-screen-concept-01.jpg"
                   data-lightbox-alt="Southern Spear loading screen design: a soldier in camouflage on a rocky ledge above a wide red-earth valley, with the brass emblem and the words Southern Spear centred in the frame and menu-style labels in the top corners."
-                  data-lightbox-caption="Loading screen design &mdash; concept art. The corner labels are part of the artwork.">
+                  data-lightbox-caption="Loading screen design &mdash; variant frame of the approved title&#8209;screen artwork. The corner labels are part of the art.">
             <picture>
               <source type="image/avif" srcset="assets/concepts/loading-screen-concept-01.avif">
               <source type="image/webp" srcset="assets/concepts/loading-screen-concept-01.webp">
@@ -751,49 +752,26 @@
     </div>
   </section>
 
-  <!-- ======================== CHANGELOG ========================= -->
-  <section class="section" id="changelog" aria-labelledby="changelog-title">
+  <!-- ==================== LATEST UPDATE (full log on changelog.html) ==================== -->
+  <section class="section" id="latest" aria-labelledby="latest-title">
     <div class="shell">
       <header class="section__head">
         <p class="eyebrow">Changelog</p>
-        <h2 id="changelog-title" class="section__title">What changed, session by session</h2>
+        <h2 id="latest-title" class="section__title">The latest session</h2>
         <p class="section__lede">
-          Every working session adds an entry: what was completed, how it was tested, the risks, and the
-          one next action. This log records evidence, not narrative.
+          Every working session is recorded with what was completed, how it was tested, the risks and the
+          next action &mdash; evidence, not narrative. The newest entry is below; the
+          <a href="changelog.html">full changelog</a> carries every session, searchable and filtered.
         </p>
       </header>
 
-      <div class="changelog-controls">
-        <div class="field">
-          <label class="field__label" for="changelog-search">Search the changelog</label>
-          <input class="field__input" id="changelog-search" type="search" autocomplete="off"
-                 placeholder="e.g. navigation, weapon, replication" aria-describedby="changelog-count">
-        </div>
-        <fieldset class="filters">
-          <legend class="field__label">Filter by category</legend>
-          <div class="filters__row" id="changelog-filters"></div>
-        </fieldset>
-      </div>
-
-      <p class="result-count" id="changelog-count" role="status" aria-live="polite"></p>
-
-      <div class="empty-state" id="changelog-empty" hidden>
-        <p class="empty-state__title">No sessions match</p>
-        <p class="empty-state__body">
-          Nothing in the changelog matches that search and filter combination. Try a
-          shorter term, or clear the filters to see every session.
-        </p>
-        <button class="btn btn--outline btn--sm" type="button" data-changelog-reset>
-          Clear search and filters
-        </button>
-      </div>
-
-      <div id="changelog-list" class="sessions" aria-busy="true">
-        <p class="loading-note">Loading changelog&hellip;</p>
+      <div id="latest-update" class="latest-update" aria-busy="true">
+        <p class="loading-note">Loading latest update&hellip;</p>
       </div>
 
       <p class="section__note">
-        The complete log is also published as plain Markdown at
+        Read every session, with search and category filters, on the
+        <a href="changelog.html">changelog page</a>. The log is also published as plain Markdown at
         <a href="data/CHANGELOG.md">data/CHANGELOG.md</a>.
       </p>
     </div>
@@ -879,8 +857,10 @@
         <details class="faq__item">
           <summary>How can people follow development?</summary>
           <div class="faq__body">
-            <p>This website publishes the roadmap and a session&#8209;by&#8209;session changelog generated
-            from the project's own documents. The website and its published documentation live in a
+            <p>This website publishes the roadmap, the current status, and a session&#8209;by&#8209;session
+            changelog generated from the project's own documents. The full log lives on its own
+            <a href="changelog.html">changelog page</a>, searchable and filtered. The website and its
+            published documentation live in a
             <a href="https://github.com/theantipopau/southernspear-site" rel="noopener">public GitHub
             repository</a>, and there is a <a href="https://discord.gg/GHNCFQrDND" rel="noopener">Discord
             server</a> for discussion.</p>
@@ -921,7 +901,7 @@
         <article class="card card--action">
           <h3 class="card__title">Read the changelog</h3>
           <p>Every session, with test results, defects and the next action.</p>
-          <p><a class="btn btn--outline btn--sm" href="#changelog">Open the changelog</a></p>
+          <p><a class="btn btn--outline btn--sm" href="changelog.html">Open the changelog</a></p>
         </article>
         <article class="card card--action">
           <h3 class="card__title">Join the Discord</h3>
@@ -979,7 +959,7 @@
           <ul>
             <li><a href="#development">Status</a></li>
             <li><a href="#roadmap">Roadmap</a></li>
-            <li><a href="#changelog">Changelog</a></li>
+            <li><a href="changelog.html">Changelog</a></li>
             <li><a href="data/DEVELOPMENT_ROADMAP.md">Roadmap (Markdown)</a></li>
             <li><a href="data/CHANGELOG.md">Changelog (Markdown)</a></li>
           </ul>

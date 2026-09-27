@@ -485,6 +485,7 @@
   }
 
   function parseSessions(text) {
+    var seen = {};
     return text
       .split(/\n(?=## )/)
       .filter(function (chunk) { return /^## Session/.test(chunk); })
@@ -492,24 +493,34 @@
         var lines = chunk.split("\n");
         var heading = lines[0].replace(/^##\s+/, "").trim();
         var dateMatch = heading.match(/(\d{4}-\d{2}-\d{2})/);
-        var numberMatch = heading.match(/Session\s+(\d+)/i);
+        var numberMatch = heading.match(/Session\s+([0-9a-z]+)/i);
         var title = heading
-          .replace(/^Session\s+\d+\s*[\u2014\u2013-]?\s*/, "")
+          .replace(/^Session\s+[0-9a-z]+\s*[\u2014\u2013-]?\s*/i, "")
           .replace(/^\d{4}-\d{2}-\d{2}\s*[\u2014\u2013-]?\s*/, "")
           .trim();
         return {
           heading: heading,
-          number: numberMatch ? Number(numberMatch[1]) : 0,
+          number: numberMatch ? parseFloat(numberMatch[1]) : 0,
           date: dateMatch ? dateMatch[1] : "",
           // Session headings carry inline code spans; strip the markers so the
           // title reads as text rather than as literal backticks.
           title: plain(title),
           body: lines.slice(1).join("\n"),
-          slug: "session-" + (numberMatch ? numberMatch[1] : Math.abs(hash(heading))),
+          slug: "session-" + (numberMatch ? numberMatch[1].toLowerCase() : Math.abs(hash(heading))),
           source: chunk
         };
       })
-      .sort(function (a, b) { return b.number - a.number; });
+      .sort(function (a, b) { return b.number - a.number; })
+      .map(function (session) {
+        /* The source log has reused session numbers (two 023s, two 028s, two
+           032s and so on from parallel sessions). Two nodes may not share one
+           id: the second occurrence gets a -2, -3 suffix so every deep link
+           resolves to exactly one session. */
+        var n = (seen[session.slug] || 0) + 1;
+        seen[session.slug] = n;
+        session.slug = n === 1 ? session.slug : session.slug + "-" + n;
+        return session;
+      });
   }
 
   function hash(text) {
@@ -793,9 +804,70 @@
     });
 
     host.setAttribute("aria-busy", "false");
-  }
+  }  /* -------------------------------------------------------------- changelog */
 
-  /* -------------------------------------------------------------- changelog */
+  /* The changelog now lives on changelog.html. This file is shared by both
+     pages: on the home page a small "latest session" panel renders from the
+     same fetch, and the full search / filter log renders only where its
+     controls exist. */
+
+  function renderLatestUpdate(sessions) {
+    var host = document.getElementById("latest-update");
+    if (!host) return;
+    clear(host);
+
+    var latest = sessions[0];
+    if (!latest) {
+      var none = el("p", "error-note");
+      none.appendChild(document.createTextNode("No sessions are recorded yet."));
+      host.appendChild(none);
+      host.setAttribute("aria-busy", "false");
+      return;
+    }
+
+    var node = el("article", "session session--latest latest-update__session");
+    node.id = latest.slug;
+
+    var summary = el("div", "latest-update__head");
+    summary.appendChild(el("p", "session__date", latest.date || "\u2014"));
+    var tags = el("div", "session__tags");
+    tags.appendChild(el("span", "badge badge--wip", "Latest update"));
+    summary.appendChild(tags);
+    node.appendChild(summary);
+
+    node.appendChild(el("h3", "session__title", latest.title || latest.heading));
+
+    var completed = listItems(sectionOf(latest.source, "COMPLETED"), 4);
+    if (completed.length) {
+      var ul = el("ul", "latest-update__points");
+      completed.forEach(function (item) {
+        var li = el("li");
+        li.innerHTML = inline(item);
+        ul.appendChild(li);
+      });
+      node.appendChild(ul);
+    }
+
+    var nextAction = plain(sectionOf(latest.source, "NEXT ACTION"));
+    if (nextAction) {
+      var next = el("p", "latest-update__next");
+      next.appendChild(el("strong", null, "Next: "));
+      next.appendChild(document.createTextNode(clip(nextAction, 260)));
+      node.appendChild(next);
+    }
+
+    var actions = el("p", "latest-update__actions");
+    var more = el("a", "btn btn--brass btn--sm", "Read the full session");
+    more.href = "changelog.html#" + latest.slug;
+    actions.appendChild(more);
+    var all = el("a", "btn btn--outline btn--sm", "Every session");
+    all.href = "changelog.html";
+    actions.appendChild(all);
+    node.appendChild(actions);
+
+    host.appendChild(node);
+    host.setAttribute("aria-busy", "false");
+  }
 
   function renderChangelog(sessions) {
     var host = document.getElementById("changelog-list");
@@ -803,7 +875,9 @@
     var search = document.getElementById("changelog-search");
     var count = document.getElementById("changelog-count");
     var empty = document.getElementById("changelog-empty");
-    if (!host) return;
+    // A page without the search controls is not the changelog page; there is
+    // nothing for the log to bind to there.
+    if (!host || !filterHost || !search) return;
 
     clear(host);
 
@@ -827,7 +901,10 @@
       var copy = el("button", "session__link", "Copy link");
       copy.type = "button";
       copy.addEventListener("click", function () {
-        var url = window.location.origin + window.location.pathname + "#" + session.slug;
+        // Canonical home is changelog.html, where the full log now lives.
+        var url = window.location.origin +
+                  window.location.pathname.replace(/[^/]*$/, "changelog.html") +
+                  "#" + session.slug;
         var reset = function (text) {
           copy.textContent = text;
           window.setTimeout(function () { copy.textContent = "Copy link"; }, 2000);
@@ -928,7 +1005,7 @@
       });
       // Hide day headings that no longer contain a visible session.
       Array.prototype.forEach.call(host.querySelectorAll(".day-group"), function (dayGroup) {
-        var any = Array.prototype.some.call(dayGroup.querySelectorAll(".session"), function (n) { return !n.hidden; });
+        var any = Array.prototype.some.call(dayGroup.querySelectorAll(".session:not(.latest-update__session)"), function (n) { return !n.hidden; });
         dayGroup.hidden = !any;
       });
       count.textContent = shown === records.length
@@ -1004,6 +1081,15 @@
     fragmentTimer = window.setTimeout(function () {
       var id = (window.location.hash || "").replace(/^#/, "");
       if (!id) return;
+
+      // The full log moved to changelog.html, so an old /#session-NNN link
+      // forwards there instead of failing silently on the home page.
+      if (/^session-/.test(id) && !document.getElementById(id)) {
+        window.location.replace(
+          window.location.pathname.replace(/[^/]*$/, "changelog.html") + "#" + id);
+        return;
+      }
+
       var target = document.getElementById(id);
       if (!target) return;
 
@@ -1012,7 +1098,7 @@
         var list = document.getElementById("changelog-list");
         if (list && target.hidden && clearChangelogFilters) clearChangelogFilters();
         target.hidden = false;
-        target.open = true;
+        if ("open" in target) target.open = true;
         if (!target.querySelector(".session__body")) {
           target.dispatchEvent(new Event("toggle"));
         }
@@ -1103,9 +1189,17 @@
       } catch (error) {
         reportError(document.getElementById("changelog-list"), "The changelog", error.message);
       }
+      // The home page's latest-session panel renders from the same fetch,
+      // independently of whether this page has the full log's controls.
+      try {
+        renderLatestUpdate(sessions);
+      } catch (error) {
+        reportError(document.getElementById("latest-update"), "The latest update", error.message);
+      }
       renderStatusWhenReady();
     }).catch(function (error) {
       reportError(document.getElementById("changelog-list"), "The changelog", error.message);
+      reportError(document.getElementById("latest-update"), "The latest update", error.message);
       reportError(document.getElementById("status"), "Development status", error.message);
     }).then(revealFragment);
   }

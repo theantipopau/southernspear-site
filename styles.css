@@ -1151,6 +1151,39 @@ body[data-nav-open="true"] { overflow: hidden; }
 }
 .session__link:hover { border-color: var(--brass-400); color: var(--sand-100); }
 
+/* Latest-session panel on the home page. Reuses the session card language
+   so the two pages read as one system; the panel is a static article, not a
+   disclosure, because it has nothing to collapse. */
+.latest-update { max-width: var(--shell-narrow); margin-inline: auto; }
+.latest-update__session { border-color: var(--hairline); background: linear-gradient(180deg, rgba(200, 171, 114, 0.07), var(--ink-900) 74%); }
+.latest-update__head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 18px 20px 0; }
+.latest-update__head .session__tags { margin: 0; }
+.latest-update__session .session__title { padding: 0 20px; margin: 6px 0 14px; }
+.latest-update__points { margin: 0 20px 14px; padding-left: 20px; display: grid; gap: 7px; color: var(--sage-200); font-size: 0.95rem; }
+.latest-update__points li::marker { color: var(--brass-500); }
+.latest-update__points code { font-size: max(var(--fs-floor), 0.84em); }
+.latest-update__next { margin: 0 20px 18px; font-size: 0.95rem; color: var(--sand-200); }
+.latest-update__next strong { color: var(--brass-300); font-weight: 600; }
+.latest-update__actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 20px 22px; margin: 0; }
+
+/* Page head for interior pages: narrower than a section head and carried on
+   the brand rules, without a repeating banner image behind it. */
+.page-head {
+  padding: calc(var(--header-h) + clamp(40px, 7vw, 88px)) 0 clamp(24px, 4vw, 48px);
+  background:
+    radial-gradient(1100px 320px at 18% -10%, rgba(200, 171, 114, 0.10), transparent 62%),
+    var(--ink-900);
+  border-bottom: 1px solid var(--line-soft);
+}
+.page-head .section__title { margin-bottom: 0.35em; }
+.page-head .section__lede { max-width: 66ch; }
+.page-head__meta {
+  margin: 18px 0 0;
+  font-size: 0.9rem;
+  color: var(--sage-400);
+  max-width: 70ch;
+}
+
 .day-group { margin-top: 26px; }
 .day-group__label {
   display: flex; align-items: center; gap: 12px;
@@ -1351,6 +1384,7 @@ body[data-nav-open="true"] { overflow: hidden; }
   body { font-size: 16px; }
   .module { grid-template-columns: 1fr; gap: 6px; }
   .session__summary { flex-wrap: wrap; gap: 8px; }
+  .section--tight { padding-block: clamp(32px, 6vw, 56px); }
   .session__title { font-size: 0.98rem; }
   .hero__actions .btn { flex: 1 1 100%; }
   .hero__scroll { display: none; }

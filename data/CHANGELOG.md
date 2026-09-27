@@ -2740,6 +2740,54 @@ Uses AUD-AUG-001; nothing new.
 
 ---
 
+## Session 037 — 2026-09-28 — Pre-Test Pass: Minimap Edge, First-Person Rifle Placement, Game Icon
+
+### COMPLETED
+
+- Rendered review of the current build (first person, a followed bot, front end) before the next playtest.
+- **Minimap showed a black band** (about 30% of the corner map) near the Dry River spawns: the view reached past the
+  edge of the ground. The corner map's centre is now clamped to the playable area (objectives + player starts);
+  measured on Dry River, a +15 m margin still left a strip, so there is no margin. The player arrow is clamped inside the frame.
+- **First-person rifle too large**: hip position `ss.FP.Hip` 38 13 -16 → **48 16 -20** (further forward, right and lower);
+  aiming is unchanged (it is computed from the sight socket).
+- **Game icon**: the producer's `Docs/images/SouthernSpear.ico` (10 sizes, 16–256 px) is installed as
+  `Build/Windows/Application.ico` by `Tools/build_game_icon.py` (the tool still generates one from the logo if the file is absent).
+- Committed the producer and parallel-agent images: `SouthernSpear.ico`, `conceptart1.png`, `conceptart2.png`.
+
+### FILES CHANGED
+
+`SSMinimapWidget.h/.cpp`, `SSFirstPersonSubsystem.cpp`, `Tools/build_game_icon.py`, `Docs/images/*`, evidence, this file.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Guard | `python Tools/validate_architecture.py` | 0 | PASS | console |
+| Build | `Build.bat SouthernSpearEditor Win64 Development` | 0 | Succeeded | console |
+| All tests | `UnrealEditor-Cmd ... -nosound -NoLoadingScreen ... "Automation RunTests SouthernSpear;Quit"` | 0 | 35/35 Success | `Build/tests_037.log` (not retained) |
+| Rendered | Dry River `-game -windowed -SSShotAt=30`, before and after | 124 | Minimap fully filled; rifle smaller | `Docs/evidence/S037_before_fp.jpg`, `S037_after_fp.jpg` |
+| Icon | `python Tools/build_game_icon.py` then `cmp` | 0 | identical to the supplied file | console |
+
+NOT RUN: minimap on Red Gum, Saltbush and Selat Canal; a packaged exe showing the icon.
+
+### ASSETS
+
+`Docs/images/SouthernSpear.ico` (producer-supplied). Concept art: source not recorded (committed at the producer's request).
+
+### RISKS
+
+- The rifle optic texture carries a maker's mark (visible in first person): third-party branding to strip before release (R-27).
+
+### DEFECTS FOUND
+
+- Minimap black band (rendered review). Oversized first-person rifle (rendered review).
+
+### NEXT ACTION
+
+**Playtest with sound**: judge the rifle audio, the new first-person placement and the minimap on all four maps.
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

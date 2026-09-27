@@ -2788,6 +2788,73 @@ NOT RUN: minimap on Red Gum, Saltbush and Selat Canal; a packaged exe showing th
 
 ---
 
+## Session 038 — 2026-09-28 — Window Icon, Game Splash, Hit Direction, Minimap Fixes; GPT-6 Findings
+
+### COMPLETED
+
+- **Icon (producer: "still the Unreal logo")**: development runs are `UnrealEditor.exe -game`, whose embedded icon is
+  Unreal's; `Application.ico` only reaches a packaged `SouthernSpear.exe`. New `USSWindowIconSubsystem` (SouthernSpearUI)
+  sets the window and class icons from `Build/Windows/Application.ico` (fallback `Docs/images/SouthernSpear.ico`) once
+  the game window exists (a first attempt at map load ran before the window existed and did nothing).
+- **Splash**: `Content/Splash/Splash.bmp` (960×240, from `Docs/images/header.png`) replaces Unreal's game splash
+  (engine lookup: project `Content/Splash/Splash.*` first). Editor splash unchanged.
+- **Hit direction**: `USSLocalHudState` gains `LastHitTime`/`LastHitFrom` and `HitBearing()`; `ASSCharacter` fills them
+  from Lyra's damage cue for the local player; the HUD shows a clay triangle on a 150 px ring pointing at the shooter,
+  fading over 1.5 s (alongside the existing clay flash).
+- **Defect found: the UI fonts have no ▲ glyph** (Barlow Condensed, Inter: checked with fontTools), so the minimap's player
+  arrow had always rendered as nothing. `SSGlyphTextures::Triangle()` (Core, runtime texture) now draws both arrows;
+  the minimap arrow has an ink outline (pale brass on sand was invisible).
+- **Minimap view**: Session 037's clamp to objectives + player starts pinned the arrow to the edge, because deployment
+  spawns lie outside that box. Replaced with downward ground traces at the view edges on each re-render, pulling the view
+  inward (at most half a view) where there is no ground; re-render is keyed to pawn movement, not the view centre.
+- **Blood** no longer spawns on the local player's own body (it filled the first-person view with pale sprites, seen in a capture).
+- Dev tool: `-SSExecAt=<s> -SSExec="cmd1|cmd2"` runs console commands as the local player after the pawn exists.
+- **GPT-6 (producer's parallel agent) reported, no git writes**: 16 local commits ahead of origin; `git lfs push --dry-run`
+  lists 258 candidate objects; `git lfs fsck` over the range passes (local objects valid); first LFS-introducing unpushed
+  commits 44e073d1, 0a20459c, 7c9b0210. The exact GH008 object list is unknown without the full rejection output. Branding
+  audit: 207 candidate PNGs by filename, not inspected visually, **no edits made**.
+
+### FILES CHANGED
+
+Core `SSLocalHudState.h`, `SSGlyphTextures.h` (new), `Tests/SSHudTests.cpp` (new); bridge `SSCharacter.cpp`;
+UI `SSWindowIconSubsystem.*` (new), `SSPlayerHudWidget.*`; ObjectivesUI `SSMinimapWidget.*`, `SSObjectiveHudSubsystem.*`;
+`Content/Splash/Splash.bmp`; `CLAUDE.md`; evidence; this file.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Guard | `python Tools/validate_architecture.py` | 0 | PASS | console |
+| Build | `Build.bat SouthernSpearEditor Win64 Development` | 0 | Succeeded (one shadowing error fixed on the way) | console |
+| All tests | `UnrealEditor-Cmd ... -nosound -NoLoadingScreen ... "Automation RunTests SouthernSpear;Quit"` | 0 | 36/36 Success (new `Core.Hud.HitBearing`) | `Build/tests_038.log` (not retained) |
+| Icon | windowed `-game`, front end | 124 | `SSWindowIcon applied=1` (WM_GETICON returns the set icon) | log |
+| Hit arrow | Dry River, `-SSExecAt=14 -SSExec="EnableCheats|DamageSelf 20" -SSShotAt=14.2` | 124 | health 100→80, `SSHitDir` logged, arrow drawn (points behind: self-damage source is the pawn) | `Docs/evidence/S038_hit_arrow.jpg` |
+| Minimap | Dry River, Red Gum, Selat Canal, `-SSShotAt=20` | 124 | Dry River and Red Gum filled, arrow visible; Selat Canal mostly black (see RISKS) | `Docs/evidence/S038_minimaps.jpg` |
+
+NOT RUN: the taskbar button and the splash window were not seen (no desktop capture by rule); a real shooter's bearing
+in a firefight (the idle player was not hit in 75 s); Saltbush minimap.
+
+### ASSETS
+
+`Content/Splash/Splash.bmp` from the producer's `header.png` (`Docs/evidence/S038_splash.jpg`).
+
+### RISKS
+
+- Selat Canal's minimap is mostly black: the map is built over void and water, and the minimap pass skips translucency.
+- GH008 push block still open; decision needed (upload LFS objects after a rights check, rewrite history, or pointer-only remote).
+
+### DEFECTS FOUND
+
+- Missing ▲ glyph: minimap player arrow never rendered (screenshot zoom, then fontTools cmap check).
+- Session 037 minimap clamp hid the player at the edge (rendered capture).
+- Own-body blood in the first-person view (rendered capture).
+
+### NEXT ACTION
+
+**Producer playtest**: confirm the taskbar icon and splash on launch, and judge hit arrow, rifle audio and first-person placement.
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

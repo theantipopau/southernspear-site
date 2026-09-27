@@ -35,16 +35,6 @@
 <link rel="stylesheet" href="fonts/fonts.css">
 <link rel="stylesheet" href="styles.css">
 
-<!-- The hero is the only genuinely critical image, so it is the only one preloaded.
-     Two preloads mirror the two art directions in the <picture> below, so a phone
-     never downloads the desktop crop. -->
-<link rel="preload" as="image" type="image/avif" media="(max-width: 767px)" fetchpriority="high"
-      imagesizes="100vw"
-      imagesrcset="assets/hero/hero-outback-mobile-480.avif 480w, assets/hero/hero-outback-mobile-700.avif 700w">
-<link rel="preload" as="image" type="image/avif" media="(min-width: 768px)" fetchpriority="high"
-      imagesizes="100vw"
-      imagesrcset="assets/hero/hero-outback-wide-640.avif 640w, assets/hero/hero-outback-wide-960.avif 960w, assets/hero/hero-outback-wide-1280.avif 1280w, assets/hero/hero-outback-wide-1536.avif 1536w">
-
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -151,7 +141,12 @@
         <img class="hero__image" src="assets/hero/hero-outback-wide-1280.jpg"
              srcset="assets/hero/hero-outback-wide-640.jpg 640w, assets/hero/hero-outback-wide-960.jpg 960w, assets/hero/hero-outback-wide-1280.jpg 1280w, assets/hero/hero-outback-wide-1536.jpg 1536w"
              sizes="100vw" width="1536" height="1024" alt=""
-             fetchpriority="high" decoding="async">
+             fetchpriority="high" decoding="async" loading="eager">
+      <!-- The hero is the only image loaded eagerly, and the only one given a
+           high fetch priority. It needs no <link rel="preload">: the markup below
+           is in the first HTML chunk, and a media-scoped image preload made
+           Chromium fetch the phone crop on desktop and then discard it. -->
+
       </picture>
     </div>
     <div class="hero__scrim" aria-hidden="true"></div>

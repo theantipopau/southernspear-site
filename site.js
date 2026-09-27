@@ -370,7 +370,12 @@
       if (index < 0 || index >= triggers.length) return;
       current = index;
       var trigger = triggers[index];
-      image.src = trigger.getAttribute("data-lightbox-src");
+      // Prefer the source the browser already picked for the thumbnail, so the
+      // full-size view is the same modern format and never a stale path.
+      var thumb = trigger.querySelector("img");
+      var src = (thumb && thumb.currentSrc) || trigger.getAttribute("data-lightbox-src");
+      if (!src) return;
+      image.src = src;
       image.alt = trigger.getAttribute("data-lightbox-alt") || "";
       caption.textContent = trigger.getAttribute("data-lightbox-caption") || "";
       box.hidden = false;
@@ -483,11 +488,17 @@
         var heading = lines[0].replace(/^##\s+/, "").trim();
         var dateMatch = heading.match(/(\d{4}-\d{2}-\d{2})/);
         var numberMatch = heading.match(/Session\s+(\d+)/i);
+        var title = heading
+          .replace(/^Session\s+\d+\s*[\u2014\u2013-]?\s*/, "")
+          .replace(/^\d{4}-\d{2}-\d{2}\s*[\u2014\u2013-]?\s*/, "")
+          .trim();
         return {
           heading: heading,
           number: numberMatch ? Number(numberMatch[1]) : 0,
           date: dateMatch ? dateMatch[1] : "",
-          title: heading.replace(/^Session\s+\d+\s*—?\s*/, "").replace(/^\d{4}-\d{2}-\d{2}\s*—?\s*/, ""),
+          // Session headings carry inline code spans; strip the markers so the
+          // title reads as text rather than as literal backticks.
+          title: plain(title),
           body: lines.slice(1).join("\n"),
           slug: "session-" + (numberMatch ? numberMatch[1] : Math.abs(hash(heading))),
           source: chunk
@@ -754,9 +765,14 @@
         var details = el("details", "phase__details");
         details.id = "phase-" + num + "-details";
         details.appendChild(el("summary", null, "Phase detail"));
-        var md = el("div", "markdown-body");
-        md.innerHTML = renderMarkdown(bodyText);
-        details.appendChild(md);
+        // Rendered on first open, like the changelog, so the timeline itself
+        // stays cheap even though every phase carries a full document section.
+        details.addEventListener("toggle", function () {
+          if (!details.open || details.querySelector(".markdown-body")) return;
+          var md = el("div", "markdown-body");
+          md.innerHTML = renderMarkdown(bodyText);
+          details.appendChild(md);
+        });
         body.appendChild(details);
       }
 
@@ -974,8 +990,14 @@
       currentPhase = readCurrentPhase(text);
       try {
         renderRoadmap(text);
-        var doc = document.getElementById("roadmap-doc");
-        if (doc) doc.innerHTML = renderMarkdown(text);
+        var panel = document.querySelector(".doc-panel");
+        if (panel) {
+          panel.addEventListener("toggle", function () {
+            var doc = document.getElementById("roadmap-doc");
+            if (!panel.open || !doc || doc.childElementCount) return;
+            doc.innerHTML = renderMarkdown(text);
+          });
+        }
       } catch (error) {
         reportError(document.getElementById("roadmap"), "The roadmap", error.message);
       }

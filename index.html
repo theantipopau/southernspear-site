@@ -35,6 +35,16 @@
 <link rel="stylesheet" href="fonts/fonts.css">
 <link rel="stylesheet" href="styles.css">
 
+<!-- The hero is the only genuinely critical image, so it is the only one preloaded.
+     Two preloads mirror the two art directions in the <picture> below, so a phone
+     never downloads the desktop crop. -->
+<link rel="preload" as="image" type="image/avif" media="(max-width: 767px)" fetchpriority="high"
+      imagesizes="100vw"
+      imagesrcset="assets/hero/hero-outback-mobile-480.avif 480w, assets/hero/hero-outback-mobile-700.avif 700w">
+<link rel="preload" as="image" type="image/avif" media="(min-width: 768px)" fetchpriority="high"
+      imagesizes="100vw"
+      imagesrcset="assets/hero/hero-outback-wide-640.avif 640w, assets/hero/hero-outback-wide-960.avif 960w, assets/hero/hero-outback-wide-1280.avif 1280w, assets/hero/hero-outback-wide-1536.avif 1536w">
+
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -85,11 +95,12 @@
 
 <header class="site-header" id="site-header" data-nav-state="top">
   <div class="site-header__inner">
-    <a class="brand" href="#top" aria-label="Southern Spear — back to top">
+    <a class="brand" href="#top">
       <img class="brand__mark" src="assets/brand/southern-spear-emblem.png" alt="" width="256" height="188" decoding="async">
       <span class="brand__text">
         <span class="brand__name">Southern Spear</span>
         <span class="brand__meta">Pre&#8209;alpha</span>
+        <span class="u-visually-hidden">&#8212; back to top</span>
       </span>
     </a>
 
@@ -563,7 +574,7 @@
 
       <figure class="showcase">
         <button class="showcase__frame" type="button"
-                data-lightbox-src="assets/concepts/main-menu-concept-01-1280.jpg"
+                data-lightbox-src="assets/concepts/main-menu-concept-01.jpg"
                 data-lightbox-alt="Southern Spear main menu concept: a soldier in camouflage stands on a rocky outcrop above a red-earth valley at sunset. A brass-framed emblem showing Australia, the Southern Cross and a spear is centred above the words Southern Spear, with menu-style labels in the corners."
                 data-lightbox-caption="Main menu concept &mdash; intended visual direction, not captured gameplay.">
           <picture>
@@ -583,7 +594,7 @@
       <ul class="gallery" role="list">
         <li class="gallery__item">
           <button class="gallery__btn" type="button"
-                  data-lightbox-src="assets/concepts/environment-detail-01-768.jpg"
+                  data-lightbox-src="assets/concepts/environment-detail-01.jpg"
                   data-lightbox-alt="Title-screen artwork detail: a soldier in camouflage on a rocky ledge above a wide red-earth valley with a dry creek line, eucalyptus in the foreground and low sun flare."
                   data-lightbox-caption="Environment detail &mdash; concept art from the main menu artwork.">
             <picture>
@@ -597,7 +608,7 @@
         </li>
         <li class="gallery__item">
           <button class="gallery__btn" type="button"
-                  data-lightbox-src="assets/concepts/environment-detail-02-768.jpg"
+                  data-lightbox-src="assets/concepts/environment-detail-02.jpg"
                   data-lightbox-alt="Title-screen artwork detail: a red rock gorge and river bend in the foreground, with layered mesas and a burning orange sky behind."
                   data-lightbox-caption="Environment detail &mdash; concept art from the main menu artwork.">
             <picture>

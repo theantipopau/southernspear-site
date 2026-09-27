@@ -40,6 +40,7 @@
 
   /* Lines */
   --line: #3a4a3e;
+  --line-quiet: #5a6f61;
   --line-soft: #243229;
   --hairline: rgba(200, 171, 114, 0.28);
 
@@ -630,9 +631,11 @@ body[data-nav-open="true"] { overflow: hidden; }
 .pillar:nth-child(even) { grid-template-columns: minmax(0, 1fr) 96px; }
 .pillar:nth-child(even) .pillar__index { order: 2; text-align: right; }
 
+/* Decorative index numeral. It is aria-hidden, but it is still large text on
+   screen, so it is held at 3:1 or better rather than fading into the band. */
 .pillar__index {
   font: 600 2.2rem/1 var(--font-mono);
-  color: var(--line);
+  color: var(--line-quiet);
   letter-spacing: -0.02em;
   padding-top: 4px;
 }

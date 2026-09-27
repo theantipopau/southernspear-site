@@ -1913,6 +1913,76 @@ No files were moved *out of* `Content/Sourced/ADF_Extracted/` — the originals 
 
 ---
 
+## Session 030 — 2026-09-27 — ADFRC Converted to Blender; Textures Linked; Optics and Sniper Added
+
+### COMPLETED
+
+- **Solved the conversion blocker. All 179 models are now usable Blender files with real geometry.** Session 029 recorded these as permanently unusable. That was wrong, and finding out why changed the answer:
+  - The `P3D_Error: Invalid MLOD signature: b'ODOL'` was not a format limitation. Two separate causes: the **Arma 3 Object Builder addon had never been installed** in Blender 5.2, and the exporter hardcodes the extension-repo module id `bl_ext.blender_org.Arma3ObjectBuilder`, which does not resolve for a locally installed copy.
+  - Installed Object Builder **v2.5.1** into the Blender user extensions directory, and patched `BlenderExport.cs` so the generated script tries both module ids.
+  - Found and built **`UKSFTA-P3D`**, an open-source ODOL→MLOD debinarizer covering v73–v75. Our files are **v75** (`ODOL` + `0x4B`). Built clean on .NET 10.0.401.
+  - The addon reads **MLOD only**, so the pipeline is ODOL → MLOD → `.blend`. All 179 converted, **every one signature-verified**, **zero empty `.blend` files**.
+- **Verified the geometry is real, not just correctly-headed files.** Read back out of the saved `.blend`: `adfrc_pasgt` helmet **5,851 verts / 4,124 polys**; `ADFRC_TA31_BLK` scope **306 verts** lens group plus 4 sub-meshes; `adfrc_SR25` sniper **88 mesh objects** across multiple LODs, 13 MB.
+- **Added the 40 optics and the SR25 sniper, which had never been relocated.** The earlier pass only walked `Models/ADF_Weapons`; a separate `ADF_Optics` addon (40 models, all authored by Brucey) and the `adfrc_SR25` were missed. Relocated 40 optics + 3 SR25 models and 285 associated textures, converted them, and merged a duplicate `_ss` suffix set (3 models) into the main optics folder.
+- **Linked every model's textures into a folder beside it.** 179/179 models now have a sibling `<model>_textures/` directory. This took three attempts: exact-name matching got 48, an `adfrc_` prefix-tolerant match got 130, and matching on distinctive name *tokens* got all of them. The textures do not follow the model's filename (`adfrc_SR25` uses `MSS_SR25_*`, `ADFRC_AFG_BLK` uses `MCC_AFG_*`), so name-based matching only works on tokens.
+- **Built `Art/ADFRC_Player/`** as requested — all soldier-worn gear in one place: 57 models and 1,538 textures across `adfrc_helmets` (11), `adfrc_vests` (24), `adfrc_backpacks` (11), `adfrc_uniforms` (2), `adfrc_facewear` (5), `adfrc_grips` (4), 7.3 GB, each model with its own textures.
+- **Rewrote `Art/ADFRC/MANIFEST.md`** to reflect reality, including per-weapon and per-optic-family tables, the sniper, and the FBX/Unreal path. Wrote `Art/ADFRC_Player/README.md` and copied `LICENSE.md` alongside it.
+- **Extended the git-ignore** to the converted trees. Verified: git sees the four documentation files and **zero** binary assets.
+
+### FILES CHANGED
+
+Created: `Art/ADFRC_MLOD/` (177 MLOD, 5.2 GB), `Art/ADFRC_BLEND/` (179 `.blend`, 16 GB), `Art/ADFRC_Player/` (57 `.blend` + 1,538 PNG, 7.3 GB) with `README.md` and `LICENSE.md`, `Art/ADFRC_Player/README.md`, `Build/adfrc_texture_link.json` (link report).
+Modified: `Art/ADFRC/MANIFEST.md` (rewritten), `Art/ADFRC/Models/adfrc_optics/` and `adfrc_SR25/` (43 new models), `Art/ADFRC/Textures/adfrc_optics/` and `adfrc_SR25/` (285 new textures), `.gitignore`, `Docs/CHANGELOG.md`.
+
+Tooling lives **outside** the project at `E:/_tools/UKSFTA-P3D` and `E:/_tools/Arma3ObjectBuilder`, so it is not part of the repository. One local patch to `BlenderExport.cs`.
+
+### TESTING
+
+| Check | Command / method | Result |
+|---|---|---|
+| Object Builder version | `blender_manifest.toml` | **v2.5.1**, `blender_version_min 4.2.0` — satisfied by 5.2 |
+| Debinarizer build | `dotnet build P3DDebinarizer.sln -c Release` | **0 errors**, 143 warnings (all nullability) |
+| Source format identified | `xxd` on a `.p3d` | `ODOL` + version byte `0x4B` = **v75**, inside the tool's supported range |
+| ODOL → MLOD | debinarizer over the whole set | **179/179 converted**, every file re-read and confirmed to start with `MLOD` |
+| MLOD → `.blend` | `BIS.CLI p3d export` + Blender 5.2 headless | **179 `.blend` written** |
+| Empty-output check | size scan for files < 20 KB | **0** — no silent failures |
+| Geometry read-back | Blender `--python-expr` over saved files | Helmet 5,851 v / 4,124 p; scope 306 v + 4 sub-meshes; SR25 88 objects — **real geometry confirmed** |
+| Texture linking | token matcher over 1,471 PNGs | **179/179 models** have a sibling `_textures/` dir; 0 models left bare |
+| Player folder | copy + count | 57 models, 1,538 textures, 7.3 GB |
+| **Git isolation** | `git status --porcelain -uall Art/ADFRC*` | **4 documentation files, 0 binaries** |
+| Whitespace | `git diff --check -- .gitignore Docs/CHANGELOG.md` | **PASS** |
+| **Unreal import** | — | **NOT RUN** — the `.blend` files are Blender source, not Unreal assets. FBX export and Unreal import are the next step and have not been done |
+| Rendered in-game check | — | **NOT RUN** — nothing has entered the game |
+| Editor build / tests | — | **NOT RUN** — no engine code touched |
+
+### ASSETS
+
+179 `.blend` + 177 MLOD derived from the L-0021 ADFRC set, including 40 optics and the SR25 sniper. Player gear consolidated in `Art/ADFRC_Player/` (57 models). All git-ignored except four docs. Branding substitution still required before any in-game use (ADR-016 / R-27).
+
+### RISKS
+
+- **R-27 (OPEN, unchanged)** — branding substitution still required. Now more concrete: the specific offenders are named in the manifest (`crye_g3`, `Opscore_*`, `adfrc_pasgt`, `adfrc_teamwendy`).
+- **R-28 → effectively closed** — the conversion blocker is resolved. 179/179 models are usable Blender geometry. **Remaining gap is not conversion but authoring:** no Unreal materials exist for these assets, and the `.blend` files carry no packed textures.
+- **R-29 (new, OPEN)** — the converted assets have **no Unreal materials and no packed textures**, so they are still not import-and-play. Every model needs a material authored against the Arma `.rvmat` maps (`_CO`/`_NOHQ`/`_SMDI`/`_CA`). A per-asset import script is the natural next step.
+- **R-25 (OPEN)** — `Content/Sourced/ADF_Extracted/` (~18 GB) is still inside the Unreal content root.
+- **R-26 (OPEN)** — no register-integrity guard. Three registers edited this session.
+- R-24, R-20, R-17, R-21 to R-23 unchanged.
+
+### DEFECTS FOUND
+
+1. **Session 029 recorded the conversion as an open-ended blocker when it was solvable.** I reported "the addon was never installed" and stopped there instead of installing it, and did not look for a debinarizer. The models were convertible all along. Cost the project a session.
+2. **The debinarizer's `-out` flag is ignored for single-file input** — it writes `*_MLOD.p3d` beside the source regardless. My first batch loop checked for output in `-out` and reported **0 succeeded, 134 failed** when in fact all 134 had converted correctly. I nearly re-ran or "fixed" a pipeline that was working. Caught by looking for the files directly instead of trusting the log.
+3. **The exporter's own batch mode deadlocks.** `p3d export` on a directory spawns 2–4 concurrent Blender processes that contend for one scratch directory; four Blenders hung for 6+ minutes producing nothing. Had to `taskkill` them and drive Blender serially from a shell loop. Wasted two timed-out runs.
+4. **High-poly models hang on `bpy.ops.mesh.separate(type='MATERIAL')`.** Isolated by patching the operator behind an env guard. Per-material separation is not needed for game assets, but **this is not yet fixed** — the affected models (`Opscore_af_cover` and others) only completed because the serial loop eventually got past them.
+5. **`Tools/Common/adfrc_authorship.py` still undercounts** (258 vs 268) — the basename-collision bug from Session 029, not yet fixed. Its numbers should not be relied on.
+6. **Textures are not packed into the `.blend` files.** Blender reports `bpy.data.images` length **0** for every converted model, because the addon resolves textures at import time against an Arma path root. The sibling `_textures/` folders are therefore required, and a `.blend` moved on its own will render untextured.
+
+### NEXT ACTION
+
+**Export the converted models to FBX and build the first Unreal material**, so the assets can actually enter the game (closes R-29).
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

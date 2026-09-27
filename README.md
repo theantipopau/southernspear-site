@@ -6,7 +6,8 @@ Public website and development portal for **Southern Spear**, a free, community-
 Australian-inspired tactical multiplayer FPS built on Unreal Engine 5.8 and the Lyra
 Starter Game, and inspired by the design philosophy of the classic America's Army games.
 
-**Status:** pre-alpha, in active development. There is no playable release and no download.
+**Status:** pre-alpha, in active development, and planned for Steam. There is no playable
+release, no download, and no announced release date.
 
 - Live site: https://theantipopau.github.io/southernspear-site/
 - Rolling changelog: [`data/CHANGELOG.md`](data/CHANGELOG.md), one entry per working session

@@ -50,7 +50,9 @@ python Tools/publish_site.py         # build, then commit and push this reposito
 
 Brand variants are strict crops of the approved artwork. Nothing is redrawn, and the spear,
 the Southern Cross and the approved proportions are untouched. The monochrome footer mark is a
-CSS filter rather than a second drawing.
+CSS filter rather than a second drawing. The favicon suite is generated from the
+producer-supplied multi-size icon (`Docs/images/SouthernSpear.ico`), the same file the game
+executable installs, so the browser tab and the game show one mark.
 
 ## Disclaimer
 

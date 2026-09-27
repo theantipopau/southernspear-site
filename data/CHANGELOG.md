@@ -1408,6 +1408,91 @@ loading screen, HUD, minimap and view model; then tune placements.
 
 ---
 
+## Session 022 — 2026-09-27 — UI Polish Pass, Settings, Round Banners, Textured A88, Website Rundown
+
+### COMPLETED
+
+- **Movement fix.** The front end left input in UI-only mode across the map load. Starting a map, and the
+  HUD appearing, now both restore game input.
+- **Front end.** Intro from black, the title tracking in, staggered reveals, and map cards for Red Gum
+  Station and Dry River. Also a bot count selector (4/8/12), Settings and Quit, a top status bar and a
+  controls strip.
+- **Match menu (Esc).** Blurred backdrop, a side panel sliding in, Resume, Settings, Leave Match, Quit, and
+  a controls card.
+- **Settings screen (new).** Window mode, resolution, graphics quality, VSync and frame limit (applied
+  through UGameUserSettings), plus field of view (70–110°; `FSSUserPrefs`, read by the first-person
+  camera; aiming narrows it proportionally).
+- **In match:**
+  - compass strip with objective markers and the active objective's distance;
+  - round banners: round start, assault, "Objective X secured" in the capturer's viewer-relative tone,
+    and the round result;
+  - flashing reload prompt; ammunition turns clay below a quarter of the magazine.
+- **A88 now uses the producer-supplied textured model** (`Art/Weapons/A88/New`):
+  - `Tools/Blender/a88_sourced.py` assigns slots by object name; the download's .mtl pointed at missing
+    files, and its black/white texture is a mask, not colour. Pairings were chosen from rendered
+    permutations.
+  - It also normalises to +X, metres and the grip origin, and adds the muzzle socket.
+  - `setup_weapons.py` gains a textured path (`M_SS_TexturedPBR`, `MI_A88_Tex*`, `T_A88_*`).
+  - Result: 78.8 cm, 72k triangles.
+- **Website:**
+  - full-bleed key-art hero;
+  - "What is Southern Spear?" rundown and pillars;
+  - a mirrored-factions diagram (each team sees itself as 3 ACR, the other as MAF);
+  - "In the build today" with honest status tags;
+  - scroll reveal (respects reduced motion) and a blurred sticky nav;
+  - Discord link (nav, hero, community).
+- HUD subsystems skip worlds without a game viewport (headless test worlds).
+
+### FILES CHANGED
+
+Created:
+- `SSSettingsWidget.{h,cpp}`, `SSUserPrefs.h`, `SSCompassWidget.{h,cpp}`, `SSRoundBannerWidget.{h,cpp}`;
+- `Tools/Blender/a88_sourced.py`, `Docs/images/keyart.jpg`;
+- A88 textured assets, `M_SS_TexturedPBR`.
+
+Modified:
+- `SSMenuWidget.{h,cpp}`, `SSPlayerHudWidget.{h,cpp}`, `SSPlayerHudSubsystem.cpp`, `SSWidgetKit.h`;
+- `SSObjectiveHudSubsystem.{h,cpp}`, `SSLocalHudState.h`, `SSHudStateSubsystem.cpp`,
+  `SSFirstPersonCameraMode.{h,cpp}`;
+- `setup_weapons.py`, `publish_site.py`, `Site/*`, `LICENCE_REGISTER.md`.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Guard | `python Tools/validate_architecture.py` | 0 | PASS | — |
+| Build | `Build.bat SouthernSpearEditor ...` | 0 | Succeeded (first blocked by the parallel session's test file until it compiled) | — |
+| Weapons | `setup_weapons.py` | 0 | ok=true; A88 78.8×13.1×29.8 cm, muzzle socket present | `Build/weapons_setup.json` |
+| Automation | `Automation RunTests SouthernSpear` | 255 | 30 Success; 1 Fail: `SouthernSpear.Network.Gameplay.TwoPlayerAuthoritySmoke` (the parallel session's new, uncommitted test). Its ensure `ViewportOverlayWidget.IsValid()` comes from CommonLoadingScreen during the test's map load (stack: test line 87) | `Build/tests.log` |
+| Red Gum live | `L_RedGum_01?NumBots=8 -game -nullrhi` | 124 | SS HUD shown; view model SM_A88; captures by both teams | log |
+| Website | `publish_site.py --build-only` + browser preview at 1440×900 and 375×812 | 0 | Hero, rundown, mirror, build sections render; hero reveal fixed for background tabs | — |
+| Rendered game UI (menu, settings, banners, compass, textured A88) | game launched for the producer | — | **Producer review pending** | — |
+
+### ASSETS
+
+L-0017 A88 sourced model: the producer states it is royalty free; source URL and terms pending. The raw
+download is not committed until they are recorded. The key art has a national-flag shoulder patch on the
+soldier: producer to confirm it suits the fictional 3 ACR (ADR-016).
+
+### RISKS
+
+R-21 (new): the A88 sourced model's licence evidence is missing (producer statement only); it is a
+real-rifle replica, and ADR-021 requires A-series reshaping.
+
+### DEFECTS FOUND
+
+1. No movement after the front end: UI-only input persisted across travel (reported by the producer).
+2. Website hero copy invisible: bottom-of-viewport reveal, and rAF paused in background tabs (browser
+   preview).
+3. The website hero copy overlapped the wordmark in the key art (browser preview).
+
+### NEXT ACTION
+
+**Producer review of the rendered UI**, then the other session fixes its smoke test's loading-screen
+ensure so the suite is green.
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

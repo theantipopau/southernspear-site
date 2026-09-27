@@ -6,8 +6,8 @@
 <title>Southern Spear</title>
 <meta name="description" content="Southern Spear is a free, community-developed, Australian-inspired tactical multiplayer FPS in active development. Fictional; not endorsed by any government or defence organisation.">
 <meta property="og:title" content="Southern Spear">
-<meta property="og:description" content="An Australian-inspired tactical shooter focused on teamwork, roles and objective-based multiplayer. In active development.">
-<meta property="og:image" content="assets/header.png">
+<meta property="og:description" content="A free, team-based tactical FPS in a fictional Australian-inspired world. Both teams play as 3 ACR; each sees the other as the MAF. In active development.">
+<meta property="og:image" content="assets/keyart.jpg">
 <link rel="icon" type="image/png" href="assets/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,66 +26,146 @@
     <button class="menu-btn" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
     <ul id="nav-links" class="nav-links">
       <li><a href="#about">About</a></li>
+      <li><a href="#mirror">Factions</a></li>
+      <li><a href="#build">The build</a></li>
       <li><a href="#how-to-play">How to play</a></li>
       <li><a href="#download">Download</a></li>
       <li><a href="#roadmap">Roadmap</a></li>
       <li><a href="#changelog">Changelog</a></li>
       <li><a href="#community">Community</a></li>
+      <li><a class="nav-cta" href="https://discord.gg/GHNCFQrDND" rel="noopener">Discord</a></li>
     </ul>
   </nav>
 </header>
 
 <main id="main">
   <section id="top" class="hero" aria-labelledby="hero-title">
-    <div class="hero-art">
-      <img src="assets/header.png" alt="Southern Spear header artwork: the Southern Spear title over an Australian landscape." width="2048" height="512">
-    </div>
+    <div class="hero-bg" aria-hidden="true"><img src="assets/keyart.jpg" alt="" width="1536" height="1024"></div>
     <div class="wrap hero-copy">
-      <p class="eyebrow">Free &middot; Community developed &middot; Tactical FPS</p>
-      <h1 id="hero-title">Team. Train.<br>Operate. Overcome.</h1>
-      <p class="lede">An Australian-inspired tactical shooter focused on disciplined teamwork, qualifications, defined roles and objective-based multiplayer.</p>
-      <div class="actions">
-        <a class="btn btn-primary" href="#roadmap">Follow development</a>
-        <a class="btn btn-ghost" href="#changelog">Read the changelog</a>
+      <p class="eyebrow reveal">Free &middot; Community developed &middot; Tactical FPS</p>
+      <h1 id="hero-title" class="reveal">Team. Train.<br>Operate. Overcome.</h1>
+      <p class="lede reveal">A free, team-based tactical shooter set in a fictional Australian-inspired world. Slow down, move as a section, and take the objective together.</p>
+      <div class="actions reveal">
+        <a class="btn btn-primary" href="#about">What is Southern Spear?</a>
+        <a class="btn btn-ghost" href="#build">See the build</a>
+        <a class="btn btn-ghost" href="https://discord.gg/GHNCFQrDND" rel="noopener">Join the Discord</a>
       </div>
     </div>
   </section>
 
   <section class="wrap facts" aria-label="Project facts">
-    <dl>
+    <dl class="reveal">
       <div><dt>Current status</dt><dd>Active development &mdash; pre-alpha</dd></div>
       <div><dt>Platform</dt><dd>Windows (planned)</dd></div>
       <div><dt>Price</dt><dd>Free</dd></div>
-      <div><dt>Gameplay</dt><dd>Tactical multiplayer</dd></div>
+      <div><dt>Gameplay</dt><dd>Tactical team multiplayer</dd></div>
       <div><dt>Design principle</dt><dd>Fair &middot; cosmetic symmetry</dd></div>
     </dl>
   </section>
 
   <section id="about" class="wrap section" aria-labelledby="about-title">
-    <p class="eyebrow">What is Southern Spear?</p>
-    <h2 id="about-title">Tactical, readable and team-focused</h2>
-    <p class="measure">Southern Spear rewards communication, preparation and role discipline. Players see their own team as the Commonwealth Land Service, and the other team as the fictional Murasian Armed Forces. Presentation changes appearance only: gameplay tuning is mechanically equal for both teams.</p>
+    <p class="eyebrow reveal">The rundown</p>
+    <h2 id="about-title" class="reveal">What is Southern Spear?</h2>
+    <div class="rundown">
+      <div class="measure reveal">
+        <p class="big">Southern Spear is a first-person tactical shooter in the tradition of the classic team-based military shooters: realistic pacing, small teams, clear roles, and objectives that only fall to coordinated play.</p>
+        <p>It is set in a fictional world inspired by Australia. You fight across outback stations, dry creek lines and red-earth country as a soldier of the fictional <strong>3rd Battalion, Australian Commonwealth Regiment (3 ACR)</strong>. Matches are <strong>Objective Assault</strong>: two teams fight over a chain of objectives that fall in order, round after round.</p>
+        <p>There are no loot boxes, no pay-to-win and no hero classes. Every weapon and every character is mechanically identical on both sides.</p>
+      </div>
+      <ul class="pillars">
+        <li class="reveal"><span class="pillar-n">01</span><h3>Grounded</h3><p>First-person only, measured movement, weapons that reward fundamentals.</p></li>
+        <li class="reveal"><span class="pillar-n">02</span><h3>Team first</h3><p>Objectives are taken by holding the ring. Opposing soldiers inside contest it, so the fight comes to you.</p></li>
+        <li class="reveal"><span class="pillar-n">03</span><h3>Fair by design</h3><p>Both teams are identical. Only how they look changes, and only to the viewer.</p></li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="mirror" class="band" aria-labelledby="mirror-title">
+    <div class="wrap section">
+      <p class="eyebrow reveal">One battle, two perspectives</p>
+      <h2 id="mirror-title" class="reveal">Everyone is 3 ACR. Everyone else is the enemy.</h2>
+      <p class="measure reveal">Both teams play as the same side. On your screen, your team wears 3 ACR's CMECU uniform and carries the A88. The other team appears as the <strong>Murasian Armed Forces (MAF)</strong>: a fictional conventional opposing force in red-earth colours. On their screens it is exactly the reverse. Nobody is ever stuck playing the bad guys.</p>
+      <div class="mirror reveal" role="img" aria-label="Diagram: Team One sees itself as 3 ACR and Team Two as MAF; Team Two sees itself as 3 ACR and Team One as MAF.">
+        <div class="mirror-side">
+          <p class="mirror-who">Team One's screen</p>
+          <div class="chip friendly">Team One &rarr; 3 ACR</div>
+          <div class="chip opposing">Team Two &rarr; MAF</div>
+        </div>
+        <div class="mirror-axis" aria-hidden="true"><span>Same match</span></div>
+        <div class="mirror-side">
+          <p class="mirror-who">Team Two's screen</p>
+          <div class="chip friendly">Team Two &rarr; 3 ACR</div>
+          <div class="chip opposing">Team One &rarr; MAF</div>
+        </div>
+      </div>
+      <div class="cards two">
+        <article class="card friendly reveal">
+          <p class="card-num">How you see your team</p>
+          <h3>3rd Battalion, Australian Commonwealth Regiment</h3>
+          <p>Conventional infantry of the fictional Commonwealth Land Service.</p>
+          <dl class="kv">
+            <div><dt>Primary weapon</dt><dd>A88 Standard Service Rifle</dd></div>
+            <div><dt>Uniform</dt><dd>CMECU</dd></div>
+            <div><dt>Organisation</dt><dd>Commonwealth Defence Service</dd></div>
+          </dl>
+        </article>
+        <article class="card opposing reveal">
+          <p class="card-num">How you see the other team</p>
+          <h3>Murasian Armed Forces</h3>
+          <p>A fictional, competent conventional army with original red-earth camouflage, insignia and equipment.</p>
+          <dl class="kv">
+            <div><dt>Balance</dt><dd>Mechanically equivalent weapons</dd></div>
+            <div><dt>Characters</dt><dd>Identical gameplay hitboxes</dd></div>
+            <div><dt>Difference</dt><dd>Cosmetic, per viewer only</dd></div>
+          </dl>
+        </article>
+      </div>
+      <p class="planned">The swap is decided on each player's own machine and never touches gameplay: damage, movement and hitboxes are the same for everyone. All units, forces and weapons are fictional.</p>
+    </div>
+  </section>
+
+  <section id="build" class="wrap section" aria-labelledby="build-title">
+    <p class="eyebrow reveal">In development</p>
+    <h2 id="build-title" class="reveal">In the build today</h2>
+    <p class="measure reveal">What runs in internal development builds right now. None of it has been released; there is no public download yet.</p>
     <div class="cards three">
-      <article class="card">
-        <p class="card-num">01 &middot; Train</p>
-        <h3>Learn before deployment</h3>
-        <p>Core movement, weapon and role training before taking responsibility in a match.</p>
-        <p class="note">Qualifications unlock roles, not power.</p>
+      <article class="card reveal">
+        <p class="card-num">Mode</p>
+        <h3>Objective Assault</h3>
+        <p>Full round loop with bots: pre-round, sequential objectives captured by presence, round results and resets.</p>
+        <p class="tag ok">Working in dev builds</p>
       </article>
-      <article class="card">
-        <p class="card-num">02 &middot; Operate</p>
-        <h3>Play a defined role</h3>
-        <p>Rifleman, grenadier, support gunner, medic and command roles contribute differently.</p>
-        <p class="note">Team capability matters more than individual score.</p>
+      <article class="card reveal">
+        <p class="card-num">Maps</p>
+        <h3>Red Gum Station &middot; Dry River</h3>
+        <p>An outback cattle station with three objectives, and an original dry-creek blockout with two.</p>
+        <p class="tag ok">Working in dev builds</p>
       </article>
-      <article class="card">
-        <p class="card-num">03 &middot; Overcome</p>
-        <h3>Complete the objective</h3>
-        <p>Coordinate movement, control terrain and complete the mission with the team intact.</p>
-        <p class="note">No lone-wolf hero loop.</p>
+      <article class="card reveal">
+        <p class="card-num">Presentation</p>
+        <h3>First person, mirrored soldiers</h3>
+        <p>First-person camera with a weapon view model; each viewer sees their team as 3 ACR and the other as MAF.</p>
+        <p class="tag wip">In progress: arms, animation polish</p>
+      </article>
+      <article class="card reveal">
+        <p class="card-num">Interface</p>
+        <h3>Southern Spear HUD</h3>
+        <p>Objective panel, minimap and full map, compass, health and ammunition, round banners, match menu and settings.</p>
+        <p class="tag wip">In progress: visual tuning</p>
+      </article>
+      <article class="card reveal">
+        <p class="card-num">Weapons</p>
+        <h3>A-series</h3>
+        <p>A88 rifle and A89 support weapon, on shared gameplay definitions for both sides.</p>
+        <p class="tag wip">In progress: effects, more models</p>
+      </article>
+      <article class="card reveal">
+        <p class="card-num">Next</p>
+        <h3>Roles and training</h3>
+        <p>Rifleman, grenadier, support gunner, medic and command roles, unlocked by training.</p>
+        <p class="tag todo">Planned</p>
       </article>
     </div>
-    <p class="planned">These are design goals. Training, qualifications and roles are not yet implemented; see the roadmap for what exists today.</p>
   </section>
 
   <section id="how-to-play" class="band" aria-labelledby="htp-title">
@@ -100,34 +180,6 @@
       </ol>
       <p class="planned">There is no playable build yet. This is the intended flow.</p>
     </div>
-  </section>
-
-  <section class="wrap section" aria-labelledby="persp-title">
-    <p class="eyebrow">Contextual presentation</p>
-    <h2 id="persp-title">One battle, two perspectives</h2>
-    <div class="cards two">
-      <article class="card friendly">
-        <p class="card-num">Friendly presentation</p>
-        <h3>3rd Battalion, Australian Commonwealth Regiment</h3>
-        <p>Conventional infantry of the Commonwealth Land Service.</p>
-        <dl class="kv">
-          <div><dt>Primary weapon</dt><dd>A88 Standard Service Rifle</dd></div>
-          <div><dt>Uniform</dt><dd>CMECU</dd></div>
-          <div><dt>Organisation</dt><dd>Commonwealth Defence Service</dd></div>
-        </dl>
-      </article>
-      <article class="card opposing">
-        <p class="card-num">Opposing presentation</p>
-        <h3>Murasian Armed Forces</h3>
-        <p>A fictional conventional opposing force with original red-earth camouflage, insignia and equipment.</p>
-        <dl class="kv">
-          <div><dt>Balance</dt><dd>Mechanically equivalent weapons</dd></div>
-          <div><dt>Characters</dt><dd>Identical gameplay hitboxes</dd></div>
-          <div><dt>Difference</dt><dd>Cosmetic presentation only</dd></div>
-        </dl>
-      </article>
-    </div>
-    <p class="planned">Every player sees their own team as 3 ACR and the other team as MAF. All units, forces and weapons are fictional.</p>
   </section>
 
   <section id="roadmap" class="band" aria-labelledby="roadmap-title">
@@ -172,8 +224,9 @@
         <p><a class="link" href="https://github.com/theantipopau/southernspear-site">theantipopau/southernspear-site</a></p>
       </article>
       <article class="card">
-        <h3>Community</h3>
-        <p>No community space has been opened yet.</p>
+        <h3>Discord</h3>
+        <p>Talk to the team, follow development and join playtests when they open.</p>
+        <p><a class="btn btn-primary" href="https://discord.gg/GHNCFQrDND" rel="noopener">Join the Discord</a></p>
       </article>
       <article class="card">
         <h3>Donate</h3>

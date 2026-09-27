@@ -3,6 +3,31 @@
 (function () {
   "use strict";
 
+  // Scroll reveal: fade sections in as they enter the viewport.
+  document.documentElement.classList.add("js");
+  var reveals = document.querySelectorAll(".reveal");
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("in");
+          io.unobserve(entry.target);
+        }
+      });
+    }, { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
+    reveals.forEach(function (el, i) {
+      el.style.transitionDelay = Math.min(i % 6, 5) * 60 + "ms";
+      if (el.closest(".hero")) {
+        // Above the fold: animate in on load rather than on scroll.
+        setTimeout(function () { el.classList.add("in"); }, 40);
+      } else {
+        io.observe(el);
+      }
+    });
+  } else {
+    reveals.forEach(function (el) { el.classList.add("in"); });
+  }
+
   var btn = document.querySelector(".menu-btn");
   var links = document.getElementById("nav-links");
   if (btn && links) {

@@ -274,6 +274,9 @@ section[id], main > section { scroll-margin-top: calc(var(--header-h) + 12px); }
   color: var(--sand-200);
 }
 .callout--fiction { border-left-color: var(--opfor-500); background: linear-gradient(90deg, rgba(156, 80, 68, 0.1), transparent 60%); }
+/* Inspiration notice: brass, so it reads as attribution rather than warning. */
+.callout--inspiration { border-left-color: var(--brass-500); background: linear-gradient(90deg, rgba(200, 171, 114, 0.09), transparent 60%); }
+.callout--inspiration strong { color: var(--brass-300); }
 
 .notice {
   margin-top: 32px;

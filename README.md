@@ -4,7 +4,7 @@
 
 Public website and development portal for **Southern Spear**, a free, community-developed,
 Australian-inspired tactical multiplayer FPS built on Unreal Engine 5.8.3 and the Lyra
-Starter Game.
+Starter Game, and inspired by the design philosophy of the classic America's Army games.
 
 **Status:** pre-alpha, in active development. There is no playable release and no download.
 
@@ -54,6 +54,14 @@ CSS filter rather than a second drawing.
 Southern Spear is an original work of fiction. It is not endorsed, sponsored, developed or
 approved by the Australian Government, the Department of Defence, the Australian Defence Force
 or the Australian Army. All organisations, units, forces and weapons are fictional, and no map
-reproduces a real base, installation or operationally useful site. It is not affiliated with
-America's Army. Unreal Engine and the Unreal Engine logo are trademarks of Epic Games, Inc.
-Lyra is a sample project provided by Epic Games, Inc.
+reproduces a real base, installation or operationally useful site.
+
+Southern Spear is **inspired by the design philosophy of the classic America's Army games**, and
+by nothing else from them. No source code, map layout, mission name, interface, audio, dialogue
+or artwork is copied or reused, and none of their marks, names or insignia are used. It is not
+affiliated with, endorsed by, sponsored by or approved by America's Army or the United States
+Army. *America's Army* is a trademark of its respective owners, who do not endorse or sponsor
+this project.
+
+Unreal Engine and the Unreal Engine logo are trademarks of Epic Games, Inc. Lyra is a sample
+project provided by Epic Games, Inc.

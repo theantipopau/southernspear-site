@@ -2646,7 +2646,12 @@ Lyra `B_Hero_Default` (reparented), experience and IMC updates; blood uses the a
 - Committed the parallel session's finished, uncommitted work: Session 033 entry, ASSET_REGISTER,
   SOURCED_ASSET_REVIEW, DECISION_LOG execution note, TEST_PLAN, the smoke test and its `EngineSettings` dependency,
   README. Untracked art folders (`Art/Weapons/{A88/New,AKM,C4A1,PKM,_Optics}`, `Content/AUG`, `Content/SouthernSpear`,
-  `Docs/images/conceptart*.png`) left uncommitted: their sources are not recorded in the registers yet.
+  `Docs/images/conceptart*.png`) handled below.
+
+- **Untracked folders resolved:** the blocked or reference-only weapon sources (`Art/Weapons/{A88/New,AKM,C4A1,PKM}`), the Fab optic
+  export `Art/Weapons/_Optics` (no republishing) and the raw CC BY scan sources `Content/SouthernSpear/Vendor` are git-ignored;
+  `Content/AUG` (ADFRC audio) committed as LFS pointers. ASSET_REGISTER 4.9g added (AUD-AUG-001, CH-ADF-001, GP-DMG-001).
+  `Docs/images/conceptart{1,2}.png` left untracked: their source is unknown.
 
 ### FILES CHANGED
 
@@ -2672,7 +2677,7 @@ None.
 ### RISKS
 
 - R-36 (from Session 034) recorded in PROJECT_AUDIT.
-- The untracked art folders listed above need register entries before they can be committed or used.
+- The concept art images have no recorded source.
 
 ### DEFECTS FOUND
 
@@ -2682,8 +2687,56 @@ None.
 
 ### NEXT ACTION
 
-**Register or remove the untracked art folders** (`Art/Weapons/*`, `Content/AUG`, `Content/SouthernSpear`, concept art):
-record each source in ASSET_REGISTER / LICENCE_REGISTER, then commit or ignore it.
+**Wire the AUG audio (`/Game/AUG/Sound`) into the A88 family's fire, tail and reload cues**, replacing Lyra's rifle sounds.
+
+---
+
+## Session 036 — 2026-09-28 — A-Series Rifles Fire with the AUG Recordings
+
+### COMPLETED
+
+- **Rifle fire audio from the ADFRC AUG recordings** (AUD-AUG-001, L-0021), in C++ because SoundCues cannot be
+  authored headlessly (Session 032b). `ASSCharacter` handles `GameplayCue.Weapon.Rifle.Fire` on every client:
+  - a random close shot (3 variants, ±3% pitch); unspatialised for the human shooter, 60 m falloff for everyone else;
+  - a distant shot layer (3 variants) heard to 600 m, and the `tailMeadows` outdoor tail;
+  - Lyra's `MSS_Weapons_Rifle2_Fire` muted. Found by logging: Lyra's weapon Blueprint spawns that MetaSound
+    **owned by the pawn**, not the weapon actor; it is matched by sound name so footsteps stay.
+  - Pistol and shotgun cues keep Lyra's sounds. All rifles (A88 family, A4, A416, A89, A25) share the AUG set for now.
+- Defect caught before shipping: AI pawns count as locally controlled on the server, so bot shots would have
+  played unspatialised to the player. The 2D close shot is now for `IsLocallyControlled() && IsPlayerControlled()` only.
+
+### FILES CHANGED
+
+`SSCharacter.h/.cpp`, this file, `Docs/evidence/S035_rifle_audio_live.txt`.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Guard | `python Tools/validate_architecture.py` | 0 | PASS | console |
+| Build | `Build.bat SouthernSpearEditor Win64 Development` | 0 | Succeeded | console |
+| All tests | `UnrealEditor-Cmd ... -nosound -NoLoadingScreen ... "Automation RunTests SouthernSpear;Quit"` | 0 | 35/35 Success | `Build/tests_036.log` (not retained) |
+| Live, audio device on | Dry River, 8 bots, `LogTemp=Verbose`, no `-nosound` (timeout kill) | 124 | 257 rifle shots: AUG layers played, Lyra's MetaSound muted on 257/257, all spatialised (bots), no crash | `Docs/evidence/S035_rifle_audio_live.txt` |
+
+NOT RUN: **listening**. No one has heard the result; the mix levels (close 1.0, distant 0.7, tail 0.3–0.45) and
+whether Lyra's first-shot trigger leaks before the mute are unverified by ear. Reload and dry-fire sounds not wired.
+
+### ASSETS
+
+Uses AUD-AUG-001; nothing new.
+
+### RISKS
+
+- Mix levels unverified by ear (see NOT RUN).
+
+### DEFECTS FOUND
+
+- Bot shots would have played as the player's own (code reading after the first live log showed `local=1`).
+- Mute target was wrong at first: the MetaSound is on the pawn, not the weapon actor (live log, `muted=0` on 319 shots).
+
+### NEXT ACTION
+
+**Play a match with sound and judge the rifle audio by ear** (levels, first-shot leak, distance), then tune the three volumes.
 
 ---
 

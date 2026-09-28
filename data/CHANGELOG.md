@@ -2972,6 +2972,181 @@ and set the import flag accordingly for soldier and weapon textures.
 
 ---
 
+## Session 041 — 2026-09-28 — Weapon Optics Re-Placed Onto The Sight Line; Loadout Renders Rebuilt
+
+### COMPLETED
+
+- **Optics moved off the buffer tubes.** `Tools/Blender/adfrc_weapon.py` placed a mounted
+  optic at `eye.x / 2` — the midpoint of the trigger (the mesh origin) and the REAR sight — so
+  every scope on the A4, A416 and A25 sat over the buffer tube or the stock, and the EF88's
+  Spectr sat off the back of its rail. The rule now uses the model's own memory points:
+  the midpoint of `front_sight_axis` and `rear_sight_axis` at eye height, falling back to the
+  bullpup `op_axis` proxy when a weapon has no iron sights.
+- **The four exported meshes corrected** by `Tools/Blender/fix_weapon_optics.py` (the optic
+  source blends under `Art/ADFRC_BLEND/adfrc_optics_ss/` are no longer on disk, so the meshes
+  were edited rather than re-exported; the FBX settings match the exporter's exactly and every
+  non-optic part is byte-identical afterwards):
+  - A88 Spectr +0.131 m · A4 TA31 +0.305 m · A416 TA31 +0.245 m · A25 TA648 +0.309 m
+  - `manifest.json` for each weapon records the new `optic.centre_m` and a `placement` note.
+- **Loadout renders rebuilt** (`Tools/Blender/render_weapons.py`). The previous pipeline guessed
+  textures by filename across the whole ADFRC tree, which picked up other weapons' maps, and it
+  wired Arma's transparent `_CA` overlay maps to Base Color — that is why the scopes came out as
+  black holes and white reticle blobs. Materials now come from each weapon's export manifest
+  (colour + NOHQ normal + SMDI gloss/grime), with lens and reticle slots built as what they are.
+- **Lighting and framing fixed**: the area lights were placed with hand-written Euler angles that
+  aimed them away from the weapon; they are now derived from the offset like the camera. Power is
+  scaled to each model's size, exposure is set per material, and the camera fits the real
+  silhouette (mesh vertices, iterated) instead of the bounding box, which was clipping muzzle and
+  stock.
+- **AKM textures found.** The AKM's maps are packed in its .blend, so `has_data` was False and the
+  lookup silently returned nothing — the rifle rendered as default white plastic. The AKM now
+  renders with its packed base colour, normal, roughness, metallic and AO.
+- **A89 shown as the ADFRC F89** (producer decision). The in-build A89 mesh came from
+  `ADFRC_F89_Minimi_MLOD`, which is assembled from Minimi parts plus Maximi (M249) and Mag58
+  parts and reads as an M249. The site now renders `ADFRC_F89_Minimi_Mod_MLOD` — F89_Base_01/02,
+  F89_MK3_01, MK3_Handguard, with their own textures — and the card, alt text and
+  ASSET_REGISTER all say so.
+- Website rebuilt and published; `Docs/Website/*` updated.
+
+### TESTING
+
+| Check | Command | Result |
+|---|---|---|
+| Renders | `blender --background --factory-startup -P Tools/Blender/render_weapons.py` | 6/6 rendered; texture report shows every slot resolved to a real map |
+| Render statistics | `python Build/audit/render_check.py` | opaque-pixel means 102–150, crushed blacks ≤ 2.1%, blown highlights ≤ 0.2% (AKM 0.7%) |
+| Optic placement | `blender -P Build/audit/probe_slots_geom.py` | scopes now between the sights; every other slot's bounds unchanged |
+| Sight derivation | `blender -P Build/audit/sight_points.py` | centres from the Arma memory points, not hand-tuned |
+| Optic-only renders | `blender -P Build/audit/scope_check.py` | lenses and reticles render as glass, no black holes or white blobs |
+| Website (local) | `node interaction_test.js`, `node responsive_audit.js`, `node text_audit.js` | all checks passed; 9 viewports × 2 pages clean |
+| Website (live) | `node live_verify.js` | sections incl. `loadout`; no console errors, no failed requests |
+
+### ASSETS
+
+- No new third-party assets. `Docs/images/weapons/*.png` re-rendered (studio renders of existing
+  models). The A89 render changes provenance from `SM_A89.fbx` to `ADFRC_F89_Minimi_Mod_MLOD`,
+  both L-0021 material under the recorded website promotion exception.
+- ASSET_REGISTER website-promotion exception updated to name the ADFRC F89 stand-in.
+
+### RISKS
+
+- **R-38 — the game FBX files were edited in place.** The optics were moved without re-running
+  the exporter (its optic sources are gone), so `adfrc_weapon.py`'s corrected rule and the
+  meshes agree only because `fix_weapon_optics.py` applied the same deltas. Re-exporting a
+  weapon from source in future will overwrite the mesh; check the optic position afterwards.
+- The A89 shown on the site is not the mesh in the build. The build still carries the
+  Minimi/Maximi variant; swapping it to the F89 is a separate change to `SM_A89.fbx`.
+
+### DEFECTS FOUND
+
+- Optic mounted over the stock on all three scoped rifles (producer review of the renders; root
+  cause found in `adfrc_weapon.py`).
+- Renders showed no texture: filename-guessed texture lookup, overlay maps wired as diffuse.
+- Lights aimed away from the subject; bounding-box framing clipping the weapons.
+- Packed-texture lookup keyed on `has_data` (AKM rendered untextured).
+- ADFRC blend collector left the six-triangle LOD proxy boxes in the scene, so they rendered
+  as multi-metre grey planes around the A89.
+
+### NEXT ACTION
+
+**Swap the build's A89 mesh to the ADFRC F89** so the game and the site show the same weapon, or
+record a decision to keep the Minimi variant in the build and label it as such.
+
+---
+
+## Session 042 — 2026-09-28 — Player Model Renders For Both Sides; Camouflage Retuned To The Reference; New Site Section
+
+### COMPLETED
+
+- **New renderer `Tools/Blender/render_soldiers.py`**, producing matched studio renders of both
+  playable sides: 3 ACR in CMECU carrying the A88, MAF in the red-earth set carrying the A4. The
+  pose is a solved low&#8209;ready carry (`Build/audit/solve_pose2.py` searched the arm axes and
+  elbow for the rotation that puts both hands together in front, at waist height) and the weapon
+  is anchored into the hands and aimed down the muzzle vector, so pose and prop agree.
+- **Three renderer bugs fixed**, all found by measuring the output rather than looking at it:
+  - **The gear had no armature and the body had one.** Each kit FBX carries its own copy of the
+    Lyra rig, scaled 0.01 to match the body's centimetre skeleton; the renderer deleted every
+    non-mesh object, which stripped that scale and blew the kit up 100x. The camera then framed a
+    183-unit box and the 1.8 m figure rendered as a speck in the top third — the MAF pass came out
+    head-and-torso only, with no legs. Every rig is now kept and posed with the same low&#8209;ready.
+  - **The framing used rest&#8209;pose vertices.** `data.vertices` is the bind pose, so the camera
+    was fitting the A&#8209;pose. Framing now reads the evaluated mesh through the depsgraph. The
+    camera also fits the figure rather than the whole scene, with the held weapon allowed to widen
+    the plate by at most 12%: fitting the A4's muzzle footprint put the soldier in a third of an
+    empty frame.
+  - **No base colour was ever linked.** `pbr()` was passed the full set stem and then split
+    `_BC` off it before looking for the colour map, so every soldier rendered as default grey.
+    It now builds `T_SS_CMECU_Camo_BC/_N/_ORM` and prints the path of any map it cannot find.
+- **Camouflage retuned to the producer's reference photography** (Australian Disruptive
+  Pattern&#8209;style uniform shots). `Build/audit/tune_camo.py` measures the fabric pixels in the
+  reference and searches the palette for the closest match rather than eyeballing it: reference
+  lum p10/p50/p90 = 40/129/235, median saturation 0.46, oxide&#8209;red population 8.7%. The old
+  four&#8209;tone set had no pale ground and no red and rendered as a khaki wash (sat 0.23, nothing
+  above 175). The new seven&#8209;tone set scores lum 43/107/205, sat 0.47, red 10.2% — and the
+  rendered 3 ACR measures sat 0.48, pale 9.8%. Still noise&#8209;generated, still original, still
+  not AMCU/Auscam (ADR&#8209;016).
+- **The two sides are exposure&#8209;matched.** The light rig is now keyed off the figure's own
+  height rather than the scene radius (the A88 carry was making the 3 ACR a stop brighter than the
+  MAF), and each side carries a small exposure trim for the inherent value of its camo set. The
+  pair now renders at median luminance 128 and 134, with 6.3%/7.5% crushed and no blowout on
+  either — against 6.3% and 14.5% before.
+- **New site section `#soldiers`** ("Who you fight, and who you are") between Loadout and Maps,
+  with a nav link, `picture` derivatives at 720/1200 in AVIF/WebP/PNG, lightbox, and the
+  provenance note: third-party body and kit published under the same recorded risk acceptance as
+  the weapon renders (L&#8209;0016 + L&#8209;0021, promotion, not a clearance), original camo, not
+  affiliated with the ADF, and no real unit's insignia.
+- `Tools/build_site_assets.py` gained `build_soldiers()`; the alpha margin is cropped and the
+  derivatives written, same as the weapons. Website rebuilt and published; `Docs/Website/*` updated.
+
+### TESTING
+
+| Check | Command | Result |
+|---|---|---|
+| Renders | `blender --background --factory-startup -P Tools/Blender/render_soldiers.py` | 2/2 rendered, no missing textures |
+| Figure completeness | alpha row histogram + ASCII silhouette | both figures span 83–84% of frame height, full body, matched width (970/971 px) |
+| Exposure match | `python` luminance report over the opaque pixels | median 128 vs 134; crushed 6.3% vs 7.5%; blown 0.00% both |
+| Camo vs reference | `python Build/audit/tune_camo.py` + render statistics | reference sat 0.46 / red 8.7% / pale 10.2%; render sat 0.48 / red 10.2% / pale 9.8% |
+| Kit scaling | `blender -P Build/audit/probe_allrig.py` | with every rig kept, kit sits at z 0.881–1.839 on a 1.805 m body |
+| Website (local) | `node soldiers_check.js`, `node soldiers_lightbox.js` | 4 viewports clean; AVIF served; no image upscaled; lightbox, arrow-key stepping, alt and caption all pass |
+| Website (local) | `responsive_audit`, `text_audit`, `interaction_test`, `phase_measure`, `faq_check` | all pass |
+
+### ASSETS
+
+- No new third-party assets. `Docs/images/soldiers/*.png` are new studio renders of existing
+  models: the L-0016 Fab mannequin the game's rig is fitted to, wearing L-0021 ADFRC-derived kit,
+  under the same recorded website-promotion exception as the weapon renders. The camouflage is the
+  project's own (L-0022) and is regenerated by `Tools/Textures/make_character_textures.py`.
+- ASSET_REGISTER gained a row for the soldier renders; L-0022 records the regenerated CMECU and
+  MAF sets.
+
+### RISKS
+
+- **R-39 — the soldier renders are two restricted layers in one image.** The body is L-0016 and
+  the kit is L-0021, so unlike the weapon renders (one restricted layer) there is no single
+  material whose clearance carries the picture. Both layers are covered by the producer's
+  recorded risk acceptance of 2026-09-28 for website promotion, and the acceptance is explicitly
+  not a licence clearance. The release status of the underlying assets is unchanged.
+- The renders show the L-0016 mannequin and L-0021 kit, not the final original character. The
+  asset register already tracks the body as a placeholder (C-001) requiring an original mesh.
+
+### DEFECTS FOUND
+
+- Gear rendered 100x oversized because its armature was deleted; the MAF figure was framed out of
+  shot and rendered as a torso with no legs.
+- Neither soldier had any texture: `pbr()` looked for `T_SS_<set>` where the files are
+  `T_SS_<set>_BC`.
+- Camera framed the rest pose, not the posed figure, and fitted the weapon's footprint as well as
+  the body.
+- The MAF render crushed 14.5% of its surface to black against the 3 ACR's 6.3%, because the light
+  rig scaled with the scene radius and the two sides carry different kits and weapons.
+
+### NEXT ACTION
+
+Decide whether the site keeps publishing the Fab body under the promotion exception now that the
+soldier renders are the most prominent use of L-0016, or holds the section until the original
+character (C-001/C-002) exists.
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

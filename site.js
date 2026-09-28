@@ -1121,11 +1121,27 @@
           }
         }
       } else {
-        return;
+        // A section or element link (e.g. #roadmap, #faq). Nothing to expand,
+        // but the anchor was resolved before the roadmap and changelog were
+        // fetched, so it needs the same correction as a phase or session.
       }
 
       var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      // The anchor is resolved before the documents are fetched, and the page
+      // uses content-visibility, so a section's height is not known until the
+      // browser lays it out. Scroll, then correct as the layout settles -
+      // otherwise a section link lands where the section was before the
+      // roadmap and changelog expanded underneath it.
+      var header = parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue("--header-h")) || 68;
+      var settle = function (left) {
+        if (Math.abs(target.getBoundingClientRect().top - (header + 12)) > 8) {
+          target.scrollIntoView({ behavior: "auto", block: "start" });
+        }
+        if (left > 0) window.setTimeout(function () { settle(left - 1); }, 120);
+      };
       target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+      window.setTimeout(function () { settle(6); }, reduce ? 0 : 220);
       // Move focus without a second scroll, so keyboard users continue from
       // the linked item rather than the top of the document.
       if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");

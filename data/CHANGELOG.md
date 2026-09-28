@@ -2911,6 +2911,67 @@ None new (engine BasicShapes; existing soldier, weapon and Lyra animation assets
 
 ---
 
+## Session 040 — 2026-09-28 — Soldiers Slimmed (Uniform Fit Cap), Fabric Material, Crisp Uniform Textures; Class Preview Polish
+
+### COMPLETED
+
+- **"Player models way too bulky"** (producer). Measured before changing: `Tools/Blender/probe_gear_fit.py` (uniform vertex
+  distance to the UE5 mannequin's skin, per region) gave medians of 1.3–1.6 cm (torso, forearm, thigh) but 3.0 cm on the
+  upper arm; a Blender silhouette render (`render_gear_silhouette.py`) showed ~12 cm cloth "wings" at both shoulders and
+  baggy thighs, a re-pose artifact of `adfrc_gear_rig.py` (Arma shoulder cloth left behind when the arms move onto the
+  mannequin). New optional step 2b, `SS_GEAR_CAP` (cm): cloth further than the cap from the skin is pulled in, keeping 15%
+  of the excess so pockets and folds stand proud. Compared 3.5 and 2.5 cm; **2.5 cm adopted** (8538 of 23187 vertices
+  moved; worst 12.3 cm before). Plate carriers are not capped (their offset is real). The MAF side uses the same uniform mesh.
+- **"Textures don't look good"**: resolution was not the cause (uniform colour 4096², normal/SMDI 2048²). Two causes found:
+  1. fabric used one flat roughness (0.85) with the Arma SMDI switched off (it rendered chrome under the weapon mapping):
+     new **`M_SS_FabricPBR`** (`setup_adf_soldier.py`): roughness 0.95→0.62 from the SMDI gloss, specular 0.15 + 0.35 × SMDI
+     specular, adjustable normal strength; hard items keep the weapon material;
+  2. the first capture after the change showed the AMCU pattern smeared: script-built materials carry no texture-streaming
+     data, so textures stayed at low mips. Soldier textures are now resident (never stream), capped at 2048 px (the fix the
+     weapons already use).
+- Class preview: the soldier (and his weapon) turns, the backdrop and lights stay put (the wall edge had swung into view);
+  right-hand three-quarter view where the rifle is carried; larger backdrop. Window icon confirmed in the producer's screenshot.
+
+### FILES CHANGED
+
+`Tools/Blender/adfrc_gear_rig.py` (fit cap; rebuild command uses `SS_GEAR_CAP=2.5`), `probe_gear_fit.py` and
+`render_gear_silhouette.py` (new); `Tools/Unreal/setup_adf_soldier.py` (fabric master, resident textures);
+`Art/Characters/ADF/SK_ADF_Uniform_G3.fbx`; soldier content under `SSExp_ObjectiveAssault/Characters/ADF`;
+`SSClassSelectWidget.cpp`; evidence; this file.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Fit, before | `blender -b --factory-startup -P Tools/Blender/probe_gear_fit.py -- <uniform> <vest>` | 0 | uniform upper arm median 3.0 cm, p90 5.6 cm; others 1.3–2.4 cm | console |
+| Silhouette | `render_gear_silhouette.py`: original, cap 3.5, cap 2.5 | 0 | shoulder wings largely removed, legs slimmer | `Docs/evidence/S040_uniform_fit_before_cap35_cap25.jpg` |
+| Re-import | `UnrealEditor-Cmd ... setup_adf_soldier.py` | 0 | `ok: true` | `Build/adf_soldier_setup.json` |
+| Rendered | class screen `-SSShotAt=10`; bot follow `-SSShotAt=30` | 124 | slimmer soldier, crisp AMCU, fabric sheen | `Docs/evidence/S040_soldier_before_after.jpg`, `S040_soldier_ingame.jpg` |
+| Guard, build, tests | as in CLAUDE.md | 0 | PASS; Succeeded; 36/36 | `Build/tests_040.log` (not retained) |
+
+NOT RUN: Arma normal-map green-channel convention check (DirectX vs OpenGL is still unverified); texture memory measurement
+of the resident soldier set; the MAF look re-checked in a capture.
+
+### ASSETS
+
+`M_SS_FabricPBR` (new, original material); new SMDI texture imports for existing ADFRC items (L-0021, CH-ADF-001).
+
+### RISKS
+
+- Resident soldier textures raise memory use (bounded by the 2048 px cap); not measured yet.
+
+### DEFECTS FOUND
+
+- Uniform shoulder "wings" from the gear re-pose (silhouette render). Flat fabric shading (material review).
+  Low-mip uniform textures from script-built materials (rendered capture). Class-preview wall edge (producer screenshot).
+
+### NEXT ACTION
+
+**Verify the Arma normal-map green channel** (render a seam-heavy fabric patch with and without the flip under a low light)
+and set the import flag accordingly for soldier and weapon textures.
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

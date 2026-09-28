@@ -3265,6 +3265,370 @@ document behind it fails the build, the way a broken image link does today.
 
 ---
 
+## Session 044 — 2026-09-28 — Dry River Expanded And Dressed From Packs, Kill Feed, Lyra Pops Removed, Bluestone Quarry, Gloved First-Person Arms
+
+### COMPLETED
+
+- **Dry River ground and size** (producer screenshots: grey checker, "red dirt slightly off"). The Rural Australia
+  `_NA` textures are packed masks; sampled as normals they failed the material and Unreal drew its checker. Terrain
+  and outer skirt now both use the pack's `MI_Ground_Dirt_01` (world-space UVs), so there is no seam; Nanite is off on
+  the terrain mesh (it showed flat low-mip texture). Playable area 340 x 240 m (`dryriver_world.PLAY_HALF_X/Y`), with
+  boundary volumes and a matching nav volume.
+- **Dry River dressing from packs, not blocks** ("assets added are very poor quality, just a block"):
+  - textured corrugated shelters built in Blender (`dryriver_shelters.py`: lean-to, three-bay shed, tank);
+  - Megascans corrugated iron (`setup_fab_materials.py`: `M_SS_ScanPBR`, `MI_SS_CorrugatedIron`), replacing Singapore
+    Canal metal that carried Asian ornament;
+  - yard clutter, sandbag sangars and supply dumps from Singapore Canal *generic* props;
+  - Rural Australia rocks, logs and trees, with hidden trunk colliders;
+  - tinted quarry ledges, rock clusters and 560 creek stones from the Scene Quarry pack.
+  Old blockout crates, barrels and scrub were swapped in place; puddles and pale ground patches were removed.
+- **Red Gum homestead textured** from pack materials (edits to the other agent's `import_redgum_homestead.py` and
+  `redgum_homestead.py`; those files and the map stay uncommitted with that agent's work).
+- **Kill feed** (producer): top-right "killer · WEAPON · victim" in viewer-relative colours, plus "ELIMINATED <name>"
+  below the crosshair for the viewer's own kills. Server binds each pawn's `ULyraHealthSet::OnOutOfHealth` and sends
+  per-viewer entries through `USSKillFeedRelay` (a client RPC on each PlayerController). Rules (`FSSKillFeedRules`) are
+  in Core, with a new test. Lyra's message path could not be used: `FLyraVerbMessage` is not exported, and the game
+  state multicast only broadcasts on clients.
+- **Lyra presentation removed** (producer: "weird lyra blocks when damaged", "hit points above the enemy"): the bridge
+  destroys Lyra number-pop and nameplate components client-side; the log showed 11 removed in a live match. Lyra's
+  red/blue Tab scoreboard is collapsed while ours shows.
+- **Bluestone Quarry** (`L_Bluestone_01`, producer: "activate that african map"). The African Slate Quarry is a
+  studio-lit ~70 x 80 m diorama, not a level, so the generic builder (`build_objective_map.py`, key `quarry`) now
+  does the following:
+  - strips the showroom and the light bars above the pit;
+  - gives the pack meshes complex collision;
+  - adds outdoor daylight and fog;
+  - rings the pit with a rim at each side's measured edge height, dressed with the pack's own rocks and bushes and
+    textured with a new world-aligned material (`M_SS_WorldGroundVT`);
+  - adds boundary walls and three objectives.
+  All legs connect. It is on the operations menu. Paused for fine-tuning on the producer's instruction.
+- **First person: gloved arms view model** (producer decision on ADR-024 S2: "arms view model", recorded here). The
+  Fab M4 and G17 FPS packs, with their real-weapon models removed (`Tools/Blender/fp_arms.py`), give draw, fire,
+  reload, empty reload and holster. The A-series weapon rides the pack's weapon bone at a grip measured from the idle
+  pose. Pistols switch to the G17 arms automatically (held mesh shorter than 35 cm). Reloads are time-scaled to
+  Lyra's montage; walk bob, sway, sprint lowering and fire kick are procedural. Sleeves use the soldiers' AMCU G3 shirt
+  fabric and the hands a coyote glove, via a per-polygon UV mask (`make_fp_arms_texture.py`). Weapons moved forward
+  twice on producer feedback (`ss.FP.ArmsOffset 17 0 -2`, `ss.FP.WeaponOffset 9 0 -3`).
+- **Own-body shadow** ("da Vinci shadow"): hidden meshes stopped refreshing bones, so the shadow stayed in the bind
+  pose. The local body and gear now keep posing while hidden.
+- **VibeUE** (MIT, git-ignored clone in `Plugins/VibeUE`) builds and loads. Its services are Python-callable from our
+  commandlets, verified: 800+ functions including AnimGraph, AnimSequence and Skeleton; CLAUDE.md section added.
+  The Unreal MCP and EditorToolset plugins are enabled in the `.uproject`, with VibeUE marked `Optional`. Auto-starting
+  the editor MCP server was **not** configured (blocked by the permission classifier; the producer's call).
+- **ADR-028** (producer): every Fab asset is cleared for our use; no per-asset licence lookups.
+- Asset review for the producer: the Animation Starter Pack (deaths, prone, hit reacts) is the next animation source;
+  Vibe3D (scripted collision, LODs, UVs) and Universal PCG Scatter are useful. See NEXT ACTION.
+
+### FILES CHANGED
+
+- **Code:**
+  - `Plugins/SouthernSpearCore`: `SSKillFeedState.h/.cpp`, `Tests/SSKillFeedTests.cpp`;
+  - `SouthernSpearLyraBridge`: `SSKillFeedSubsystem.h/.cpp`, `SSLyraReflection.h`, `SSHudStateSubsystem.h/.cpp`,
+    `SSFirstPersonSubsystem.h/.cpp`;
+  - `SouthernSpearUI`: `SSKillFeedWidget.h/.cpp`, `SSPlayerHudSubsystem.h/.cpp`, `SSMenuWidget.h/.cpp`.
+- **Tools:** `Tools/Unreal/expand_dryriver.py`, `setup_fab_materials.py`, `setup_fp_arms.py`, `build_objective_map.py`;
+  `Tools/Blender/dryriver_shelters.py`, `dryriver_skirt.py`, `fp_arms.py`; `Tools/Common/dryriver_world.py`;
+  `Tools/Textures/make_fp_arms_texture.py`.
+- **Content:** `Content/Maps/L_DryRiver_01.umap`, `L_Bluestone_01.umap`; `Content/Art/Blockout/SS_MAP_DryRiver_01`,
+  `SS_MAP_DryRiver_Skirt`; `Content/Art/Environment/DryRiver/*`, `Fab/*`; `SSExp_ObjectiveAssault/Content/FirstPerson/*`.
+- **Config and docs:** `SouthernSpear.uproject`, `.gitignore`, `CLAUDE.md`; `Docs/DECISION_LOG.md` (ADR-028);
+  `Docs/LICENCE_REGISTER.md`; this file; `Docs/evidence/S044_*.jpg`.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Guard | `python Tools/validate_architecture.py` | 0 | PASS | console |
+| Build | `Build.bat SouthernSpearEditor Win64 Development` | 0 | Succeeded (after every C++ change) | console |
+| Automation | as in CLAUDE.md | 0 | 37/37 `Result={Success}` | `Build/tests_044.log` (not retained) |
+| Kill feed live | bot match, `-FORCELOGFLUSH` | 0 | kill lines with weapons and "(you)"; producer: "kill feed looks good" | `Docs/evidence/S044_kill_feed.jpg` |
+| Bluestone passes | `SS_MAP=quarry SS_PASS=level|nav ... build_objective_map.py` | 0 | ok true; legs [T,T,T,T]; deployments 120 m apart, 158 m walk | `Build/objective_map_quarry_*.json`, `Docs/evidence/S044_bluestone_quarry.jpg` |
+| First person | `-game -SSShotAt ... -SSExec="ss.FP.DebugSlot 0/1"` | killed after shot | rifle and pistol held in gloved hands, AMCU sleeves | `Docs/evidence/S044_fp_arms_rifle_pistol.jpg` |
+| Dry River | `expand_dryriver.py` | 0 | ok true, nav 3 path points; the two known dressing checks fail as before | `Docs/evidence/S044_dryriver_*.jpg` |
+
+NOT RUN:
+- the own-body shadow is not visually confirmed (no capture caught it in frame);
+- the Lyra Tab scoreboard hide was not seen in play (no scripted Tab);
+- a damage hit was not captured after the number-pop removal;
+- ADS with the new arms was not tuned;
+- `verify_dressing.py` was not re-run after expansion;
+- nav was not rebuilt for Red Gum.
+
+### ASSETS
+
+- **Fab, cleared under ADR-028:** M4 and G17 FPS animation packs (arms and clips only; weapon models dropped); African
+  Slate Quarry (the Bluestone base, as ADR-022 did for Red Gum, on producer direction); Megascans Military Trenches
+  Corrugated Wall (texture set).
+- **Other packs:** Singapore Canal generic props and wood materials on Dry River (no architecture or ornament);
+  Rural Australia ground, rocks, logs and trees.
+- **Not used:** the gloves pack (CC BY 4.0, "Bobeer"; credit if used).
+- **Tooling:** VibeUE (MIT).
+- **Original:** `M_SS_WorldGroundVT`; the arms sleeve/glove textures are derived from the pack's shading and the ADFRC
+  G3 fabric (L-0021).
+
+### RISKS
+
+- **R-40:** first-person arms reuse Fab pack skeletons that differ from the body; third-person and first-person
+  reloads are two separate animations kept in step by time scaling, not by shared data.
+- **R-41:** `L_Bluestone_01` references the git-ignored Scene Quarry pack, so a clone needs the pack from Fab (as R-19).
+
+### DEFECTS FOUND
+
+- Checker ground from packed mask textures sampled as normals (producer screenshot).
+- Studio lights, showroom and void edges in the quarry scene (probe and captures).
+- Arms texture UV split wrong twice: forearms and hands overlap in U, so a per-polygon mask was needed (in-game capture).
+- Pistol arms culled after a mesh swap (bounds; capture).
+- The asset-rename step double-prefixed clips on re-import (import report).
+
+### NEXT ACTION
+
+**Deaths and hit reactions:** retarget the Animation Starter Pack deaths and hit reacts to the UE5 mannequin, play them
+on death, then blend into ragdoll.
+
+---
+
+## Session 046 — 2026-09-28 — Ragdoll Deaths, No Lyra Cubes, KILLED IN ACTION, Re-Deploy, Quieter HUD, Working Scopes, Dry River Farm Props
+
+### COMPLETED
+
+- **Build unbroken** (producer: "SouthernSpear could not be compiled"): the death work had three compile errors (a
+  non-existent collision-profile constant, a missing ability-system include, and a `TeamOf` clash between the
+  scoreboard's local helper and `SSLyraReflection::TeamOf` under the unity build; the helper is now
+  `ScoreboardTeamOf`).
+- **Deaths** (producer: "ragdoll / death animations?"): `ASSCharacter` ragdolls the body 0.12 s after death with a
+  push along the killing shot (from the damage cue), keeps the corpse 15 s instead of Lyra's instant hide-and-destroy,
+  and hides the first-person arms and weapon once the body goes limp. 17 ragdolls in a 10-bot match, no new errors.
+- **Lyra cubes gone** (producer: "the spawn 'weird cubes' needs to go"): `ShouldAcceptGameplayCue` refuses
+  `GameplayCue.Character.Death` (NS_DeathCubes) and the spawn cue (`GameplayCue.Character.Spawn`, GCNL_Spawning's cube
+  materialise). The log showed 50 spawn cues refused in one match.
+- **KILLED IN ACTION** (producer): on the viewer's own death the screen darkens and "KILLED IN ACTION / BY <name> ·
+  <weapon>" shows for 4 s (`FSSKillFeedRules::RecentLocalDeath`, tested); the class selection opens after it.
+- **RE-DEPLOY** in the match menu (producer): the menu sets a request in `USSLocalHudState`; the bridge sends it
+  through the player controller's relay (`USSKillFeedRelay::ServerRedeploy`) and the server applies Lyra's own
+  self-destruct, so the player respawns with the selected class. The banner then reads "RE-DEPLOYING".
+- **HUD re-laid, after America's Army 2** (producer: "a lot at the top of the screen", "kill feed does push under the
+  mini map"; AA2 kept objectives small in the top-right corner):
+  - minimap 200 px at the top right, with a compact objective block the same width directly under it;
+  - the kill feed moved to the top left;
+  - the compass is a slim strip alone at the top centre.
+- **Scopes work** (producer: "scopes don't work at all"; the eye looked at the back of a solid optic). Aiming a
+  magnified optic hides the view model, narrows the view by the optic's power and draws an eyepiece (black surround,
+  round mask, stadia, post, aim point). The power comes from `USSLocalHudState::OpticMagnificationFor`, tested:
+  A25 6x, the A88 family and A89 4x, others 0 (iron or red dot, aimed over the view model as before). The producer
+  confirmed "scope on the A88 is working".
+- **Dry River farm props** (producer: "replace the 'cars' that were just boxes with actual cars ... add barns, the
+  windmill, wells"). New re-runnable pass `Tools/Unreal/farm_dryriver.py`:
+  - the three box wrecks become the Fab car wreck at the dressing plan's wreck positions;
+  - a windmill, a water tower, a hand pump and the StoneWell well at the Water Point;
+  - at the Farmstead, the buildings stand where the blockout designed them (`MAPS_DRYRIVER.md` 4.4): the open pole
+    barn as the objective's shed, the enclosed barn as the residence, and a timber rail fence on the stock-pen line;
+  - also a pump, a well, a caravan, an outhouse, and 14 fuel drums by the sheds and barns.
+- **Prop textures** (producer: "all of these have no textures on them and look strange"). Four Fab downloads
+  (windmill, barn, old barn, fuel barrel) shipped their FBX without the texture files it references. Their slots now
+  take textured materials: timber and roofing iron from the Dry River shelters, and rusted or galvanised metal from
+  the Modular Rural Cabin pack. The Cabin pack's own wood and roof came out green and blotchy on these meshes, so
+  they were replaced. The drums became the Cabin pack's textured drum. The pump's textures were embedded in its FBX
+  (`Tools/Blender/extract_fab_textures.py`), and the water tower ships its PNGs: both now have their own PBR
+  instances.
+- **Greybox out of the terrain** (producer screenshot: red wall and slab at the objective): the farm shed, residence,
+  pen rails and 2 m layout-marker slabs no longer export into the terrain FBX (`dryriver_blockout.py`; CSVs
+  byte-identical), re-imported alone by `Tools/Unreal/reimport_dryriver_terrain.py` (120 fewer triangles).
+- Map work then halted on the producer's instruction ("we will get there and improve them down the track").
+
+### FILES CHANGED
+
+- **Core:**
+  - `SSKillFeedState.h/.cpp` (`RecentLocalDeath`);
+  - `SSLocalHudState.h` (re-deploy request, optic power);
+  - `SSGlyphTextures.h` (`ScopeMask`);
+  - tests `SSKillFeedTests.cpp`, `SSHudTests.cpp`.
+- **Bridge:**
+  - `SSCharacter.h/.cpp` (ragdoll, corpse, cue refusal);
+  - `SSFirstPersonSubsystem.cpp` (dead or scoped: hide the view model);
+  - `SSFirstPersonCameraMode.cpp` (scope FOV);
+  - `SSHudStateSubsystem.cpp`;
+  - `SSKillFeedSubsystem.h/.cpp` (`ServerRedeploy`);
+  - `SSScoreboardSubsystem.cpp`.
+- **UI:** `SSKillFeedWidget.h/.cpp`, `SSPlayerHudWidget.h/.cpp`, `SSPlayerHudSubsystem.h/.cpp`, `SSMenuWidget.h/.cpp`.
+- **ObjectivesUI:** `SSObjectiveStatusWidget.cpp`, `SSMinimapWidget.cpp`, `SSCompassWidget.cpp`.
+- **Tools:** `Tools/Unreal/farm_dryriver.py`, `reimport_dryriver_terrain.py`; `Tools/Blender/extract_fab_textures.py`,
+  `dryriver_blockout.py`.
+- **Content:** `Content/Maps/L_DryRiver_01.umap`; `Content/Art/Blockout/SS_MAP_DryRiver_01` (fbx, uasset, blend);
+  `Content/Art/Environment/DryRiver/Farm/*`.
+- **Docs and evidence:** this file; `Docs/evidence/S046_*.jpg`.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Guard | `python Tools/validate_architecture.py` | 0 | PASS | console |
+| Build | `Build.bat SouthernSpearEditor Win64 Development` | 0 | Succeeded after every C++ change | console |
+| Automation | as in CLAUDE.md | 0 | 37/37 `Result={Success}` | `Build/tests_046.log` (not retained) |
+| Ragdoll | 10-bot Dry River match, `-FORCELOGFLUSH` | killed | 17 `SSRagdoll` lines, no new errors | log |
+| Cubes | 8-bot match | killed | 50 `SSCue refused GameplayCue.Character.Spawn`; death cue refused in code | log |
+| KIA | `-SSExec="EnableCheats\|DamageSelf 500"` + capture | killed | banner, darkened view, no arms | `Docs/evidence/S046_killed_in_action.jpg` |
+| HUD layout | 8-bot match capture | killed | compass top centre, minimap and objectives top right, feed top left | `Docs/evidence/S046_hud_layout.jpg` |
+| Scope | `-SSExec="ss.FP.ForceAim 1"` + capture | killed | eyepiece, reticle, 4x view, view model hidden | `Docs/evidence/S046_scope_view.jpg` |
+| Farm pass | `farm_dryriver.py` | 0 | ok true (wrecks 3, windmill, tower, pumps, wells, barns, 13 fence segments, drums) | `Build/farm_dryriver_report.json` |
+| Terrain | `reimport_dryriver_terrain.py` | 0 | ok true, 15096 → 14976 triangles, complex-as-simple | `Build/reimport_dryriver_terrain.json` |
+| Nav | `build_dryriver_nav.py` | 0 | ok true, 6 path points | `Build/dryriver_nav_report.json` |
+
+NOT RUN:
+- **RE-DEPLOY** was not exercised in play (no scripted menu click);
+- the **final Farmstead layout** (barns in their designed places, pen fence, greybox gone) was not captured: the
+  producer halted map work first. `S046_dryriver_farmstead.jpg` shows the textured barns before the move;
+- scopes with the A25 (6x) and A89 were not captured;
+- the pistol still has no iron-sight alignment (producer, end of session).
+
+### ASSETS
+
+- **Fab, cleared under ADR-028:**
+  - Old Rustic Hand Water Pump and Water Tower, with their own textures;
+  - Red car wreck, American Old Windmill, Barn and Old Barn, via the Ravenshoe agent's prepared meshes.
+  - Seller AI-use flags on some of these are recorded by that agent (ADR-029).
+- **Packs in `Content/`, referenced in place, not committed (ADR-021):**
+  - Modular Rural Cabin: drums, caravan, outhouse, fence, rust and metal materials;
+  - StoneWell: the well;
+  - Singapore Canal timber; Megascans corrugated iron (already in use).
+  - Both new packs had complex-as-simple collision set on the used meshes.
+
+### RISKS
+
+- **R-42:** Dry River now references the Ravenshoe agent's prop meshes and two further git-ignored packs (Modular
+  Rural Cabin, StoneWell): a clone needs those packs, as R-19/R-41.
+- **R-43:** the Farmstead's barns replace the designed shed and residence by footprint, not by exact cover shape (the
+  open barn is 12 × 8 m against the 18 × 10 m shed); sight lines through the objective were not re-audited.
+
+### DEFECTS FOUND
+
+- Death code broke the build: missing include, a wrong constant, and a unity-build name clash (build log).
+- First-person arms stayed on screen after death (capture).
+- Scoped aim looked at the back of a solid optic (capture).
+- Fab downloads missing their textures, so props rendered flat (producer).
+- The Cabin materials rendered green on foreign meshes (producer screenshot).
+- The farm pass deleted the box wrecks and then its own replacements on a re-run. Fixed: it now places from the
+  dressing CSV.
+- Greybox marker slabs and pen rails were still in the terrain mesh (producer screenshot).
+
+### NEXT ACTION**First-person weapon handling:**
+- iron-sight alignment for the pistol;
+- a better grip fit in the gloved hands, trying the Fab gloves pack (CC BY 4.0, "Bobeer": credit line);
+- ADFRC weapon animations, textures, models and sounds, using the ADFRC agent's `ASSET_MANIFEST.json` and
+  integration guide.
+
+---
+
+
+## Session 047 — 2026-09-28 — Map Section Brought Up To Date, And The Playability Audit Published
+
+### OUTCOME
+
+**A second agent worked in this repository while Session 043 was still being published, and moved the maps
+a long way.** Sessions 044, 045 and 046 landed: Dry River expanded and dressed from asset packs, Bluestone
+activated into a playable level, and Ravenshoe Crossing went from a written proposal to a built, dressed map
+of 467 actors. A new `Docs/MAPS_PLAYABILITY_AUDIT.md` appeared as well, and it measures the four older maps
+against the design rules written for Dry River. Most of them fail.
+
+The site's map section was therefore wrong again within a day of being corrected, in the most absolute way
+available: it said, in bold, that **nothing had been built** for Ravenshoe Crossing, and 467 actors now
+exist. The section has been rewritten against the current state of the repository, and the audit's verdicts
+are now published on the site.
+
+### THE RAVENSHOE CORRECTION
+
+The card used to read: *"A bridge-crossing map written up as a full design proposal. **Nothing has been
+built** — there is no level for it yet."* It now reads as **in early work**, and says what is true:
+the gorge, a 68 m iron lattice-girder road bridge, a stone road-gate house and a playable creek bed are all
+built and dressed; 467 actors; 32 of 32 structural audit checks pass; **navigation is not baked, so it is
+not yet playable with bots**; and it is early enough that all of it will change. The bridge, gatehouse and
+gorge are original geometry (ADR-027, ADR-029) dressed by already-cleared Class A packs referenced in place
+(ADR-021) — the site's originality rules still hold, and nothing about the map's provenance needed softening.
+
+### THE OTHER FIVE CARDS, AGAINST THE REPOSITORY
+
+- **Red Gum Station** — in the game, the first playable map, and now carries the audit's verdict: 17% nav
+  coverage, twelve hard cover objects and no soft cover on a kilometre map. The card says it is **not
+  playable as it stands**.
+- **Dry River** — in the game and in production; playable area expanded to 340 × 240 m and dressed from
+  cleared packs. The card now records that the map the others are measured against **fails six of its own
+  nine rules**.
+- **Selat Canal** — in production; the best close-quarters geometry measured in the project and the
+  worst-placed objectives, all three between 42% and 75% walk-imbalanced.
+- **Saltbush** — in production, the only map with a capture in a bot match, and measured the strongest of
+  the four: 0 of 64 start pairs see each other, longest sightline 148.5 m.
+- **Bluestone** — **built, being tuned**: showroom and light bars stripped, outdoor daylight and fog, complex
+  collision, boundary rim, three objectives, all legs connecting, on the operations menu, paused for
+  fine-tuning on the producer's instruction.
+
+### THE AUDIT, PUBLISHED
+
+A new panel sits under the grid: **"Measured against their own rules, and not signed off."** It explains that
+`Tools/Unreal/audit_map_playability.py` is read-only — it loads a map, measures it and writes a report, and
+never places, moves or saves anything — and gives the scoreboard: Saltbush 7 pass / 3 fail, Selat Canal
+5 / 5, Dry River 3 / 6, Red Gum 3 / 6 / 1 n-a. The panel also states what the numbers *do not* say: none of
+them measures whether a map is fun, and none can tell whether a piece of cover is fairly placed. That is
+recorded as the producer's decision to publish the failures rather than the passes.
+
+**Every figure was traced back to `MAPS_PLAYABILITY_AUDIT.md` before publication.** Two were adjusted for
+precision rather than left as prose: "a sixth of the ground" became the measured 17%, and Saltbush's
+sightline is quoted as 148.5 m rather than rounded to 148.
+
+`Docs/DEVELOPMENT_ROADMAP.md` §7 (published to the site) now carries the audit's own priority order —
+Selat Canal objectives first, then Dry River cover and spawn exposure, then Red Gum — and `ASSET_REGISTER.md`
+§4.9 rows for the five maps record their measured status.
+
+### COORDINATION NOTE
+
+The other agent is working in this repository concurrently and its files are changing under this session.
+Only website files and the four documentation files above were touched here; nothing belonging to Sessions
+044–046 was edited, staged or committed. **Session 045 has no entry in this changelog** — the Ravenshoe work
+was committed with a descriptive commit message (7cda16a4) and the session body, unlike 044 and 046, was
+never written up. Left alone rather than reconstructed.
+
+### FILES CHANGED
+
+- `Site/index.html` — six map cards, section lede, the new audit panel, Adapt pillar bullet.
+- `Site/styles.css` — `.maps__audit` and `.map-card__meta dd strong`.
+- `Docs/DEVELOPMENT_ROADMAP.md` — Phase 4 map tasks rewritten to the audit's priority order (**published**).
+- `Docs/ASSET_REGISTER.md` — §4.9 rows M-001 to M-005.
+- `Docs/CHANGELOG.md`, `Docs/Website/WEBSITE_TEST_REPORT.md`, `Docs/Website/WEBSITE_DESIGN_SYSTEM.md` —
+  this entry and the content/design rules behind it.
+
+### TESTING
+
+- `python Tools/publish_site.py` — built and published.
+- `responsive_audit` — all 12 viewport/page combinations clean.
+- `text_audit` — no text under 12 px, no tap target under 44 px, no viewport spill on either page.
+- `interaction_test` — all checks passed, no console errors, no failed requests.
+- `faq_check` — 11 entries, Steam answer intact.
+- `maps_check.js` (new, `Build/audit/`) — reads the rendered DOM at 390 and 1440: six cards with the
+  expected names, badges and states, four audit rows with the expected scores, heading order H2→H3 with no
+  skipped level, no element overflowing the viewport at either width, document scroll width equal to the
+  viewport. Console and request errors: none.
+
+### RISKS
+
+- **R-41 (open).** **Published map claims decay in hours when another agent is building in parallel.**
+  Ravenshoe went from "nothing has been built" to 467 actors in a day. The Ravenshoe card says so in as many
+  words, but the same staleness applies to the other five. The site copies status prose by hand; nothing
+  detects that `Docs/MAPS_*.md` and the HTML have diverged.
+- **R-42 (open, low).** The audit's cover counts only `StaticMeshActor`s, so cover inside a blueprint or
+  instanced foliage is not counted and the hard:soft ratios are approximate — the audit document says so for
+  Selat Canal. The site publishes the ratios as "measured" without that caveat in the scoreboard row; the
+  caveat is in the panel's note.
+
+### NEXT ACTION
+
+**Generate the map cards from the map documents' status lines, the way the roadmap, status and changelog
+sections already are**, so a status that changes in `Docs/MAPS_*.md` cannot drift from what the site says
+about it. That closes R-41 and the R-40 class of defect from the same mechanism.
+
+
+---
+
+
+
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

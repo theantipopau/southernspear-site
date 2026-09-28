@@ -924,6 +924,16 @@ body[data-nav-open="true"] { overflow: hidden; }
 .map-card__meta > div { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; }
 .map-card__meta dt { font: 600 0.75rem/1.5 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--sage-400); }
 .map-card__meta dd { margin: 0; font-size: 0.86rem; color: var(--sand-200); }
+.map-card__meta dd strong { color: var(--sand-100); font-weight: 600; }
+
+/* The measured audit. A card like the map cards, but full width and with the
+   scoreboard in it, so the numbers read as a single block rather than as part
+   of any one map's story. It is deliberately not interactive. */
+.maps__audit { margin-top: 28px; }
+.maps__audit > p { max-width: 68ch; }
+.maps__audit-title { font-size: 1.2rem; margin-bottom: 10px; }
+.maps__audit .kv { margin-top: 18px; }
+.maps__audit .section__note { margin-top: 18px; }
 
 /* --------------------------------------------------------------------------
    11. Media showcase and gallery

@@ -367,7 +367,7 @@
               deployment, roles, respawn model and ticket allocation.
             </p>
             <ul class="pillar__points">
-              <li>Six original maps, at six different stages of the build</li>
+              <li>Six original maps, at six different stages, and measured against their own design rules</li>
               <li>Objective Assault, Secure and Hold, Day and low&#8209;light layers per map</li>
               <li>Configurable modes without recompiling</li>
               <li>Accessibility and settings available throughout</li>
@@ -726,11 +726,11 @@
         <p class="eyebrow">Adapt</p>
         <h2 id="maps-title" class="section__title">Maps in the build</h2>
         <p class="section__lede">
-          Six original environments, at six different stages: two in the game, two more built and in
-          production, one early build, and one still only a written proposal. Layouts are designed
-          from the gameplay brief &mdash; sightlines, cover rhythm, rotation distances &mdash; not
-          surveyed from any real location. Every location is invented, and none reproduces a real
-          training area or installation.
+          Six original environments, at six different stages: two in the game, two more in production,
+          one built and being tuned, and one in early work. Layouts are designed from the gameplay
+          brief &mdash; sightlines, cover rhythm, rotation distances &mdash; not surveyed from any real
+          location. Every location is invented, and none reproduces a real training area or
+          installation.
         </p>
       </header>
 
@@ -743,8 +743,9 @@
           long approach and the open ground between cover &mdash; the case the smaller maps cannot test.</p>
           <dl class="map-card__meta">
             <div><dt>Engagement</dt><dd>Long approach, open ground between cover</dd></div>
-            <div><dt>State</dt><dd>Built and in the game: the first playable map. Objectives re&#8209;laid
-            for fairness; not yet signed off</dd></div>
+            <div><dt>State</dt><dd>In the game, the first playable map &mdash; and, once measured,
+            <strong>not playable as it stands</strong>: the navigation volume covers 17% of the
+            walkable ground, and there is no soft cover at all</dd></div>
           </dl>
         </li>
 
@@ -752,12 +753,14 @@
           <p class="map-card__state"><span class="badge badge--live">In the game</span></p>
           <h3 class="map-card__name">Dry River</h3>
           <p class="map-card__terrain">Rural Australian training area</p>
-          <p>The vertical&#8209;slice test bed: a creek bed, scrub and farm structures, built to prove two teams,
-          faction presentation, an objective sequence, the round lifecycle and a dedicated server.</p>
+          <p>The vertical&#8209;slice test bed: a creek bed, scrub and farm structures, built to prove two
+          teams, faction presentation, an objective sequence, the round lifecycle and a dedicated
+          server. Now 340 &times; 240 m and dressed from cleared asset packs rather than blocks
+          &mdash; shelters, corrugated iron, sandbag sangars, barns, a windmill, wells.</p>
           <dl class="map-card__meta">
             <div><dt>Engagement</dt><dd>Rotations, concealed approach</dd></div>
-            <div><dt>State</dt><dd>In the game and in production: a Phase&nbsp;1 greybox, and the design
-            standard the other maps are measured against</dd></div>
+            <div><dt>State</dt><dd>In the game and in production: the map the others are measured
+            against, which &mdash; measured &mdash; <strong>fails six of its own nine rules</strong></dd></div>
           </dl>
         </li>
 
@@ -765,12 +768,14 @@
           <p class="map-card__state"><span class="badge badge--wip">In production</span></p>
           <h3 class="map-card__name">Selat Canal</h3>
           <p class="map-card__terrain">Urban canal district</p>
-          <p>The only map set in a built environment rather than open terrain, and the only Special Forces
-          map. It tests close&#8209;quarters and interior fighting at ranges Dry River deliberately rules out.</p>
+          <p>The only map set in a built environment rather than open terrain, and the only Special
+          Forces map. It tests close&#8209;quarters and interior fighting at ranges Dry River deliberately
+          rules out.</p>
           <dl class="map-card__meta">
             <div><dt>Engagement</dt><dd>Close quarters, interiors</dd></div>
-            <div><dt>State</dt><dd>Built, and in production: it needs a fairness redesign before it can
-            carry a three&#8209;objective sequence</dd></div>
+            <div><dt>State</dt><dd>In production. The best close&#8209;quarters geometry in the project and
+            the worst&#8209;placed objectives: all three are between 42% and 75% further for one team than
+            the other</dd></div>
           </dl>
         </li>
 
@@ -778,39 +783,94 @@
           <p class="map-card__state"><span class="badge badge--wip">In production</span></p>
           <h3 class="map-card__name">Saltbush</h3>
           <p class="map-card__terrain">Open semi&#8209;arid range</p>
-          <p>Exists to answer one question: whether the project's engagement ranges still work past 200 m.
-          It is the long&#8209;sightline case Dry River caps out.</p>
+          <p>Exists to answer one question: whether the project's engagement ranges still work past
+          200 m. It is the long&#8209;sightline case Dry River caps out.</p>
           <dl class="map-card__meta">
             <div><dt>Engagement</dt><dd>Long&#8209;range open ground</dd></div>
-            <div><dt>State</dt><dd>Built, and in production: has produced a capture in a bot match;
-            sightlines still unmeasured</dd></div>
+            <div><dt>State</dt><dd>In production, and the only map with a capture in a bot match.
+            Measured, it is the strongest of the four audited maps: no start pair can see another, and
+            the longest sightline on it is 148.5 m</dd></div>
           </dl>
         </li>
 
         <li class="map-card">
-          <p class="map-card__state"><span class="badge badge--wip">Early build</span></p>
+          <p class="map-card__state"><span class="badge badge--wip">Built, being tuned</span></p>
           <h3 class="map-card__name">Bluestone</h3>
           <p class="map-card__terrain">Slate quarry</p>
-          <p>A flooded slate pit converted from a studio diorama into a walkable outdoor level, with a
-          loading bay, a cutting face and spoil heaps as objectives. Early, and not yet playtested.</p>
+          <p>A flooded slate pit converted from a studio diorama into a playable outdoor level: the
+          showroom and its light bars stripped out, open&#8209;day lighting and fog instead, complex
+          collision, a rim at each side's measured edge, and a loading bay, a cutting face and spoil
+          heaps as objectives.</p>
           <dl class="map-card__meta">
             <div><dt>Engagement</dt><dd>Confined pit, elevation changes</dd></div>
-            <div><dt>State</dt><dd>Built, and early: not yet playtested, and no design document yet</dd></div>
+            <div><dt>State</dt><dd>Built and on the operations menu, with every leg connecting. Paused
+            for fine&#8209;tuning, and not yet audited</dd></div>
           </dl>
         </li>
 
         <li class="map-card">
-          <p class="map-card__state"><span class="badge">Design proposal</span></p>
+          <p class="map-card__state"><span class="badge badge--wip">In early work</span></p>
           <h3 class="map-card__name">Ravenshoe Crossing</h3>
-          <p class="map-card__terrain">Fictional river crossing</p>
-          <p>A bridge&#8209;crossing map written up as a full design proposal. <strong>Nothing has been
-          built</strong> &mdash; there is no level for it yet.</p>
+          <p class="map-card__terrain">Fictional high&#8209;country crossing</p>
+          <p>A gorge crossed by a 68 m iron lattice&#8209;girder road bridge, with a stone gatehouse on the
+          far abutment and a playable creek bed beneath giving a second lane. The bridge, the gatehouse
+          and the gorge are original geometry; cleared asset packs dress them.</p>
           <dl class="map-card__meta">
             <div><dt>Engagement</dt><dd>Chokepoint control across a crossing</dd></div>
-            <div><dt>State</dt><dd>Design document only</dd></div>
+            <div><dt>State</dt><dd><strong>Built and dressed</strong> &mdash; 467 actors, and 32 of 32
+            structural audit checks passing. Navigation is not baked yet, so it is not yet playable with
+            bots, and it is early enough that all of this will change</dd></div>
           </dl>
         </li>
       </ul>
+
+      <div class="card maps__audit">
+        <h3 class="maps__audit-title">Measured against their own rules, and not signed off</h3>
+        <p>
+          A read&#8209;only tool loads a map and measures it against the design rules written for Dry
+          River: how far a player crosses open ground between cover, how long a sightline runs, how much
+          hard cover there is against soft, whether any starting position can see an enemy starting
+          position, and whether each team walks about as far to reach each objective. It never moves,
+          places or saves anything. The rules were written for a hand&#8209;built blockout and had never
+          been measured against the built maps, so most of them fail.
+        </p>
+        <dl class="kv">
+          <div>
+            <dt>Saltbush</dt>
+            <dd><strong>7 pass, 3 fail.</strong> 95% navigation coverage, dense cover, no start pair
+            can see another, longest sightline 148 m. Its failures are walk imbalance on two objectives
+            and a cover mix that is almost entirely hard.</dd>
+          </div>
+          <div>
+            <dt>Selat Canal</dt>
+            <dd><strong>5 pass, 5 fail.</strong> A player crosses 2 m of open ground and is behind
+            something &mdash; the best close&#8209;quarters map in the project. Every objective fails the
+            fairness comparison, on a map 55 m wide with the two teams starting 51 m apart.</dd>
+          </div>
+          <div>
+            <dt>Dry River</dt>
+            <dd><strong>3 pass, 6 fail.</strong> The map the others are measured against fails its own
+            rules, over 261 &times; 194 m of walkable ground: 35 of 64 start pairs can see each other, an
+            eighth of the ground has no cover within 30 m, and the Farmstead objective is 2.4&times;
+            further from one team than the other.</dd>
+          </div>
+          <div>
+            <dt>Red Gum Station</dt>
+            <dd><strong>3 pass, 6 fail, 1 not applicable.</strong> A kilometre of open paddock with
+            twelve hard cover objects, no soft cover, and a navigation volume covering 17% of the
+            walkable ground. It is in the game and it is not playable as it stands.</dd>
+          </div>
+        </dl>
+        <p class="section__note">
+          Ravenshoe Crossing and Bluestone have not been audited yet. None of these figures measure
+          whether a map is <em>fun</em>, and none of them can tell whether a piece of cover is fairly
+          placed &mdash; that still needs people playing it. The audit also caught a defect in the spawn
+          tool, which had been measuring exposure against a single enemy point instead of all 64 pairs,
+          so every map's previous exposure figure was optimistic. The measurements come from
+          <code>Docs/MAPS_PLAYABILITY_AUDIT.md</code>; the tool is
+          <code>Tools/Unreal/audit_map_playability.py</code>.
+        </p>
+      </div>
     </div>
   </section>
 

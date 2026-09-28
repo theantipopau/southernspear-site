@@ -3160,14 +3160,25 @@ They are replaced with the **six real maps**, each at its true documented status
 
 ### THE SIX MAPS, AS PUBLISHED
 
-| Map | Level | Published status | Source of truth |
-|---|---|---|---|
-| Red Gum Station | `L_RedGum_01` | **In the game** — the first playable map (ADR-022). Objectives re-laid and deployments pulled in for fairness; not signed off, no capture yet | `MAPS_REDGUM.md` |
-| Dry River | `L_DryRiver_01` | **In the game and in production** — the Phase 1 greybox vertical slice, and the design standard the other maps are measured against | `MAPS_DRYRIVER.md` |
-| Selat Canal | `L_SelatCanal_01` | **In production** — built; the only urban and only Special Forces map. Needs a fairness redesign before it can carry a three-objective sequence | `MAPS_SELATCANAL.md` |
-| Saltbush | `L_Saltbush_01` | **In production** — built; deployment and objectives rebuilt for fairness, and it has produced a capture in a bot match. Sightlines still unmeasured | `MAPS_SALTBUSH.md` |
-| Bluestone | `L_Bluestone_01` | **Early build** — the flooded slate-pit level, built 2026-09-28 from the quarry diorama. Not playtested, no design document | no document yet |
-| Ravenshoe Crossing | — | **Design proposal only. Nothing has been built.** | `MAPS_RAVENSHOE.md`, ADR-027 |
+Each map, its level name, and the status the website now publishes. Every one of these is taken
+from the map's own design document, not from the brief.
+
+- **Red Gum Station** (`L_RedGum_01`) — **in the game.** The first playable map (ADR-022). Its
+  objectives were re-laid and its deployments pulled in for fairness. Not signed off, and it has
+  not yet produced a capture. Source: `MAPS_REDGUM.md`.
+- **Dry River** (`L_DryRiver_01`) — **in the game, and in production.** The Phase 1 greybox
+  vertical slice, and the design standard the other maps are measured against. Source:
+  `MAPS_DRYRIVER.md`.
+- **Selat Canal** (`L_SelatCanal_01`) — **in production.** Built; the only urban map and the only
+  Special Forces map. Its walkable area is too small for a fair three-objective sequence, so it
+  needs a redesign pass. Source: `MAPS_SELATCANAL.md`.
+- **Saltbush** (`L_Saltbush_01`) — **in production.** Built; deployment and objectives rebuilt for
+  fairness, and it has produced a capture in a bot match. Navigation, sightlines and cover are
+  still unmeasured. Source: `MAPS_SALTBUSH.md`.
+- **Bluestone** (`L_Bluestone_01`) — **early build.** The flooded slate-pit level, built
+  2026-09-28 from the quarry diorama. Not playtested, and it has no design document yet.
+- **Ravenshoe Crossing** (no level) — **design proposal only. Nothing has been built.** Source:
+  `MAPS_RAVENSHOE.md`, ADR-027.
 
 Each card states what the map is for and what is *not* finished about it. Ravenshoe says in bold
 that nothing has been built, because that is the single most likely thing to be misread as
@@ -3201,10 +3212,26 @@ requires: `In the game` (new `.badge--live` modifier, sage), `In production` and
 (`.badge--wip`, brass), `Design proposal` (default badge). The section is now titled **Maps in the
 build** rather than "Map concepts", because two of the six are not concepts.
 
+### A RESPONSIVE DEFECT FOUND ON THE WAY
+
+The first draft of this entry carried the six maps as a four-column table, and the changelog page
+immediately measured 418 px wide inside a 390 px phone viewport. The cause was not the table:
+`.sessions` was a grid with the **default `auto` column**, so a single wide descendant sized the
+whole column to max-content, and `body { overflow-x: clip }` turned the resulting 68 px overhang
+into **clipped, unreachable content on every session on the page** — not just the one with the
+table. `responsive_audit` cannot see this: it compares `scrollWidth` to `clientWidth`, and the
+clip defeats the measurement.
+
+Fixed in `Site/styles.css` with `grid-template-columns: minmax(0, 1fr)` on `.sessions` and
+`min-width: 0` on `.day-group`, matching the convention already used by `.pillars`, `.kv` and
+`.phase`. The table would then have scrolled inside its own box, but a 308 px-wide scrollable
+table is a poor way to read six sentences, so the table was replaced with a list anyway. The CSS
+fix stands: it is latent for every other session until the next one carries a wide block.
+
 ### FILES CHANGED
 
 - `Site/index.html` — map grid, section title, section lede, Adapt pillar bullet and link.
-- `Site/styles.css` — added `.badge--live`.
+- `Site/styles.css` — added `.badge--live`; fixed the `.sessions` grid column (above).
 - `Docs/DEVELOPMENT_ROADMAP.md` — Phase 4 map task table (**published**).
 - `Docs/ASSET_REGISTER.md` — §4.9 map table.
 - `Docs/GAME_DESIGN_DOCUMENT.md` — §4.7.
@@ -3214,8 +3241,8 @@ build** rather than "Map concepts", because two of the six are not concepts.
 
 - `python Tools/publish_site.py` — built and published.
 - `responsive_audit` — all 12 viewport/page combinations clean.
-- `text_audit` — no text under 12 px, no tap target under 44 px, no horizontal scroll (the single
-  reported spill is the intentional full-bleed hero, `scrollW == docW`).
+- `text_audit` — no text under 12 px, no tap target under 44 px, no viewport spill on either page
+  (the single reported spill on the home page is the intentional full-bleed hero, `scrollW == docW`).
 - `interaction_test` — all checks passed, no console errors, no failed requests.
 - `phase_measure` — shell gaps symmetric at 1920 and 390.
 - `faq_check` — 11 entries, Steam answer intact.

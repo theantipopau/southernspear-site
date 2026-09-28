@@ -1153,7 +1153,12 @@ body[data-nav-open="true"] { overflow: hidden; }
 
 .result-count { margin: 18px 0 0; font: 500 0.82rem/1 var(--font-mono); color: var(--sage-400); letter-spacing: 0.06em; }
 
-.sessions { display: grid; gap: 12px; margin-top: 16px; }
+/* `minmax(0, 1fr)`, not the default `auto` column. A session body containing a
+   wide table sized the single implicit column to max-content (418px on a 390px
+   phone), which pushed every session on the page past the viewport; body has
+   `overflow-x: clip`, so 68px of each entry was clipped and unreachable instead
+   of scrolling. The table keeps its own `overflow-x: auto` and scrolls itself. */
+.sessions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-top: 16px; }
 .session {
   border: 1px solid var(--line-soft);
   border-radius: var(--radius);
@@ -1228,7 +1233,7 @@ body[data-nav-open="true"] { overflow: hidden; }
   max-width: 70ch;
 }
 
-.day-group { margin-top: 26px; }
+.day-group { margin-top: 26px; min-width: 0; }
 .day-group__label {
   display: flex; align-items: center; gap: 12px;
   margin: 0 0 10px;

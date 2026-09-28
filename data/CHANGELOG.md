@@ -2855,6 +2855,62 @@ in a firefight (the idle player was not hit in 75 s); Saltbush minimap.
 
 ---
 
+## Session 039 — 2026-09-28 — Class Selection with a 3D Soldier and Weapon Preview; Smart App Control Block
+
+### COMPLETED
+
+- **Class screen redesigned (producer request)**: classes down the left (number, name, role, kit), a DEPLOY button,
+  and on the right a live 3D preview of the selected soldier and weapon as they appear in game, with the class name and kit.
+  Clicking a class now selects and previews it; DEPLOY confirms (it used to deploy on click).
+- **Preview stage** (`USSClassSelectWidget`, SouthernSpearUI; no new dependencies): spawned 2.5 km above the map while
+  the screen is open, destroyed on close. Lyra's invisible mannequin body plays the rifle hip-fire idle; the friendly
+  soldier parts are read from `B_SS_Soldier`'s `FriendlyParts` by reflection (SouthernSpearTeam is not a UI dependency)
+  and follow it; the class weapon (`B_SS_<W>_Weapon`, standard or Special Forces kit) is attached as Lyra attaches it
+  (`weapon_r`, yaw -90). Scene capture with a show-only list, sky and clouds off, three studio point lights, a lit
+  backdrop wall and a floor disc (engine shapes, palette tints); slow sway around a three-quarter view.
+- Found on the way (rendered captures): the sky rendered behind the show-only capture; point lights over-exposed the model;
+  dark rifles vanished against black (backdrop added); the backdrop plane faced away.
+
+### FILES CHANGED
+
+`SSClassSelectWidget.h/.cpp`; evidence; this file.
+
+### TESTING
+
+| Test | Command | Exit | Result | Evidence |
+|---|---|---|---|---|
+| Guard | `python Tools/validate_architecture.py` | 0 | PASS | console |
+| Build | `Build.bat SouthernSpearEditor Win64 Development` | 0 | Succeeded | console |
+| Rendered | Dry River windowed `-game -SSShotAt=12` (class screen opens on deploy) | 124 | Layout as requested; 3 ACR soldier in AMCU, Ops-Core, TBAS; A88 held (seen in a brightened zoom) | `Docs/evidence/S039_class_select.jpg`, `S039_class_preview_weapon.jpg` |
+
+NOT RUN: automation tests after the final build, and any rendered check of the last four builds: **Windows Smart App
+Control blocked `UnrealEditor-SouthernSpearUI.dll`** (GetLastError 4551; Code Integrity events 3077/3118,
+`Docs/evidence/S039_smart_app_control.txt`). Two earlier builds this session were blocked, then allowed after a code change;
+from 10:31 every rebuild was blocked, including one of the exact source that had loaded. The committed source is that
+last-loaded version. Selecting other classes (weapon swap) was not exercised on screen.
+
+### ASSETS
+
+None new (engine BasicShapes; existing soldier, weapon and Lyra animation assets).
+
+### RISKS
+
+- **R-37 (new): Smart App Control blocks locally built, unsigned module DLLs**, so the game does not start (SouthernSpearUI
+  fails to load). Not changeable by an agent (security setting). Producer decision: turn Smart App Control off (Windows
+  Security → App & browser control; Windows only allows turning it back on after a reset) or sign the binaries with a
+  trusted certificate.
+
+### DEFECTS FOUND
+
+- Sky behind the show-only capture; over-exposed studio lights; rifle invisible against black; backdrop facing away
+  (all from rendered captures).
+
+### NEXT ACTION
+
+**Producer: resolve the Smart App Control block (R-37)**, then rebuild, run the tests, and check the class screen with each class.
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

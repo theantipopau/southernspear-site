@@ -179,14 +179,16 @@ The milestone is complete only when **all** of these are demonstrated with a rec
 | ID | Task |
 |---|---|
 | MP-01 | Layer system fully data-driven (mode, TOD, weather, objectives, roles, vehicles, respawn, tickets, AI) |
-| MP-02 | Red Ridge |
-| MP-03 | Ironbark |
-| MP-04 | Port Wakefield |
-| MP-05 | Wattle Creek |
-| MP-06 | Low-light layers for all maps |
-| MP-07 | Map streaming / World Partition tuning |
-| MP-08 | AI navigation volume + cover generation |
-| MP-09 | Map performance passes against budget |
+| MP-02 | **Red Gum Station** — sign-off; in the game, first playable map, fairness pass done, still unmeasured |
+| MP-03 | **Dry River** — Phase 1 greybox to the same standard; in the game and the design reference |
+| MP-04 | **Selat Canal** — fairness redesign before it can carry a three-objective sequence |
+| MP-05 | **Saltbush** — navigation coverage, sightlines and cover measured against the Dry River standard |
+| MP-06 | **Bluestone** — early quarry build: design document, objectives, first playtest |
+| MP-07 | **Ravenshoe Crossing** — build from the design proposal, or formally drop it |
+| MP-08 | Low-light layers for all maps |
+| MP-09 | Map streaming / World Partition tuning |
+| MP-10 | AI navigation volume + cover generation |
+| MP-11 | Map performance passes against budget |
 
 Each map: Objective Assault + Secure and Hold + Day + Low-light. **No map reproduces a real base, installation or operationally useful site.**
 

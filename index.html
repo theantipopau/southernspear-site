@@ -367,12 +367,12 @@
               deployment, roles, respawn model and ticket allocation.
             </p>
             <ul class="pillar__points">
-              <li>Five original map concepts</li>
+              <li>Six original maps, at six different stages of the build</li>
               <li>Objective Assault, Secure and Hold, Day and low&#8209;light layers per map</li>
               <li>Configurable modes without recompiling</li>
               <li>Accessibility and settings available throughout</li>
             </ul>
-            <p class="pillar__link"><a href="#maps">See the map concepts<span class="u-visually-hidden"> in detail</span></a></p>
+            <p class="pillar__link"><a href="#maps">See the maps<span class="u-visually-hidden"> in detail</span></a></p>
           </div>
         </article>
       </div>
@@ -724,64 +724,90 @@
     <div class="shell">
       <header class="section__head">
         <p class="eyebrow">Adapt</p>
-        <h2 id="maps-title" class="section__title">Map concepts</h2>
+        <h2 id="maps-title" class="section__title">Maps in the build</h2>
         <p class="section__lede">
-          Five original environments, each planned to ship with at least an Objective Assault layer, a
-          Secure and Hold layer, a Day layer and a low&#8209;light layer. Layouts are designed from the
-          gameplay brief &mdash; sightlines, cover rhythm, rotation distances &mdash; not surveyed from any
-          real location.
+          Six original environments, at six different stages: two in the game, two more built and in
+          production, one early build, and one still only a written proposal. Layouts are designed
+          from the gameplay brief &mdash; sightlines, cover rhythm, rotation distances &mdash; not
+          surveyed from any real location. Every location is invented, and none reproduces a real
+          training area or installation.
         </p>
       </header>
 
       <ul class="map-grid">
         <li class="map-card">
-          <p class="map-card__state"><span class="badge badge--wip">In production</span></p>
+          <p class="map-card__state"><span class="badge badge--live">In the game</span></p>
+          <h3 class="map-card__name">Red Gum Station</h3>
+          <p class="map-card__terrain">Large outback station</p>
+          <p>A 1 km landscape of open paddocks, gum&#8209;tree lines, fences and a homestead. It is the
+          long approach and the open ground between cover &mdash; the case the smaller maps cannot test.</p>
+          <dl class="map-card__meta">
+            <div><dt>Engagement</dt><dd>Long approach, open ground between cover</dd></div>
+            <div><dt>State</dt><dd>Built and in the game: the first playable map. Objectives re&#8209;laid
+            for fairness; not yet signed off</dd></div>
+          </dl>
+        </li>
+
+        <li class="map-card">
+          <p class="map-card__state"><span class="badge badge--live">In the game</span></p>
           <h3 class="map-card__name">Dry River</h3>
           <p class="map-card__terrain">Rural Australian training area</p>
-          <p>Dry creek bed, scrub and farm structures, with long sightlines and concealed approaches.</p>
+          <p>The vertical&#8209;slice test bed: a creek bed, scrub and farm structures, built to prove two teams,
+          faction presentation, an objective sequence, the round lifecycle and a dedicated server.</p>
           <dl class="map-card__meta">
-            <div><dt>Engagement</dt><dd>Long sightlines, concealed approach</dd></div>
-            <div><dt>Layers</dt><dd>Objective Assault &middot; Secure and Hold &middot; Day &middot; Low&#8209;light</dd></div>
+            <div><dt>Engagement</dt><dd>Rotations, concealed approach</dd></div>
+            <div><dt>State</dt><dd>In the game and in production: a Phase&nbsp;1 greybox, and the design
+            standard the other maps are measured against</dd></div>
           </dl>
         </li>
+
         <li class="map-card">
-          <p class="map-card__state"><span class="badge">Concept</span></p>
-          <h3 class="map-card__name">Red Ridge</h3>
-          <p class="map-card__terrain">Semi&#8209;arid ridgeline</p>
-          <p>Radio installation and rocky terrain with strong elevation changes.</p>
+          <p class="map-card__state"><span class="badge badge--wip">In production</span></p>
+          <h3 class="map-card__name">Selat Canal</h3>
+          <p class="map-card__terrain">Urban canal district</p>
+          <p>The only map set in a built environment rather than open terrain, and the only Special Forces
+          map. It tests close&#8209;quarters and interior fighting at ranges Dry River deliberately rules out.</p>
           <dl class="map-card__meta">
-            <div><dt>Engagement</dt><dd>Elevation&#8209;driven, line of sight</dd></div>
-            <div><dt>Layers</dt><dd>Objective Assault &middot; Secure and Hold &middot; Day &middot; Low&#8209;light</dd></div>
+            <div><dt>Engagement</dt><dd>Close quarters, interiors</dd></div>
+            <div><dt>State</dt><dd>Built, and in production: it needs a fairness redesign before it can
+            carry a three&#8209;objective sequence</dd></div>
           </dl>
         </li>
+
         <li class="map-card">
-          <p class="map-card__state"><span class="badge">Concept</span></p>
-          <h3 class="map-card__name">Ironbark</h3>
-          <p class="map-card__terrain">Eucalypt woodland</p>
-          <p>Training compound with mixed close and medium engagement ranges, in a fictional bushfire&#8209;safe setting.</p>
+          <p class="map-card__state"><span class="badge badge--wip">In production</span></p>
+          <h3 class="map-card__name">Saltbush</h3>
+          <p class="map-card__terrain">Open semi&#8209;arid range</p>
+          <p>Exists to answer one question: whether the project's engagement ranges still work past 200 m.
+          It is the long&#8209;sightline case Dry River caps out.</p>
           <dl class="map-card__meta">
-            <div><dt>Engagement</dt><dd>Close to medium, broken by cover</dd></div>
-            <div><dt>Layers</dt><dd>Objective Assault &middot; Secure and Hold &middot; Day &middot; Low&#8209;light</dd></div>
+            <div><dt>Engagement</dt><dd>Long&#8209;range open ground</dd></div>
+            <div><dt>State</dt><dd>Built, and in production: has produced a capture in a bot match;
+            sightlines still unmeasured</dd></div>
           </dl>
         </li>
+
         <li class="map-card">
-          <p class="map-card__state"><span class="badge">Concept</span></p>
-          <h3 class="map-card__name">Port Wakefield</h3>
-          <p class="map-card__terrain">Fictional industrial port</p>
-          <p>Warehouses, container yards, administrative buildings and a maritime edge.</p>
+          <p class="map-card__state"><span class="badge badge--wip">Early build</span></p>
+          <h3 class="map-card__name">Bluestone</h3>
+          <p class="map-card__terrain">Slate quarry</p>
+          <p>A flooded slate pit converted from a studio diorama into a walkable outdoor level, with a
+          loading bay, a cutting face and spoil heaps as objectives. Early, and not yet playtested.</p>
           <dl class="map-card__meta">
-            <div><dt>Engagement</dt><dd>Hard cover, vertical and horizontal</dd></div>
-            <div><dt>Layers</dt><dd>Objective Assault &middot; Secure and Hold &middot; Day &middot; Low&#8209;light</dd></div>
+            <div><dt>Engagement</dt><dd>Confined pit, elevation changes</dd></div>
+            <div><dt>State</dt><dd>Built, and early: not yet playtested, and no design document yet</dd></div>
           </dl>
         </li>
+
         <li class="map-card">
-          <p class="map-card__state"><span class="badge">Concept</span></p>
-          <h3 class="map-card__name">Wattle Creek</h3>
-          <p class="map-card__terrain">Small regional settlement</p>
-          <p>Service station, houses, council facilities and drainage corridors.</p>
+          <p class="map-card__state"><span class="badge">Design proposal</span></p>
+          <h3 class="map-card__name">Ravenshoe Crossing</h3>
+          <p class="map-card__terrain">Fictional river crossing</p>
+          <p>A bridge&#8209;crossing map written up as a full design proposal. <strong>Nothing has been
+          built</strong> &mdash; there is no level for it yet.</p>
           <dl class="map-card__meta">
-            <div><dt>Engagement</dt><dd>Short&#8209;range, dense structures</dd></div>
-            <div><dt>Layers</dt><dd>Objective Assault &middot; Secure and Hold &middot; Day &middot; Low&#8209;light</dd></div>
+            <div><dt>Engagement</dt><dd>Chokepoint control across a crossing</dd></div>
+            <div><dt>State</dt><dd>Design document only</dd></div>
           </dl>
         </li>
       </ul>

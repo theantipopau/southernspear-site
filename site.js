@@ -367,7 +367,10 @@
     if (!box) return;
     var image = document.getElementById("lightbox-image");
     var caption = document.getElementById("lightbox-caption");
-    var triggers = Array.prototype.slice.call(document.querySelectorAll("[data-lightbox-src]"));
+    /* Triggers are looked up when the lightbox opens, not once at start-up,
+       because the in-engine captures are rendered later from JSON and must
+       join the same previous / next sequence as the static images. */
+    var triggers = [];
     var current = -1;
     var opener = null;
 
@@ -406,11 +409,12 @@
       if (opener) opener.focus();
     }
 
-    triggers.forEach(function (trigger, index) {
-      trigger.addEventListener("click", function () {
-        opener = trigger;
-        show(index);
-      });
+    document.addEventListener("click", function (event) {
+      var trigger = event.target.closest && event.target.closest("[data-lightbox-src]");
+      if (!trigger || box.contains(trigger)) return;
+      triggers = Array.prototype.slice.call(document.querySelectorAll("[data-lightbox-src]"));
+      opener = trigger;
+      show(triggers.indexOf(trigger));
     });
 
     box.addEventListener("click", function (event) {
@@ -757,6 +761,7 @@
       blocked: "Blocked", "not started": "Planned"
     };
 
+    var meter = [];
     numbers.forEach(function (num) {
       var info = summary[num] || bodies[num] || {};
       var rawState = states[num] || "";
@@ -766,6 +771,8 @@
         : "planned";
       var label = rawState.replace(/\*\*/g, "").split("—")[0].trim() ||
         (LABELS[key] || "Planned");
+
+      meter.push({ num: num, name: info.name || "Phase " + num, key: key });
 
       var phase = el("article", "phase phase--" + (key === "progress" ? "current" : key === "complete" ? "done" : "todo"));
       phase.id = "phase-" + num;
@@ -813,8 +820,152 @@
       host.appendChild(phase);
     });
 
+    renderRoadmapMeter(meter);
     host.setAttribute("aria-busy", "false");
-  }  /* -------------------------------------------------------------- changelog */
+  }  /* ------------------------------------------------------ in-engine captures */
+
+  var SCREENSHOTS = "data/screenshots.json";
+
+  function formatDate(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+    if (!m) return iso || "";
+    var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return Number(m[3]) + " " + months[Number(m[2]) - 1] + " " + m[1];
+  }
+
+  function renderCaptures(data) {
+    var host = document.getElementById("capture-gallery");
+    if (!host) return;
+    var shots = (data && data.screenshots) || [];
+    host.setAttribute("aria-busy", "false");
+    // With nothing published the static note in the HTML stays as it is.
+    if (!shots.length) return;
+    clear(host);
+
+    var list = el("ul", "gallery gallery--captures");
+    list.setAttribute("role", "list");
+    shots.forEach(function (shot, index) {
+      // Each file carries its real pixel width, smallest first.
+      var files = (shot.files || []).slice().sort(function (a, b) { return a.width - b.width; });
+      if (!files.length) return;
+      var largest = files[files.length - 1].path;
+      var srcset = function (ext) {
+        return files.map(function (f) { return f.path + "." + ext + " " + f.width + "w"; }).join(", ");
+      };
+      var where = [shot.map, formatDate(shot.captured), shot.session ? "Session " + shot.session : ""]
+        .filter(Boolean).join(" · ");
+
+      // The newest capture leads at full width; the rest share the grid.
+      var item = el("li", "gallery__item" + (index === 0 ? " gallery__item--wide" : ""));
+      var button = el("button", "gallery__btn");
+      button.type = "button";
+      button.setAttribute("data-lightbox-src", largest + ".jpg");
+      button.setAttribute("data-lightbox-alt", shot.alt);
+      button.setAttribute("data-lightbox-caption",
+        shot.title + " — in-engine capture, pre-alpha build. " + where + "." +
+        (shot.note ? " " + shot.note : ""));
+
+      var picture = el("picture");
+      var sizes = index === 0 ? "(max-width: 1240px) 100vw, 1240px" : "(max-width: 700px) 100vw, 420px";
+      ["avif", "webp"].forEach(function (ext) {
+        var source = el("source");
+        source.type = "image/" + ext;
+        source.srcset = srcset(ext);
+        source.sizes = sizes;
+        picture.appendChild(source);
+      });
+      var img = el("img");
+      img.src = files[0].path + ".jpg";
+      img.srcset = srcset("jpg");
+      img.sizes = sizes;
+      img.width = shot.width;
+      img.height = shot.height;
+      img.alt = shot.alt;
+      img.loading = "lazy";
+      img.decoding = "async";
+      picture.appendChild(img);
+      button.appendChild(picture);
+
+      var meta = el("span", "gallery__meta gallery__meta--capture");
+      meta.appendChild(el("span", "badge badge--capture", "In-engine"));
+      var text = el("span", "gallery__meta-text");
+      text.appendChild(el("span", "gallery__meta-title", shot.title));
+      text.appendChild(el("span", "gallery__meta-where", where));
+      meta.appendChild(text);
+      button.appendChild(meta);
+
+      item.appendChild(button);
+      list.appendChild(item);
+    });
+    host.appendChild(list);
+    host.appendChild(el("p", "captures__note",
+      "Work in progress: captured from the pre-alpha build on the date shown, and not representative " +
+      "of final quality."));
+  }
+
+  /* --------------------------------------------------------- roadmap meter */
+
+  /* A one-line overview of the seven phases above the timeline. It shows each
+     phase's state as the roadmap records it and nothing more: the project
+     tracks no completion percentage, so none is drawn or implied. */
+  function renderRoadmapMeter(phases) {
+    var host = document.getElementById("roadmap-meter");
+    if (!host || !phases.length) return;
+    clear(host);
+
+    var done = phases.filter(function (p) { return p.key === "complete"; }).length;
+    var current = phases.filter(function (p) { return p.key === "progress"; });
+    var summary = done + " of " + phases.length + " phases complete";
+    if (current.length) {
+      summary += " · " + current.map(function (p) { return "Phase " + p.num; }).join(", ") + " in progress";
+    }
+    host.appendChild(el("p", "roadmap-meter__summary", summary));
+
+    var LABELS = { complete: "Complete", progress: "In progress", blocked: "Blocked", planned: "Planned" };
+    var list = el("ol", "roadmap-meter__track");
+    phases.forEach(function (phase) {
+      var li = el("li", "roadmap-meter__step roadmap-meter__step--" + phase.key);
+      var link = el("a", "roadmap-meter__link");
+      link.href = "#phase-" + phase.num;
+      link.appendChild(el("span", "roadmap-meter__bar"));
+      link.appendChild(el("span", "roadmap-meter__num", String(phase.num)));
+      link.appendChild(el("span", "roadmap-meter__name", phase.name));
+      link.appendChild(el("span", "u-visually-hidden", ": " + (LABELS[phase.key] || "Planned")));
+      li.appendChild(link);
+      list.appendChild(li);
+    });
+    host.appendChild(list);
+    host.hidden = false;
+  }
+
+  /* ----------------------------------------------------- development pulse */
+
+  /* Plain counts read from the changelog: how many sessions are recorded and
+     the span of dates they cover. Every figure is a count or a date taken from
+     the log, never an estimate. */
+  function renderPulse(sessions) {
+    var host = document.getElementById("dev-pulse");
+    if (!host || !sessions || !sessions.length) return;
+    clear(host);
+    var dated = sessions.filter(function (s) { return s.date; })
+      .map(function (s) { return s.date; }).sort();
+    var first = dated[0];
+    var last = dated[dated.length - 1];
+    var stats = [
+      { value: String(sessions.length), label: "Working sessions recorded" },
+      { value: formatDate(first), label: "First session" },
+      { value: formatDate(last), label: "Latest session" }
+    ];
+    stats.forEach(function (stat) {
+      var node = el("div", "pulse__stat");
+      node.appendChild(el("dt", "pulse__label", stat.label));
+      node.appendChild(el("dd", "pulse__value", stat.value));
+      host.appendChild(node);
+    });
+    host.hidden = false;
+  }
+
+  /* -------------------------------------------------------------- changelog */
 
   /* The changelog now lives on changelog.html. This file is shared by both
      pages: on the home page a small "latest session" panel renders from the
@@ -1185,6 +1336,16 @@
       }
     }
 
+    if (document.getElementById("capture-gallery")) {
+      fetchText(SCREENSHOTS).then(function (text) {
+        renderCaptures(JSON.parse(text));
+      }).catch(function () {
+        // No view model yet: the static "none published" note stays.
+        var host = document.getElementById("capture-gallery");
+        if (host) host.setAttribute("aria-busy", "false");
+      });
+    }
+
     fetchText(ROADMAP).then(function (text) {
       roadmapText = text;
       currentPhase = readCurrentPhase(text);
@@ -1217,6 +1378,11 @@
       }
       // The home page's latest-session panel renders from the same fetch,
       // independently of whether this page has the full log's controls.
+      try {
+        renderPulse(sessions);
+      } catch (error) {
+        // The pulse is a summary of the log; if it fails the log still shows.
+      }
       try {
         renderLatestUpdate(sessions);
       } catch (error) {

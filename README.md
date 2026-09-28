@@ -23,11 +23,12 @@ present, and none is ever published.
 ```
 index.html      the site home
 changelog.html  the full development changelog (search, filters, deep links)
+presskit.html   press kit: fact sheet, descriptions, logo and artwork downloads
 styles.css      design tokens and components
 site.js         navigation, Markdown subset renderer, status / roadmap / changelog
 404.html        not-found page
 robots.txt      crawler policy
-sitemap.xml     sitemap: home sections plus the changelog page
+sitemap.xml     sitemap: home sections plus the changelog and press kit pages
 manifest.webmanifest
 assets/         optimised image derivatives (brand, hero, concepts, weapons, social, favicons)
 fonts/          self-hosted latin subsets (Barlow Condensed, Inter, IBM Plex Mono)

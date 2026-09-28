@@ -879,13 +879,27 @@
     <div class="shell">
       <header class="section__head">
         <p class="eyebrow">Media</p>
-        <h2 id="media-title" class="section__title">Title screen artwork</h2>
+        <h2 id="media-title" class="section__title">From the build, and the concept board</h2>
         <p class="section__lede">
-          This artwork is the project&rsquo;s approved title&#8209;screen design, shown here as the intended
-          visual direction for the main menu and loading screen. It is <strong>not</strong> final gameplay
-          imagery and does not show a playable build.
+          Captures from the pre&#8209;alpha build come first, each labelled with the map, the date and the
+          session it came from. Below them is the project&rsquo;s approved title&#8209;screen design and
+          concept art: the intended visual direction, <strong>not</strong> gameplay.
         </p>
       </header>
+
+      <div class="captures" id="captures">
+        <h3 class="subhead">In&#8209;engine captures</h3>
+        <!-- Rendered by site.js from data/screenshots.json, which
+             Tools/build_site_assets.py writes from Docs/images/screenshots/. -->
+        <div id="capture-gallery" class="captures__body" aria-busy="true">
+          <p class="captures__empty">
+            No in&#8209;engine captures have been published yet. When they are, they appear here, captioned
+            with the map, the capture date and the development session, and marked as work in progress.
+          </p>
+        </div>
+      </div>
+
+      <h3 class="subhead">Title screen artwork</h3>
 
       <figure class="showcase">
         <button class="showcase__frame" type="button"
@@ -987,9 +1001,9 @@
         </li>
       </ul>
       <p class="section__note">
-        Every image above is concept art. Captured in-engine gameplay screenshots have not been published
-        yet; they are added as they are frozen and captioned, and are always labelled separately from art
-        produced outside the game.
+        Only images marked <strong>In&#8209;engine</strong> are captured from the game. Everything else in
+        this section is title&#8209;screen artwork or concept art produced outside the game, and is labelled
+        as such.
       </p>
     </div>
   </section>
@@ -1011,6 +1025,8 @@
         describe internal development progress only.
       </p>
 
+      <dl id="dev-pulse" class="pulse" aria-label="Development record, counted from the changelog" hidden></dl>
+
       <div id="status" class="status-grid" aria-busy="true">
         <p class="loading-note">Loading development status&hellip;</p>
       </div>
@@ -1028,6 +1044,8 @@
           presentation, authority and persistence. Art is deliberately deferred until the systems hold.
         </p>
       </header>
+
+      <nav id="roadmap-meter" class="roadmap-meter" aria-label="Roadmap phases at a glance" hidden></nav>
 
       <div id="roadmap-phases" class="roadmap" aria-busy="true">
         <p class="loading-note">Loading roadmap&hellip;</p>
@@ -1126,6 +1144,41 @@
             <p>Steam is the planned storefront. Development is pre&#8209;alpha, so nothing is listed
             and no release date has been announced. Announcements will be posted on this site and in
             the Discord first.</p>
+          </div>
+        </details>
+        <details class="faq__item" id="faq-pc-specs">
+          <summary>What PC will I need?</summary>
+          <div class="faq__body">
+            <p>Minimum and recommended specifications have <strong>not been measured yet</strong>, so none
+            are published. They will be set by testing the game itself and listed on the Steam page. What
+            is already fixed by the engine and the project&rsquo;s own render settings:</p>
+            <dl class="spec-list">
+              <div class="spec-list__row">
+                <dt>Operating system</dt>
+                <dd>Windows, 64&#8209;bit. Windows 11 is what Unreal Engine 5.8 is developed against.</dd>
+              </div>
+              <div class="spec-list__row">
+                <dt>Graphics API</dt>
+                <dd>DirectX 12 with Shader Model 6, the project&rsquo;s default renderer.</dd>
+              </div>
+              <div class="spec-list__row">
+                <dt>Lighting</dt>
+                <dd>Lumen global illumination and reflections, with hardware ray tracing enabled. Cards
+                without ray&#8209;tracing hardware fall back to Lumen&rsquo;s software path.</dd>
+              </div>
+              <div class="spec-list__row">
+                <dt>Shadows and scaling</dt>
+                <dd>Virtual shadow maps, and Temporal Super Resolution for upscaling and anti&#8209;aliasing.</dd>
+              </div>
+              <div class="spec-list__row">
+                <dt>Performance target</dt>
+                <dd>60&nbsp;fps at 1080p on the development reference card, a Radeon RX&nbsp;9070&nbsp;XT.
+                That is the budget the build is held to, not a minimum.</dd>
+              </div>
+            </dl>
+            <p>In practice that points to a DirectX&nbsp;12 graphics card with 8&nbsp;GB or more of video
+            memory, and an SSD, as is usual for Unreal Engine&nbsp;5 games. Treat anything more precise as a
+            guess until the numbers are measured.</p>
           </div>
         </details>
         <details class="faq__item">
@@ -1257,6 +1310,7 @@
           <h2 class="site-footer__heading">Project</h2>
           <ul>
             <li><a href="#faq">FAQ</a></li>
+            <li><a href="presskit.html">Press kit</a></li>
             <li><a href="https://github.com/theantipopau/southernspear-site" rel="noopener">GitHub</a></li>
             <li><a href="https://discord.gg/GHNCFQrDND" rel="noopener">Discord</a></li>
           </ul>

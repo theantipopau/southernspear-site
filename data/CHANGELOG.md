@@ -2,7 +2,7 @@
 
 **Document ID:** `Docs/CHANGELOG.md`
 **Purpose:** Rolling record of what was actually done, what was actually tested, and what is still open. Appended to at the end of every work session.
-**Last updated:** 2026-09-27
+**Last updated:** 2026-09-28
 
 > **This file records evidence, not narrative.** A line here means a command was run and its result observed. If something was not done, it is not claimed. Anything marked `NOT RUN` is genuinely outstanding, not quietly skipped.
 
@@ -3626,8 +3626,1288 @@ about it. That closes R-41 and the R-40 class of defect from the same mechanism.
 
 ---
 
+## Session 048 — 2026-09-28 — Section Assault (One Life, Attack And Defend), Service Record And Ranks
+
+### OUTCOME
+
+**Two producer requests, both code, written in a cloud container without Unreal Engine.** The producer
+asked for (1) a main game mode modelled on the design philosophy of *America's Army 2*'s round-based
+mode ("single spawn", Counter-Strike-like), and (2) the ranking and player profile systems wired up.
+Both are written, reviewed and tested as far as this environment allows. **Nothing in this session has
+been compiled or run in the engine.** The container is Linux with no UE 5.8 install, so every C++ and
+automation-test result below is **NOT RUN** and the first Windows build is the real test (R-50).
+
+Research (public sources: Wikipedia, GameFAQs/Neoseeker guides, AA2Reborn) on AA2's main mode: rounds
+where one team attacks and one defends; **one life per round**, and the dead watch until the round ends;
+win on the objective or by eliminating the other team; honour lost for friendly fire; points for your
+fireteam surviving. Only the *rules* were taken. No map, mission name, UI, audio or asset (L-0008,
+ADR-013).
+
+### COMPLETED
+
+**ADR-031 — Section Assault** (`Docs/DECISION_LOG.md`). A second rule set on the existing director, maps
+and objectives, chosen per match (`RulesMode`, map URL `?Rules=Section`, or the new **RULES** choice on the
+front end). One life per round. Team One attacks the first half and Team Two the second (symmetric over the
+match, ADR-017). Only attackers capture, and defenders on the point contest or clear it. Attackers win on
+the final objective or by wiping the defenders. Defenders win by wiping the attackers or **on time**.
+Halves of 4, first to 5, 4–4 is a drawn match. 300 s rounds.
+
+- `FSSSectionAssaultRules` (pure): `StepAttackCapture`, `ResolveRound`, `ApplyRoundResult`, `StepRound`, `NewMatch`.
+- `FSSMatchState` replicated on `ASSObjectiveAssaultDirector` (round score, attacker, half, alive counts,
+  last round's reason). The director branches on `RulesMode`, and Objective Assault is unchanged by default.
+- **Core `USSRespawnGate`** (new): the round roster and who is eliminated. The director locks it when play
+  starts and unlocks it at the reset. The bridge reports eliminations from Lyra's `OnOutOfHealth`.
+- **Holding the dead out without modifying Lyra:** Lyra's `ControllerCanRestart` is private and
+  non-virtual. `USSDeploymentSpawningComponent` overrides the supported virtual `OnFinishRestartPlayer` and
+  unpossesses and destroys the pawn Lyra just spawned for a held-out controller, in the same server frame.
+  RE-DEPLOY is refused while the gate is locked. At the reset the director restarts every pawnless
+  controller, bots included.
+- HUD: `FSSObjectiveHudModel::ApplySectionAssault`. Round score replaces captures, and the label reads
+  "Attack  4 v 3" / "Defend  4 v 3" from the viewer's side (neutral vantage without a team). The post-round
+  header gives the reason. The round banner says "Take/Hold objective A · one life".
+
+**ADR-032 — `Plugins/SouthernSpearProgression`** (new plugin, Core-only dependency). This is the TDD §6.2–6.4 design:
+- `FSSServiceRecord` schema v1 (XP, statistics, qualifications, commendations, callsign) with a migration
+  step. A newer-schema record is refused and left untouched.
+- `ISSPersistenceProvider` plus a **dev-only** `FSSLocalDevPersistence`: JSON in
+  `Saved/SouthernSpear/Profiles/`, written to a temporary file then moved over the record. A corrupt file is
+  quarantined as `.corrupt-<utc>.json`. `IsAuthoritative() == false`.
+- Ranks and awards are **data** (`Config/DefaultGame.ini` `[/Script/SouthernSpearProgression.SSProgressionSettings]`):
+  the nine GDD §6.2 enlisted ranks (Recruit 0 … WO1 80 000) and six award rules.
+- **Core `USSServiceEventSubsystem`** (new) carries service events from the director and bridge to
+  progression: objective captured, round won, round won alive, match completed, match won, friendly kill.
+  **No kill event**, enforced by new guard rule **SS009**.
+- Server `USSProgressionServerSubsystem` keeps per-player match tallies and applies caps. Positive awards are
+  capped per match and the friendly-kill penalty (−150) never is. It sends results through the `USSServiceRelay`
+  client RPC, and the client `USSPlayerProfileSubsystem` applies them, saves and publishes to **Core
+  `USSLocalProfileState`** (new). Bots earn nothing.
+- Front end: a profile line (rank abbreviation · callsign, rank · XP / next) and the RULES choice.
+
+**Docs:** ADR-031 and ADR-032. GDD §4.6 "as built" note. Roadmap §13 status ("written, not yet compiled").
+CLAUDE.md module table, export macro `SSPROG_API`, SS009, and the Core cross-module subsystems.
+
+### FILES CHANGED
+
+- New plugin `Plugins/SouthernSpearProgression/` (`.uplugin`, `Build.cs`, `SSServiceRecord.h`,
+  `SSProgressionSettings.h`, `SSProgressionRules.h/.cpp`, `SSPersistence.h/.cpp`,
+  `SSProgressionSubsystems.h/.cpp`, `Private/Tests/SSProgressionTests.cpp`). Registered in `SouthernSpear.uproject`.
+- Core: `SSServiceEvents.h/.cpp`, `SSRespawnGate.h/.cpp`, `SSLocalProfileState.h` (new).
+- Objectives: `SSObjectiveTypes.h` (rules/reason enums, `FSSSectionRules`, `FSSMatchState`, `FSSSectionInputs`,
+  `FSSRoundEvents::bMatchEnded`), `SSSectionAssaultRules.h/.cpp` (new), `SSObjectiveActor.h/.cpp`
+  (attacker-only step, presence list), `SSObjectiveAssaultDirector.h/.cpp`, `Tests/SSSectionAssaultTests.cpp` (new).
+- ObjectivesUI: `SSObjectiveHudModel.h/.cpp`, `SSObjectiveStatusWidget.cpp`, `SSRoundBannerWidget.cpp`,
+  `Tests/SSObjectiveHudTests.cpp`.
+- LyraBridge: `SSDeploymentSpawningComponent.h/.cpp`, `SSKillFeedSubsystem.cpp`.
+- UI: `SSMenuWidget.h/.cpp`.
+- `Config/DefaultGame.ini`, `Tools/validate_architecture.py` (SS009), `CLAUDE.md`, `Docs/DECISION_LOG.md`,
+  `Docs/GAME_DESIGN_DOCUMENT.md`, `Docs/DEVELOPMENT_ROADMAP.md`, `Docs/CHANGELOG.md`.
+- Evidence: `Docs/evidence/G059_guard_positive.txt`, `Docs/evidence/G059_guard_negative.txt`.
+
+### TESTING
+
+- `python Tools/validate_architecture.py` (real tree): **exit 0**, "PASS - no architecture violations found".
+  Evidence `Docs/evidence/G059_guard_positive.txt`.
+- Guard negative test on a scratchpad copy of `Tools/` + SS plugins. SouthernSpearProgression → LyraGame
+  **and** an `EnemyKilled` service event: **exit 1**, SS002 + SS009 reported
+  (`Docs/evidence/G059_guard_negative.txt`). A separate run with Progression → SouthernSpearObjectives:
+  **exit 1**, SS001. Real source was never left broken.
+- `SouthernSpear.uproject` re-parsed as JSON after the edit: valid.
+- **NOT RUN — no Unreal Engine in this environment:**
+  - `Build.bat SouthernSpearEditor Win64 Development`: the first compile of every file above.
+  - Automation: new `SouthernSpear.Objectives.Section.*` (8: CaptureAttackersOnly, CaptureMirrored,
+    ResolveRound, MatchScoringAndSwap, RoundLoop, ReplicationContract, RespawnGate,
+    World.EliminationAndEvents), `SouthernSpear.Objectives.Hud.SectionAssault`, and
+    `SouthernSpear.Progression.*` (6: ShippedTablesAreValid, NoKillReward, ValidationCatchesBadTables,
+    RanksAndCaps, IdsAndCallsigns, PersistenceRoundTrip), plus every existing suite for regressions.
+  - Live Section Assault: `L_DryRiver_01?NumBots=8?Rules=Section?RoundSeconds=90`. Held-out players stay
+    out, bots come back at the reset, sides swap after round 4, and the match ends at 5.
+  - Front end RULES row and profile line, rendered. `Saved/SouthernSpear/Profiles/ServiceRecord_local.json`
+    created and growing across two matches.
+  - `python Tools/publish_site.py`: not run. The public site repository is outside this session's access,
+    and nothing here is ready to publish while it is uncompiled.
+
+### ASSETS
+
+None. No asset imported, created or modified. The rank names are GDD §6.2's structure. Insignia remain
+unmade placeholders (L-0003).
+
+### RISKS
+
+- **R-50 (open, high until built).** All Session 048 C++ was written without a compiler or the engine. Care
+  was taken over UE 5.8 specifics (unity-build name collisions, shadowing-as-error, the Lyra private restart
+  path), but expect first-build fixes. Nothing here is claimed to work until the Windows build and the
+  automation run pass.
+- **R-51 (open, medium).** Holding a player out destroys the pawn Lyra just spawned, in the same server
+  frame. It should never replicate, but the client still receives `ClientRestart` for a pawn that no longer
+  exists. Watch for camera or input glitches on the held-out client. The fallback is a C++ game mode
+  overriding `ControllerCanRestart` (ADR-031 alternative 1).
+- **R-52 (open, low).** Eliminations come from `USSKillFeedSubsystem`, which binds each pawn's health set on
+  a 0.5 s scan. A pawn killed within 0.5 s of spawning is never reported, so its team can't be eliminated
+  that round and the round runs to time.
+- **R-53 (open, low, dev-only).** The local service record is editable by its owner. PIE clients on one
+  machine share one file. Acceptable for development only; online persistence needs its own ADR (Phase 5).
+- **R-54 (open, low).** Objective Assault never ends a match, so its per-match award caps span the whole
+  map session. Section Assault closes a tally on `MatchCompleted`.
+- **Design gaps (not defects):** a dead player's view stays where they fell (no spectating a teammate yet),
+  there's no movement freeze in pre-round, no HUD toast for awards (`USSLocalProfileState::LastAward` is filled
+  but not drawn), and no callsign entry UI (`SetCallsign` exists).
+
+### DEFECTS FOUND
+
+- **Unity-build name collisions caught in review, before any build.** `IsValidStep` existed in both
+  `SSObjectiveRules.cpp` and the new `SSSectionAssaultRules.cpp` anonymous namespaces, and would collide when
+  UBT merges the module into one translation unit. Renamed. A progression helper `Settings()` would have been
+  shadowed by a test local `Settings` (C4459, an error under UE's shadow-variable policy). Renamed.
+- **Award-order bug caught in review.** The director first posted `MatchCompleted` before `MatchWon`. The
+  progression tally closes on `MatchCompleted`, so `MatchWon` would have opened the next match's tally and
+  used up its cap. The order is now fixed, with a comment.
+- **Client HUD wouldn't know the rule set, caught in review.** `RulesMode` is set from the URL on the server
+  only. Unreplicated, a remote client's HUD would have shown Objective Assault during a Section Assault match.
+  It now replicates, and `Section.ReplicationContract` asserts it.
+
+### NEXT ACTION
+
+**Build `SouthernSpearEditor` on the Windows machine and run `Automation RunTests SouthernSpear`.** Fix
+whatever the first compile of Session 048 reports, until all suites pass (including the 15 new tests).
+Then run one live Section Assault match on Dry River with 8 bots and `?RoundSeconds=90`, and record the
+round/match log lines as evidence. That closes R-50, or turns it into specific defects.
+
+---
+
+## Session 049 — 2026-09-28 — Australian Army Ranks 1–100 With Insignia, Kill XP, HUD Clipping And Scoreboard Title Fixed
+
+### OUTCOME
+
+**Session 048 was verified on the producer's machine** (reported by the producer's local agent, not run
+here): `SouthernSpearEditor` built (20 actions, the new `SouthernSpearProgression` module included), and
+**52/52 automation tests passed** (37 before plus the 15 new). A live Section Assault run logged
+`Section Assault round 1: TeamOne attacked, TeamOneWon (DefendersEliminated). Score T1=1 T2=0.` with 8 bots
+and no spawn failures. R-50 (Session 048 unverified) is **closed** for what those tests cover.
+
+The playtest screenshots showed three defects, fixed here. Two producer requests are also done: realistic
+Australian Army ranks with insignia, and kill XP.
+
+### COMPLETED
+
+- **ADR-034.** Service levels 1–100, as America's Army honour worked. Seventeen Australian Army ranks,
+  PTE (1–4), LCPL (5–9) … LTGEN (96–99), GEN (100), shown with insignia on the scoreboard and front end.
+  Kills earn 10 XP, capped at 50 per match (an objective is 100). SS009 retired.
+- **Insignia drawn in code**, `SSInsigniaRaster.h` (engine-free), following the Army's devices: point-down
+  chevrons; crown (St Edward's pattern) over three chevrons for SSGT; crown for WO2 and MAJ; the Coat of Arms
+  (shield, kangaroo, emu, star) for WO1; Order of the Bath pips in a column; crown and pips for field
+  officers, with Brigadier's three in a triangle; crossed sword and baton for generals. `FSSServiceRanks::InsigniaTexture`
+  turns them into cached 64 px textures. No image files, so nothing to import or register.
+- **Staff Sergeant:** first dropped (a search said it was being phased out), then **restored**. The producer's
+  source (army.gov.au/about-us/ranks) and Defence's *Badges of Rank* list it. RSM-A (one appointment) and
+  Field Marshal (honorary) are not levels.
+- **Core:** `USSRankSettings` (ladder + curve, data), `FSSServiceRanks`, and `USSServiceRankComponent`
+  (replicated level on the player state). `FSSScoreRow::ServiceLevel`, `USSScoreboardState::ModeTitle`,
+  `ESSServiceEvent::EnemyKill`, and profile level fields.
+- **Progression:** ranks moved to Core. Record **schema v2** (`Statistics.EnemyKills`) with a v1→v2
+  migration. `USSServiceRelay::ServerReportProfile` (level + callsign → server → player state and
+  scoreboard name). `ss.Callsign <name>` console command.
+- **Bridge:** `EnemyKill` posted for kills of the other side, and the scoreboard reads the level component.
+- **UI:** scoreboard RANK column (insignia + level; "—" for bots). Front end: level, rank, XP and the
+  insignia badge.
+- **Fix — objective panel clipping under the minimap** (screenshots: "ROUND 2 · HALF 1FRIENDLY WIN",
+  "ROUND 2: FRIENDLY WIN, ("). Section Assault strings are now short: "Round 2" + "Attack"/"Defend"; the
+  alive count ("5 V 4") is on its own right-aligned slot on the status line; the post-round line is only the
+  reason ("defenders eliminated"); match result "Match won/lost/drawn". A test bounds the lengths.
+- **Fix — scoreboard said OBJECTIVE ASSAULT during Section Assault.** The kicker is now a member, filled
+  from `USSScoreboardState::ModeTitle`, which the objective HUD subsystem sets from the director's
+  replicated `RulesMode`. The other agent also flagged `SSMenuWidget.cpp:307`. That line is the front-end
+  **RULES choice button**, which offers both modes by name, so it is correct and unchanged.
+- **Tool:** `Tools/Progression/rank_preview.py` compiles `insignia_sheet.cpp` with g++ against the game's
+  own engine-free headers, prints the level/XP bands, checks the maths at all 100 thresholds and that every
+  rank draws, and writes the insignia sheet.
+
+### FILES CHANGED
+
+- Core: `SSServiceRanks.h/.cpp`, `SSInsigniaRaster.h`, `SSServiceLevelMath.h`, `Tests/SSServiceRanksTests.cpp`
+  (new). Also `SSServiceEvents.h/.cpp`, `SSScoreboardState.h`, `SSLocalProfileState.h`, and `SouthernSpearCore.Build.cs`
+  (private `NetCore`, an engine module).
+- Progression: `SSServiceRecord.h`, `SSProgressionSettings.h`, `SSProgressionRules.h/.cpp`,
+  `SSProgressionSubsystems.h/.cpp`, `Tests/SSProgressionTests.cpp`.
+- Objectives UI: `SSObjectiveHudModel.h/.cpp`, `SSObjectiveStatusWidget.h/.cpp`, `SSObjectiveHudSubsystem.cpp`,
+  `Tests/SSObjectiveHudTests.cpp`.
+- Bridge: `SSKillFeedSubsystem.cpp`, `SSScoreboardSubsystem.cpp`. UI: `SSScoreboardWidget.h/.cpp`, `SSMenuWidget.cpp`.
+- `Config/DefaultGame.ini` (rank ladder, awards). `Tools/validate_architecture.py` (SS009 retired). `Tools/Progression/` (new).
+- `CLAUDE.md`, `Docs/DECISION_LOG.md` (ADR-034), `Docs/GAME_DESIGN_DOCUMENT.md` §6.2/§6.4, `Docs/CHANGELOG.md`.
+- Evidence: `Docs/evidence/G060_rank_table.txt`. The sheet PNG is not committed (no git-lfs in the authoring container); regenerate with `python Tools/Progression/rank_preview.py`.
+
+### TESTING
+
+- `python Tools/Progression/rank_preview.py Docs/evidence/G060_rank_insignia_sheet.png`: **exit 0**. g++
+  `-std=c++20 -Wall -Wextra -Werror` against `SSInsigniaRaster.h` and `SSServiceLevelMath.h`. All 17 ranks
+  draw (Private draws nothing, as intended). The level curve inverts exactly at all 100 thresholds. Level 100
+  needs 371,414 XP. Evidence `Docs/evidence/G060_rank_table.txt`. The sheet was inspected visually and
+  revised twice: pips too small, the crown too mitre-like.
+- `python Tools/validate_architecture.py`: **exit 0**.
+- **NOT RUN (no Unreal Engine here):** the editor build, and automation for the new `SouthernSpear.Core.Ranks.*` (3),
+  the changed `Progression.*` (KillAwards replaces NoKillReward; Caps replaces RanksAndCaps; PersistenceRoundTrip
+  now covers v1→v2), `Objectives.Hud.SectionAssault`, and every suite for regressions. Also not run: the
+  scoreboard insignia column and front-end badge rendered in game, and `ss.Callsign` renaming a player.
+
+### ASSETS
+
+No asset files. The insignia are procedural textures created at runtime, after the Australian Army's devices
+(ADR-034). They are recorded under release gate R-55 rather than as a licence-register item, because no
+third-party file is used.
+
+### RISKS
+
+- **R-50 closed** by the producer's build and 52/52 run for Session 048. **R-56 (open, high until built):**
+  Session 049 C++ is again uncompiled.
+- **R-55 (open, release blocker).** The crown and the Coat of Arms (and the Army insignia set) need Defence and
+  PM&C permission before release, or the WO1/crown devices must be swapped for fictional ones.
+- R-51, R-52, R-53, R-54 as Session 048. R-53 now also covers the scoreboard level: it is self-reported
+  by each client from a local record.
+- **Lyra noise (not ours):** `W_SB_TeamStat:Construct` "Accessed None ... GetComponentByClass" ×4 comes from
+  ShooterCore's own scoreboard widget. It is logged here for the known-noise list.
+
+### DEFECTS FOUND
+
+- HUD clipping and the wrong scoreboard title: from the producer's playtest screenshots.
+- Pips drawn too small, and a crown that read as a mitre: from the rendered insignia sheet (`rank_preview.py`
+  failed the coverage check on 2LT/LT/CAPT before the fix).
+- The Medic kit equals the Rifleman kit (A88 + A9; healing not in the game): reported by the producer's
+  agent. It is a design gap, noted and not changed here.
+
+### ADDENDUM — ADF Re-Cut registry reviewed for weapons and animation
+
+- `Tools/Weapons/adfrc_weapon_data.py` (new, stdlib) reads the committed `config_registry.json` and writes
+  `Docs/WEAPON_SOURCE_DATA.md/.json`. For each A-series weapon it gives the source class, rpm and dispersion per
+  fire mode, magazine, handling, muzzle/ejection memory points, grip-pose clip, reload gesture (shipped or
+  vanilla) and resolved audio. Run: `python Tools/Weapons/adfrc_weapon_data.py` → **exit 0**, 8 weapons,
+  0 missing.
+- `Docs/WEAPONS_ANIMATION_PLAN.md` (new): **W1** per-weapon stats (today every weapon is a copy of Lyra's rifle
+  or pistol), **W2** grip sockets from the `handAnim` poses for left-hand IK (not blocked by R-32), **W3** ejection
+  and muzzle effects, **W4** reload audio, **W5** bullpup reload as IK trajectories, **W6** bipod and prone holds,
+  **W7** locomotion (existing audit). Recommendation: W1 then W2.
+
+### NEXT ACTION
+
+**Build and run `Automation RunTests SouthernSpear`, then play one Section Assault match with Tab held.**
+Confirm the RANK column (insignia + level), the front-end badge, the unclipped objective panel, and that
+`ss.Callsign <name>` renames you on the scoreboard. Screenshot the scoreboard for `Docs/evidence/`. (After that,
+the weapons plan's W1 is the next build task.)
+
+---
+
+## Session 050 — 2026-09-28 — Licensing Settled (ADR-035), And W1: The A-Series Stop Being One Rifle
+
+### COMPLETED
+
+- **ADR-035 (producer):** Southern Spear is free to play. Every asset the project holds is cleared: Fab, other free
+  sources, and ADFRC from its creators. Real names are allowed everywhere: weapons, the Australian Army, its ranks
+  and insignia, ADF equipment and camouflage. `LICENCE_REGISTER.md` gets a §0 current-position section and
+  in-place amendments (L-0003 hold and L-0004 prohibition lifted; L-0007 narrowed to ripped/CAD sources; release
+  gate revised; L-0021 cleared). CLAUDE.md's content rules are rewritten to match, and the GDD, ADFRC readmes and
+  code comments are updated. These still stand, as non-licence rules: no endorsement claim, MAF portrayal, no
+  *America's Army* content, no ripped assets. **R-57** records the accepted residual trademark/emblem risk.
+  Pushed as 15bc062a.
+- **W1 per-weapon stats** (`Docs/WEAPONS_ANIMATION_PLAN.md`):
+  - **Core:** `SSWeaponStats.h/.cpp` (`FSSWeaponStats`, `USSWeaponStatsSettings`, `FSSWeaponStatsRules`) and
+    `Tests/SSWeaponStatsTests.cpp` (2 tests).
+  - **Config:** eight rows from `Docs/WEAPON_SOURCE_DATA.md`. A88/A88G 682 rpm, 30 rounds; A89 750 rpm, a
+    200-round belt, spread ×1.74; A4/A416 857 rpm; A417 600 rpm, 20 rounds, ×1.18; A25 semi-auto, 20 rounds,
+    ×0.75; A9 semi-auto, 15 rounds.
+  - **Bridge:** `USSWeaponStatsSubsystem`. On the server, each new `ID_SS_*` item gets its magazine size, a full
+    magazine and its spare rounds (Lyra's stat-tag functions, by reflection). On every machine, each new ranged
+    weapon instance has its own copy of `HeatToSpreadCurve` scaled. Lyra is unmodified.
+  - **Rate of fire and semi/full-auto are not applied yet.** Lyra keeps them in its fire-ability Blueprint.
+    `Tools/Unreal/probe_weapon_fire.py` (new, read-only) dumps the Blueprint-declared variables along
+    WID → ability sets → abilities, using the new `USSObjectivesEditorLibrary::ListPropertiesAsText`.
+
+### FILES CHANGED
+
+- `Docs/DECISION_LOG.md` (ADR-035), `Docs/LICENCE_REGISTER.md`, `CLAUDE.md`, `Docs/GAME_DESIGN_DOCUMENT.md`,
+  `Docs/Sourced/ADFRC/README.md`, `Docs/Sourced/ADFRC/ADFRC_CONFIG_REGISTRY.md`, `Docs/WEAPONS_ANIMATION_PLAN.md`,
+  `Docs/WEAPON_SOURCE_DATA.md`, `Tools/Weapons/adfrc_weapon_data.py`, `SSInsigniaRaster.h`, `Config/DefaultGame.ini`.
+- Core: `SSWeaponStats.h/.cpp`, `Tests/SSWeaponStatsTests.cpp`. Bridge: `SSWeaponStatsSubsystem.h/.cpp`.
+  Objectives editor: `SSObjectivesEditorLibrary.h/.cpp` (`ListPropertiesAsText`). `Tools/Unreal/probe_weapon_fire.py`.
+
+### TESTING
+
+- `python Tools/validate_architecture.py`: **exit 0**. `python Tools/Weapons/adfrc_weapon_data.py`: **exit 0**,
+  8/8. `probe_weapon_fire.py` parses (`ast`).
+- **NOT RUN (no Unreal Engine here):** the build; `SouthernSpear.Core.Weapons.*` (2); a live check that the
+  A89 shows 200/200 and the A25 20/80 on the HUD, and that the `LogSSWeaponStats` lines print; the probe.
+
+### RISKS
+
+- **R-57 (accepted, ADR-035):** third-party trademarks and Commonwealth emblems; remedy if ever needed is a
+  rename or a swap.
+- **R-60 (open, medium; was R-58, renumbered: Session 051 also used R-58/R-59):** W1 reaches Lyra by reflection (`GetStatTagStackCount`/`Add`/`RemoveStatTagStack`,
+  `HeatToSpreadCurve`). A signature change fails soft, with a log line and Lyra's numbers kept. The first build
+  and a live check confirm it.
+- **R-61 (open, low; was R-59):** a weapon whose ammo was granted before the subsystem's first pass (0.25 s) could fire one
+  magazine at Lyra's size. Items are adjusted once, on first sight.
+
+### DEFECTS FOUND
+
+- **Access violation in `USSPlayerProfileSubsystem::Deinitialize` (Session 049 code)**, found by the producer's
+  test run after this session's build (22 actions, OK). 57 tests found, 20 completed (all Success, including both
+  new `Core.Weapons.*` tests), then the run died in `SouthernSpear.Network.Gameplay.TwoPlayerAuthoritySmoke`. The
+  cause: `ss.Callsign` was registered per game instance. The smoke test runs two, which share one console object;
+  the first `Deinitialize` deleted it and the second unregistered the dangling pointer. **Fixed:** the command is
+  now registered once per process (`FAutoConsoleCommand`) and applies to every local profile, and the profile
+  subsystem no longer overrides `Deinitialize`. Also hardened: the server subsystem unbinds from the bus through a
+  weak pointer kept at `Initialize`, not a lookup during world teardown. NOT RUN here; the re-run should report 57/57.
+
+### ADDENDUM — rate of fire wired from the probe
+
+- The producer's local agent ran `probe_weapon_fire.py`. Lyra's fire ability keeps its interval in the Blueprint
+  variable **`FireDelayTimeSecs`**; the A25 (semi-auto) needs a different ability, not a delay. Its report and
+  `Docs/PLAYER_MODEL_PLAN.md` are on the producer's machine, not yet pushed.
+- `USSWeaponStatsSubsystem::ApplyFireRate`: for each pawn, the ability specs whose `SourceObject` is a ranged
+  weapon instance (Lyra grants a weapon's abilities with the weapon as source, `LyraAbilitySet.cpp:117`) have each
+  ability instance's `FireDelayTimeSecs` (double or float) set to 60 / rpm, once. It runs on every machine,
+  because firing is predicted: A88 0.088 s, A89 0.080, A4/A416 0.070, A417/A25/A9 0.100.
+- Still pending: semi-auto for the A25 and A9 (grant the semi-automatic fire ability). NOT RUN: build, and a live
+  check of the `LogSSWeaponStats` "rpm" lines.
+
+### ADDENDUM 2 — semi-automatic A25, and IDs
+
+- `Tools/Unreal/setup_weapons.py`: the weapons whose stats row has `bFullAuto=False` (read from
+  `DefaultGame.ini`: A25, A9) and that copy Lyra's rifle (the A25; the A9 is already pistol-based) get
+  `AbilitySet_SS_<W>_Semi`. That is a copy of the rifle's ability set with `GA_Weapon_Fire_Rifle_Auto` swapped for
+  `GA_Weapon_Fire_Pistol` (one shot per press, per the producer's probe). `WID_SS_A25` points at the copy.
+  Paths are found from Lyra's own sets, not hard-coded. No Lyra asset is modified. Pure helpers checked here
+  against the real config (semi = A25, A9) and sample property text. **NOT RUN:** the script in the editor,
+  and whether the pistol ability's fire montage looks right on a rifle (third person).
+- Risk IDs renumbered: this session's R-58/R-59 became **R-60/R-61**, because Session 051 (the other agent,
+  concurrently) also used R-58/R-59 for the soldier skeleton and vertex budget.
+
+### NEXT ACTION
+
+**Build, run the tests, and run `Tools/Unreal/probe_weapon_fire.py`.** Then send me `Build/probe_weapon_fire.json`
+so I can wire rate of fire and semi/full-auto (the rest of W1) before W2.
+
+---
 
 
+## Session 051 — 2026-09-28 — The Player Model Diagnosed, And The Work That Actually Matters Written Down
+
+### COMPLETED
+
+**Pulled** `f2c8870b` (the other agent's `ss.Callsign` fix) — clean fast-forward from `62f37cc6`.
+
+**Diagnosed the producer's model complaint** ("the shoulders look weird, the patch between the webbing
+and the waist is just a weird green") from the assets, the source scripts and the render. It is **not**
+a material-binding fault. `Crye_G3_Shirt_AMC_co.png` paints the G3 as a camo jacket over a plain olive
+under-shirt, and that under-shirt owns the whole torso, both forearms and the shoulder caps:
+
+- 53% of the sheet has no local detail, and the flat fill occupies luminance 73–86 where the real camo
+  on the same sheet spans 14–124.
+- The band in the capture (`Build/zoom_torso.png`) measures `rgb(60,57,35)` with a local std of **1.7** —
+  flat, not dark. Not a missing texture, not the 64×64 fallback, not the mannequin, not lighting.
+- The green patch, the smooth forearms and the shoulder seam are **the same pixels**: one cause, three
+  symptoms. No shirt variant avoids it; AMP/DPC/DPD are the same Arma base mesh.
+- The bones are **fine**: all 28 uniform arm bones and 18 vest arm bones resolve against Manny's
+  164-bone skeleton. Leader pose is not the fault. The real structural issue is that every part is
+  parented onto Lyra's mannequin, so the soldier can never own a bone.
+
+**Published `Docs/PLAYER_MODEL_PLAN.md`** — what the model is, the evidence for both complaints, the
+skeleton findings, an ordered plan (texture pipeline → own the skeleton → physics asset and LODs → the
+under-shirt decision), the producer decision on the body, six silent-failure traps, and the W1
+hand-off with the exact `FireDelayTimeSecs` values the other agent needs (A88 0.088, A89 0.080,
+A4/A416 0.070, A417 0.100; A25 needs a different ability, not a delay).
+
+**Cheapest certain win identified:** `max_texture_size = 2048` in `setup_adf_soldier.py:texture()` is
+halving every 4096² ADFRC sheet. That is most of "the textures look bad" on its own.
+
+### FILES CHANGED
+
+Created (all committed): `Docs/PLAYER_MODEL_PLAN.md`, `Tools/Textures/make_g3_shirt_camo.py`,
+`Tools/Unreal/probe_manny_bones.py`, `Tools/Unreal/probe_soldier_render.py`, this entry.
+Modified: `Docs/CHANGELOG.md` only.
+**Deliberately not committed:** `Art/Characters/Textures/T_SS_ADF_G3_Shirt_co.png` (13.8 MB) — the camo
+tool's output, wrong colours, bound to no material, regenerated in ~4 s. The project's other generated
+textures are committed because they are in use; this one is not.
+
+### TESTING
+
+`git pull --ff-only origin main` — clean fast-forward, no conflicts.
+`Tools/Unreal/probe_manny_bones.py` — run headless, 164 bones read from
+`Skeleton.get_reference_pose().get_bone_names()`. Confirmed all 28 uniform and 18 vest arm bones
+present. `Build/probe_manny_bones.json`.
+`python Tools/Textures/make_g3_shirt_camo.py` — run, panel mask correct (36.6% of the sheet isolated),
+**pattern generator output rejected by the producer** on colour. Output not bound, no game change.
+**Build and `Automation RunTests SouthernSpear`: NOT RUN** — `f2c8870b` is pulled but not yet compiled
+on this machine.
+
+### ASSETS
+
+No new licensed material. The camo tool samples its palette from the ADFRC sheet already held under
+L-0021 and invents no new pattern (ADR-033). Nothing added to the asset register.
+
+### DEFECTS FOUND
+
+- `unreal.load_asset("/SSExp_ObjectiveAssault/…")` returns **None** in a `-run=pythonscript`
+  commandlet — the game-feature plugin is unmounted, so probes over the ADF parts read nothing and
+  still report success. A skeleton probe built on this reported 26 "bones" that were the characters of
+  an error string. Removed rather than left in the tree.
+- `Skeleton.get_reference_skeleton()` returns a **`str`** in UE 5.8 Python, not a bone-name array.
+  Working route recorded in `Docs/PLAYER_MODEL_PLAN.md` §6.
+- `verify_character_materials.py` calls `get_material_property_input_expression`, which does not exist
+  in 5.8, and reads textures with `get_material_default_texture_parameter_value`, which cannot see
+  graph-wired textures. It cannot gate anything. **NOT FIXED** — queued as P1.3 of the plan.
+
+### RISKS
+
+- **R-58 (new):** the soldier is welded to Lyra's mannequin skeleton. Every ADF part is imported onto
+  `/Game/Characters/Heroes/Mannequin/Meshes/SK_Mannequin`, so replacing Lyra's mannequin breaks all
+  five parts, and the soldier cannot take its own clavicle/pec/corrective bones. Not a present fault —
+  every bone resolves today — but it is the reason the model is hard to improve.
+- **R-59 (new):** the five soldier parts total 89,996 verts (23,187 uniform + 42,311 vest + 24,498
+  helmet) with **no LODs** and `create_physics_asset = False` on every import. The largest character
+  cost in the game, and invisible in a single front-end screenshot.
+
+### NEXT ACTION
+
+**Producer decision: what is the body?** The soldier is a Fab `Modern_Insurgent_7` head on an ADFRC G3
+body under ADFRC gear, with the arms belonging to neither — there is no single source of truth, which is
+why it reads as assembled rather than worn. Recommended: take the head from ADFRC too, so head, arms,
+torso and gear are one source. Then P1 of `Docs/PLAYER_MODEL_PLAN.md` (the 2048 texture cap, the 64×64
+fallback, and the broken material verifier).### ADDENDUM — build verified, P1.1 done, and a latent bug in the gear script
+
+**Build:** `Build.bat SouthernSpearEditor Win64 Development` → **Result: Succeeded**, 10 actions, covering
+the other agent's callsign fix and the new `USSWeaponStatsSubsystem` fire-rate code.
+
+**Tests:** `Automation RunTests SouthernSpear` → **57 found, 57 Success, 0 Fail, 0 NotRun, exit code 0**,
+no crash. `SouthernSpear.Network.Gameplay.TwoPlayerAuthoritySmoke`, which killed the run at 20 last
+time, **passes**. Re-run a second time after the content change below: still 57/57.
+
+**P1.1 — texture cap 2048 → 4096, applied.** `max_texture_size` in `setup_adf_soldier.py:texture()`
+was halving every ADFRC colour sheet, so `T_ADF_crye_g3_shirt_amc_co` and `T_ADF_crye_g3_pants_amc_co`
+(4096²) reached the screen at 1024². The cap can only downscale, so 4096 leaves the 1024 gloves and
+2048 normals alone. The report now proves it rather than claiming it: a `textures` block lists every
+texture's size beside the cap set on the asset, and `report["ok"]` fails if `textures_halved != 0`.
+**89 textures, 0 downscaled.** ~140 `.uasset` files re-saved, which is the fix, not churn — the cap
+lives on the texture assets.
+
+**DEFECT FOUND — `setup_adf_soldier.py` was never idempotent.** `EditorAssetLibrary.does_asset_exist()`
+returns **False** for `/SSExp_ObjectiveAssault/…` paths (the game-feature plugin is not mounted in a
+commandlet) while `unreal.load_asset()` and `find_asset_data()` both resolve them. So
+`load_asset(p) if does_asset_exist(p) else create_asset(p)` took the **create** branch for assets that
+already existed; `create_asset` returned `None` and the run died on the MAF uniform slots, leaving
+`Build/adf_soldier_setup.json` with an empty `maf_uniform_slots` — which `setup_soldiers.py` reads, so
+a re-run of that script would have stripped the MAF soldier's green uniform. Fixed in `material_for()`
+and `fabric_master()` by branching on `load_asset()` returning `None`. The script now runs to
+completion: `ok: true`, 0 errors, all 31 material slots bound, `maf_uniform_slots` back to 4.
+`Build/` is gitignored, so the report could not be restored from git — it was regenerated.
+
+**Measured for P1.2:** 4 of the soldier's 31 material slots are flat 64×64 colour slabs —
+`safariland` (multicam → flat coyote) and the MAF `belt`, `tacgear` and `pasgt` (flat olive). The
+report's `note` field names them, so the evidence for deleting the fallback already exists.
+
+### NEXT ACTION (Session 051 addendum)
+
+**P1.2 — delete the 64×64 flat fallback** in `setup_adf_soldier.py` and make an unbound `BaseColorMap`
+an error, so a failed texture lookup can never again look like a finished garment. Then P1.3, the
+broken `verify_character_materials.py`. The producer's body decision (§5 of the plan) is still open and
+gates P2.
+
+---
+
+## Session 052 — 2026-09-28 — W1 Finished In Code (Fire Rate, Semi-Auto), W2 Grip Sockets From The ADFRC Poses
+
+### COMPLETED
+
+- **W1 rate of fire** (commit 72b374ad): `USSWeaponStatsSubsystem::ApplyFireRate` sets each weapon's own
+  fire-ability instance `FireDelayTimeSecs` = 60 / rpm. The variable and its shared default (0.120 s on
+  `GA_Weapon_Fire_C`) come from the producer's probe run (`PLAYER_MODEL_PLAN.md` §7).
+- **W1 semi-auto** (commit fe27ff23): `setup_weapons.py` gives the A25 an `AbilitySet_SS_A25_Semi` with Lyra's
+  pistol fire ability in place of the rifle's auto one. The A9 is already pistol-based.
+- **W2 grip sockets:** `Tools/Common/adfrc_grip.py` (pure Python) rebuilds each handAnim pose's bone transforms and
+  expresses both wrists in the `weapon` bone's space. It calibrates the axis map to the converted MLOD from the
+  weapon's own `trigger_axis` and `muzzle_pos` (48 candidates, A3OB's (x, z, y) preferred on a tie), and refuses
+  a pose that doesn't fit. `Tools/Blender/adfrc_weapon.py` carries the two points through the same transforms as
+  the mesh and exports `SOCKET_LeftHandGrip` / `SOCKET_RightHandGrip`, recording the fit in `manifest.json → grip`.
+  `Tools/build_adfrc_weapons.py` maps each weapon to its pose: A88 EF88_Vg_static, A88G AUG_GL, A4
+  ar15_8in_cgrip_static, A416 hk416_cgrip_static, A25 ar15_10in_cgrip_static, A89 Minimi_Standard.
+
+### FILES CHANGED
+
+`Tools/Common/adfrc_grip.py` (new), `Tools/Common/test_adfrc_grip.py` (new), `Tools/Blender/adfrc_weapon.py`,
+`Tools/build_adfrc_weapons.py`, `Docs/WEAPONS_ANIMATION_PLAN.md`, `Docs/CHANGELOG.md`. (Also this session:
+`SSWeaponStatsSubsystem.h/.cpp`, `SSWeaponStats.h`, `Config/DefaultGame.ini`, `Tools/Unreal/setup_weapons.py`,
+already pushed in 72b374ad and fe27ff23.)
+
+### TESTING
+
+- `python Tools/Common/test_adfrc_grip.py`: **exit 0**, 16/16 PASS. A synthetic rig (weapon bone rotated 35° and
+  offset) recovers both wrists exactly in weapon space and picks the A3OB map (right hand 0.022 m from the
+  trigger, left hand 0.048 m off the bore). It refuses a pose 1.7 m out, and every mapped clip is in the committed
+  `ASSET_MANIFEST.json`.
+- `python Tools/validate_architecture.py`: **exit 0**. Both Python scripts parse.
+- **NOT RUN (needs the producer's machine):** `python Tools/build_adfrc_weapons.py` on the real MLODs and clips,
+  so `grip.fit`, the right-hand-to-trigger distances and the sockets are unmeasured. Also not run: `setup_weapons.py`
+  (sockets import with the FBX; semi-auto A25), the build, and the in-game checks of W1.
+
+### ASSETS
+
+No asset files; the weapon FBXs are regenerated on the producer's machine (ADFRC, L-0021, ADR-035).
+
+### RISKS
+
+- **R-62 (open, medium):** W2 assumes the weapon model's origin sits on the Arma `weapon` bone. If Arma places the
+  proxy with an extra offset or rotation, the calibration won't fit and the weapon gets no sockets, and says so.
+  It fails loud, not wrong. The first real run tells.
+- **R-63 (open, low):** the A25's semi-auto swap uses Lyra's pistol fire ability, whose third-person fire montage
+  was made for a pistol. Check it looks right on a rifle.
+
+### DEFECTS FOUND
+
+- My probe script listed only four weapons (A88, A89, A25, A9), which is why the producer's probe report said
+  A4/A416/A417 were "absent". It was not a data gap. Noted rather than re-run: the rows exist and the subsystem
+  reads them by item name.
+
+### NEXT ACTION
+
+**On the producer's machine:** run `python Tools/build_adfrc_weapons.py`, then `Tools/Unreal/setup_weapons.py`, then
+build and test. Read each `Art/Weapons/<NAME>/ADFRC/manifest.json → grip` (`fit`, `right_hand_to_trigger_m`) and
+send them to me. Also check in game that the A89 shows 200/200, the A25 fires one shot per press, and the
+`LogSSWeaponStats` rpm lines print.
+
+---
+
+
+## Session 053 — 2026-09-28 — The "Asset Does Not Exist" Trap Swept Out Of Every Plugin Script
+
+### COMPLETED
+
+- The producer's agent (fec930c1) found that `EditorAssetLibrary.does_asset_exist()` answers False for
+  `/SSExp_ObjectiveAssault/...` assets in a commandlet while `load_asset()` resolves them. So a
+  load-if-exists-else-create script tries to create an existing asset, and the run dies part-way. It fixed
+  `setup_adf_soldier.py` and asked for a sweep of the rest.
+- New `Tools/Unreal/ss_assets.py`: `asset_exists(path)` = `does_asset_exist(path)`, then `load_asset(path) is not
+  None` (the check proven on the producer's machine). Every `does_asset_exist` call in the 15 scripts that write
+  under a plugin mount (`/SSExp_ObjectiveAssault`, `/SouthernSpearUI`) now uses it: 31 calls. Scripts that only touch
+  `/Game` are unchanged.
+- This matters now because `setup_weapons.py`, the next script the producer runs (Session 052), had 7 such checks.
+  Among them are the new `AbilitySet_SS_A25_Semi` copy and the `B_SS_*_Weapon` delete-then-create.
+
+### FILES CHANGED
+
+`Tools/Unreal/ss_assets.py` (new); `setup_weapons.py`, `setup_ui.py`, `setup_maf_weapons.py`, `setup_flags.py`,
+`setup_objective_assault.py`, `setup_damage_model.py`, `setup_tactical_movement.py`, `setup_fp_arms.py`,
+`setup_fonts.py`, `setup_soldiers.py`, `setup_character_textures.py`, `upgrade_weapon_materials.py`,
+`build_objective_map.py`, `fix_visual_regressions.py`, `setup_adf_soldier.py` (all `Tools/Unreal/`);
+`Docs/CHANGELOG.md`.
+
+### TESTING
+
+- `python3 -m py_compile` on every `Tools/Unreal/*.py`: **exit 0**, all parse.
+- `asset_exists` with a stub `unreal` module in which the registry misses an on-disk plugin asset: **True** for
+  that asset, **False** for a missing one.
+- `python Tools/validate_architecture.py`: **exit 0**, PASS.
+- **NOT RUN (needs the producer's machine):** any of the 15 scripts in Unreal. The first real check is the
+  Session 052 run of `setup_weapons.py`.
+
+### ASSETS
+
+None.
+
+### RISKS
+
+No new risks. A missing asset now also costs one `load_asset` miss, which may log a "failed to find"
+warning on a first run. That is harmless.
+
+### DEFECTS FOUND
+
+- Latent in 14 more scripts: the same misleading existence check the producer's agent found in
+  `setup_adf_soldier.py`. Found by grep after its report. None had failed yet, because each had only ever
+  run once, or the registry happened to know the asset.
+
+### NEXT ACTION
+
+Unchanged from Session 052. **On the producer's machine:** run `python Tools/build_adfrc_weapons.py`, then
+`Tools/Unreal/setup_weapons.py`, then build and test. Send each `Art/Weapons/<NAME>/ADFRC/manifest.json → grip`,
+and check in game: A89 200/200, A25 one shot per press, and the `LogSSWeaponStats` rpm lines.
+
+### ADDENDUM — weapons pipeline run: the grip fit produced nothing, and setup_weapons.py has its own blocker
+
+**Ran `python Tools/build_adfrc_weapons.py`. All seven weapons built, but the grip fit failed on
+every one of them**, so there are no grip numbers to send:
+
+| Weapon | `fit` | `reason` | clip |
+|---|---|---|---|
+| A88, A4, A416, A25, A89 | `false` | no axis map puts the left hand on the barrel ahead of the trigger | per-weapon |
+| A88G | `false` | pose has no bone(s): lefthand, righthand | `AUG_GL` |
+| A9 | *(no grip key at all)* | — | — |
+
+The same reason on five different rifles means the axis-map heuristic never produces a mapping, not
+that five weapons are awkward. A88G's pose clip has no hand bones at all. The A9 was not attempted.
+**W2 is blocked at its first step: the manifests carry no grip data.** `fit` and `right_hand_to_trigger_m`
+cannot be sent because they do not exist.
+
+**Ran `Tools/Unreal/setup_weapons.py`: it fails on the first weapon**, before any grip code, and this is
+independent of the above. `visual_blueprint()` deletes `B_SS_A88_Weapon` and immediately recreates it;
+`eal.delete_asset()` does **not** remove the blueprint in this commandlet — the file is still on disk
+after the delete — so `create_asset()` returns `None` for a name that is still taken. The `None` then
+reached `k2_gather_subobject_data_for_blueprint()`, which returned an empty array, and `handles[0]` died
+with an opaque `IndexError`.
+
+Ruled out by direct probe (`Build/probe_weapon_bp_parent.json`), so the next attempt need not repeat them:
+it is **not** the game-feature plugin being unmounted (a blueprint created in the plugin path and one in
+`/Game` both report 2 subobjects), **not** delete-then-recreate (2 subobjects after), and **not** the
+parent class (it resolves: `/ShooterCore/Weapons/Rifle/B_Rifle.B_Rifle_C`, 2 subobjects from a fresh
+blueprint). The one difference is that the real run deletes an asset that is genuinely there.
+
+Fix applied here, minimally: compile the blueprint before gathering subobjects, check the delete actually
+took, check `create_asset` returned something, and never index `handles[0]` unchecked. **The script still
+cannot complete** — the delete behaviour needs a real fix (build in place, or delete through a route that
+works headlessly). The half-finished weapon assets were restored with `git checkout`; only the intended
+FBX and manifest output of `build_adfrc_weapons.py` is left modified.
+
+**Build and tests on `a99a8692`:** `Target is up to date`. `validate_architecture.py` → PASS, no
+violations. `Automation RunTests SouthernSpear` → **57 found, 57 Success, 0 Fail, exit code 0, no crash.**
+
+**Body decided — ADR-036.** The ADFRC G3 is the body: head, arms, torso and gear from one pack, Fab
+`Modern_Insurgent_7/SK_Head` off the friendly soldier, `SKM_QuantumCharacter` retired as a candidate. This
+unblocks P2. NOT DONE: the head swap itself, which needs an ADFRC head in `Art/Characters/ADF/` first.
+
+### NEXT ACTION (Session 054 addendum)
+
+**On the other agent: the grip fit.** The axis map never fits on any rifle, so that is a code fix, not a
+data problem. **Still needs a human: the live match** (A89 shows 200/200, the A25 fires one shot per
+press with 20 rounds, `LogSSWeaponStats` prints the rpm lines) — none of that can be checked headlessly.
+
+## Session 055 — 2026-09-28 — Both Session 054 Blockers Fixed: Weapon Blueprint Built In Place, Grip Fit Tries Arma's Skeleton
+
+### COMPLETED
+
+- **`setup_weapons.py` no longer deletes the weapon blueprint.** `visual_blueprint()` loads an existing
+  `B_SS_<W>_Weapon` and updates its `SSVisual` component (mesh, +90° yaw, no collision). It adds the component only
+  when it is missing, and creates the blueprint only when there is none. The Session 054 guards stay in place:
+  compile before the gather, and fail loudly on a missing parent class, a failed create or empty handles. The
+  report says `created: True/False` per weapon.
+- **Grip fit, with three causes found by reading the decoded pose data in `ASSET_MANIFEST.json` and
+  `rtm_rigs.py`:**
+  1. **A88G:** `AUG_GL`'s rig uses capitalised names (`LeftHand`, `RightHand`) and the lookup was
+     case-sensitive. Bones are now matched case-insensitively.
+  2. **Every rifle (probable):** `rtm_rigs.py` parents `weapon` to `righthand` by a naming rule. The clips list
+     their bones in Arma's own skeleton order (`pelvis, spine…spine3, camera, weapon, launcher, neck…`). In
+     Arma's `OFP2_ManSkeleton` (from memory, not from a file in the repo), `weapon` and `launcher` are children of
+     `Spine1` and `Camera` of `Pelvis`. Composing a Spine1-relative weapon bone under the hand puts it somewhere
+     meaningless, and no axis map can fit that. `adfrc_grip.py` now tries both hierarchies (`arma` first, then
+     `decoded`) and reports which one fits.
+  3. **No numbers on failure:** a refusal said only why. It now carries the hand span, the trigger-to-muzzle
+     length, the nearest failing axis map with its distances, and each hierarchy's hands in weapon space.
+     The trigger and muzzle memory points are included too. One failed run now diagnoses itself.
+- `python Tools/Common/adfrc_grip.py --export Docs/evidence/w2_grip_clips` copies each grip clip's first frame and
+  its rig into small JSONs. It prints both hierarchies' hand positions. Committed, these let the maths be checked
+  without the git-ignored `Animations/` tree.
+
+### FILES CHANGED
+
+`Tools/Unreal/setup_weapons.py`, `Tools/Common/adfrc_grip.py`, `Tools/Common/test_adfrc_grip.py`, `Docs/CHANGELOG.md`
+(also fixes the Session 054 addendum heading, which had been joined onto the previous line).
+
+### TESTING
+
+- `python Tools/Common/test_adfrc_grip.py`: **exit 0, 23/23 PASS** (16 before). New checks:
+  - the `arma` hierarchy re-parents `weapon` to `Spine1`;
+  - capitalised bone names resolve;
+  - on a synthetic rig stored Spine1-relative with the decoder's `weapon -> RightHand` parents, `grip_points`
+    picks `arma` and reports the failed `decoded` attempt with its numbers;
+  - a refusal carries the hand span and barrel length.
+- `python3 -m py_compile` on `setup_weapons.py`, `adfrc_weapon.py` and `adfrc_grip.py`: exit 0.
+  `python Tools/validate_architecture.py`: exit 0, PASS.
+- **NOT RUN (the producer's machine):** `build_adfrc_weapons.py` on the real clips, and whether the Arma hierarchy
+  is the actual cause. It is the probable one, not a proven one. Also not run: `setup_weapons.py` in Unreal,
+  including `SubobjectDataBlueprintFunctionLibrary.get_variable_name`, which is used here for the first time.
+
+### ASSETS
+
+None. The `--export` JSONs are ADFRC pose data (L-0021, ADR-035) once committed.
+
+### RISKS
+
+- R-62 (W2 assumes the weapon model's origin sits on the `weapon` bone) still stands. If both hierarchies fail
+  with the full report, R-62 is the next suspect, and the exported clips let it be checked here.
+
+### DEFECTS FOUND
+
+- Case-sensitive bone lookup (A88G). Found by reading the rig bone lists in `ASSET_MANIFEST.json`.
+- The pose maths trusted `rtm_rigs.py`'s rule hierarchy for the attachment bones. Found by comparing each clip's
+  bone order with Arma's skeleton order.
+- A refused fit reported no numbers, so a 7/7 failure could not be diagnosed remotely. Found by the producer's
+  run.
+- `setup_weapons.py` deleted and re-created the blueprint, which cannot work when the delete silently fails.
+  Found by the producer's agent (Session 054 addendum). Fixed by building in place.
+
+### NEXT ACTION
+
+**On the producer's machine:**
+1. Pull.
+2. Run `python Tools/build_adfrc_weapons.py`, then `python Tools/Common/adfrc_grip.py --export
+   Docs/evidence/w2_grip_clips`, and commit that folder along with the seven `manifest.json` files.
+3. Run `Tools/Unreal/setup_weapons.py`, then build and test.
+4. Report each `manifest.json → grip`: `fit`, `hierarchy`, `right_hand_to_trigger_m` or `attempts`. Also report
+   whether `setup_weapons.py` completes with `ok: true`.
+### ADDENDUM — Quantum modular character assessed (ADR-037): good modules, blocked toolchain
+
+The producer asked whether the main player model could pivot to the Quantum **modular** character.
+**ADR-036 was wrong on the fact it decided on**, and ADR-037 withdraws that point.
+
+`Content/QuantumCharacter/Mesh/Modules/` is a genuinely modular set — eight separate meshes, one or two
+clean slots each: `SKM_Head` (5), `SKM_Arms`, `SKM_Shirt_RolledUp_Blue`, `SKM_Jeans`,
+`SKM_Bulletproof_Bege`, `SKM_Holster_Hard_Bege` (2), `SKM_Drops_1_Bege`, `SKM_Patch_Back`. Each ships a
+physics asset, the eight total 27 MB against 22 MB for the three ADF parts, and the pack has its own
+locomotion set. That is Lyra's character-parts shape, and it gives the head from the same pack as the
+body — which is what ADR-036 wanted. ADR-036 retired the *assembled* mesh on its 14 tangled slots and
+nobody had looked at `Modules/`.
+
+**The catch is the skeleton.** `SK_Military_Character_Skeleton` has **351 bones**: 159 shared with
+Manny's 164, **192 Quantum-only** (fingers, toes, face). Not leader-pose compatible.
+
+**The prototype the producer authorised — modules on Manny, ADF camo on shirt and jeans — is blocked on
+tooling.** All three routes fail:
+
+- **No source meshes.** The pack ships **230 `.uasset`, zero FBX/OBJ**, so the Blender re-rig route
+  that produced the ADFRC gear cannot be repeated.
+- **No reparameterise API** in UE 5.8 Python. Checked `SkeletalMeshTools`, `SkeletalMeshEditorSubsystem`,
+  `AnimationLibrary`, `EditorSkeletalMeshLibrary`, `SkeletalMeshUtilitiesLibrary` — none exposes it.
+- **`SkeletalMeshExporterFBX` crashes the editor**: hard assert `MeshObject`
+  (`SkinnedMeshComponent.cpp:4987`) inside `MeshMergeUtilities`, killing the commandlet with no Python
+  traceback. Reproduced **with and without `-nullrhi`**, so not a headless artefact.
+
+**The only route that needs no re-export is to adopt the 351-bone skeleton itself** and use the modules
+unmodified with our own ABP — the larger risk §P2 already flagged, and not what was authorised. Left
+undecided for the producer. No committed file changed by this investigation; the probe scripts were
+removed and the tree is clean.
+
+### NEXT ACTION (Session 055 addendum)
+
+**Producer decision: re-scope the Quantum pivot to the 351-bone skeleton, or leave it held open.** It is
+the only path that works with today's toolchain. If held open, the fallback is a UE bug report for
+`SkeletalMeshExporterFBX` on high-bone-count meshes, since a working export is what unblocks the cheap
+Manny prototype.### ADDENDUM — weapons pipeline run on `63bd2089`: setup_weapons now completes, but the grip fit is still 0 of 7 — and the exported clips disprove the Spine1 theory
+
+**`Tools/Unreal/setup_weapons.py`: `ok: true`, 36 steps, 0 errors.** The in-place blueprint fix works;
+the delete that could never take is gone. (The first attempt reported `could not create
+B_SS_A88_Weapon` — that was my own fault, a 30-second timeout killing the commandlet mid-run. Re-run
+properly, it completes.)
+
+**Grip fit: still 0 of 7.** The improved diagnostics are what make this useful, and the eight exported
+clips (`Docs/evidence/w2_grip_clips/`, committed) settle the cause:
+
+1. **The `arma`/`Spine1` hierarchy is contradicted by the clips themselves.** Every one of the eight
+   exported clips carries a `parents` array, and in **all eight** `weapon`'s parent is the right hand
+   (`righthand`, or `RightHand` in the two AUG clips). `spine1` is index 2. The attachment does not need
+   recalling from memory — each file states it. The "arma" attempt parents the weapon to a bone these
+   files say it is not on.
+2. **The right hand carries no per-weapon information, which is why the search rejects everything.**
+   The `decoded` right hand is byte-identical across all five rifles at `[-0.9651, 0.2163, -0.44]`. In
+   the raw clip data the cause is visible: `righthand`'s frame is identical across the five clips that
+   share a stance — `ar15_10in`, `ar15_8in`, `hk416`, `hk417` all carry
+   `q = [-0.179498, -0.05286, -0.018…]`, and the root is identical too. Only `lefthand` varies per
+   weapon. Arma's rifle clips share one authored stance and vary only the support hand, so any test
+   leaning on the right hand accepts or rejects all weapons identically — and parenting the weapon to
+   that same hand makes its weapon-space position degenerate by construction.
+3. **The left hand, the only per-weapon signal, is ~1.3–1.5 m forward of the weapon origin** in every
+   clip — beyond the muzzle on weapons 0.4–0.7 m long (`barrel_m` 0.399–0.6855). Whatever the
+   attachment question, the pose frame or its units are wrong independently of it.
+4. `A88G` is a different rig: hand span **1.13 m**, and a distinct right hand. It is not a two-handed
+   rifle hold in the same sense as the others.
+
+**Build and tests on `7a086366`:** `Result: Succeeded`. `Automation RunTests SouthernSpear` → **57 found,
+57 Success, 0 Fail, exit 0, no crash.** `python Tools/Common/test_adfrc_grip.py` → **exit 0, 23/23 PASS.**
+
+**NOT DONE, still needs a person playing:** the live match — A89 shows 200/200, the A25 fires one shot
+per press with 20 rounds, `LogSSWeaponStats` prints the rpm lines.
+
+### NEXT ACTION (Session 056 addendum)
+
+**On the other agent: the grip maths, from the committed clips.** The Spine1 hierarchy is refuted by
+`parents[weapon]` in every file; drop it or re-derive it from the data. And key the fit off the **left**
+hand and the weapon transform, because the right hand is identical across clips sharing a stance and
+cannot discriminate. The left hand's ~1.4 m forward offset is the next thing to explain.
+
+## Session 057 — 2026-09-28 — W2 Grip Fit: 6 Of 6, Once The Pose Data Is Read The Way It Was Written
+
+### COMPLETED
+
+- **The committed clips (`Docs/evidence/w2_grip_clips`, Session 056 addendum) showed what the decoded
+  pose data holds.** Neither my Spine1 theory nor the addendum's "constant right hand" reading was the
+  root cause:
+  1. **The stored transforms are not bone offsets.** In a parent-relative skeleton a child's offset is its
+     bone length, pose-independent. `lefthand`'s ranges 0.08–0.42 m across clips of one rig.
+  2. **Each bone's transform is a rotation about its own rest joint, relative to its parent.** Every arm
+     bone's transform has one fixed point, the same in every clip: its rest joint. Solving
+     `(I − R)·x = p` over the eight clips gives:
+     - wrists at x = ±0.587 m, mirror-symmetric;
+     - elbows at ±0.37 m and shoulders at ±0.064 m;
+     - feet about 0.9 m below the origin.
+
+     The residual is under 1 mm. That's Arma's rest skeleton, recovered from the animation data.
+  3. **The quaternion handedness is wrong in the decoded files.** Rotations must be read as `(−x, −y, z, w)`.
+     A search over all 96 sign and order variants found this as the only reading that makes the fixed
+     points consistent. The summed residual over ten arm joints falls from 1.04 m as stored to under
+     0.001 m.
+  4. **`weapon` hangs off the body.** Its transform is identical in every rifle clip, because the arms move
+     to it. Under the body, the right wrist lands at the same place in weapon space in every clip (1–4 cm)
+     and the left wrist moves forward along one axis. The addendum's point 1 (the file's `parents` array says
+     `righthand`) reads the decoder's own naming rule back (`rtm_rigs.py` `link("weapon", "righthand")`),
+     so it isn't Arma's data.
+- **The posed skeleton now looks right.** Shoulders are at 1.35 m and the neck at 1.40 m, with both wrists
+  in front at chest height. Wrist-to-wrist spans run from the EF88 bullpup at 0.24 m to the AR-15 10-inch at
+  0.35 m. The 8-inch and 10-inch rails differ by 3.7 cm, and the rails differ by 2 inches (5 cm).
+- **`Tools/Common/adfrc_grip.py` rewritten on that model.**
+  - Rotations are read as `(−x, −y, z, w)`.
+  - Transforms are composed down the hierarchy with `weapon` under `Spine1`.
+  - Each wrist is placed as its rest joint (`REST_JOINTS`, reproducible with `--solve-rest`) carried by its
+    posed transform.
+  - The hands are expressed in the weapon's frame and mapped to the MLOD by the one proper rotation between
+    rest space (x left, −y forward, z up) and the model (barrel axis, z up). The 48-map search, which could
+    choose reflections, is gone.
+  - The weapon's rest placement (its proxy) is not in the clips. So the right wrist is anchored at
+    `trigger_axis` and the left wrist placed relative to it. The fit test is that the left wrist lands on
+    the barrel: ahead of the trigger, short of the muzzle, within 0.15 m of the bore.
+  - `load_clip` falls back to the committed evidence when the Animations/ tree isn't present.
+
+**Result on the real clips and manifests:**
+
+| Weapon | Pose | Span | Left wrist forward | To bore |
+|---|---|---|---|---|
+| A88 | EF88_Vg | 0.242 | 0.219 m | 0.103 |
+| A88G | AUG_GL | 0.293 | 0.277 m | 0.095 |
+| A4 | ar15_8in | 0.311 | 0.293 m | 0.105 |
+| A416 | hk416 | 0.338 | 0.319 m | 0.113 |
+| A25 | ar15_10in | 0.349 | 0.332 m | 0.106 |
+| A89 | Minimi | 0.301 | 0.293 m | 0.070 |
+
+The left wrist sits 6–9 cm to the left of the bore, which is where a left wrist sits beside a handguard.
+
+### FILES CHANGED
+
+`Tools/Common/adfrc_grip.py`, `Tools/Common/test_adfrc_grip.py`, `Docs/WEAPONS_ANIMATION_PLAN.md`,
+`Docs/PROJECT_AUDIT.md` (R-32 note), `Docs/CHANGELOG.md`.
+
+### TESTING
+
+- `python Tools/Common/test_adfrc_grip.py`: **exit 0, 24/24 PASS.**
+  - Synthetic: rest joints recovered exactly; the weapon composes under Spine1; the decoder's hierarchy gives
+    a different answer; the rest-to-MLOD rotation is proper (det +1) with forward down the barrel on three
+    axis layouts; a left wrist behind the trigger is refused.
+  - Real data: rest joints reproduced from the committed clips (rms 0.8 mm and 0.25 mm), mirror symmetry,
+    **all six weapons fit** on their committed `trigger_mlod`/`muzzle_mlod`, the 8-inch span is shorter than
+    the 10-inch, and every clip is in the manifest.
+- `python Tools/Common/adfrc_grip.py --solve-rest`: lefthand [0.5872, 0.0743, 0.0665] rms 0.00081 m, righthand
+  [−0.5858, 0.0744, 0.0659] rms 0.00025 m.
+- **NOT RUN (the producer's machine):** `build_adfrc_weapons.py` with the new module (sockets written into the
+  FBX), `setup_weapons.py`, the build, and left-hand IK in game. The sockets' absolute position in the hand
+  (the trigger anchor) is unverified; their spacing is what the pose measures.
+
+### ASSETS
+
+None.
+
+### RISKS
+
+- **R-64 (open, high):** the decoded animation tree (`Animations/Rig/*`) and anything built from it inherit
+  two errors: the quaternion handedness, and the claim that BMTR transforms are parent-relative bone offsets.
+  This includes the `Animations_UE` FBX clips and any retarget (W5 `GestureReloadAUG`, R-32). Fix it in
+  `rtm_rigs.py` / `anim_to_fbx.py` before any Arma clip is retargeted, and check it with the same fixed-point
+  test.
+- **R-32 (update):** the Arma rest joint *positions* are recoverable from the clips themselves (fixed points,
+  under 1 mm), so `SkeletonPivots.p3d` may not be needed for positions. Rest *orientations* are still
+  unmeasured. Left OPEN.
+- **R-62 (resolved by design):** W2 no longer assumes the model's origin is on the `weapon` bone. It anchors
+  the right wrist at `trigger_axis` instead.
+
+### DEFECTS FOUND
+
+- The quaternion handedness in the decoded clips, and the parent-relative interpretation in `rtm_rigs.py`.
+  Found by the fixed-point consistency test on the committed evidence.
+- My Session 055 fix (the Spine1 re-parenting) was right about the parent but insufficient: it still read
+  the transforms as bone offsets with the wrong handedness. Found by the producer's run (0 of 7 again) and
+  the evidence it committed.
+
+### NEXT ACTION
+
+**On the producer's machine:**
+1. Pull.
+2. Run `python Tools/build_adfrc_weapons.py` and check each `manifest.json → grip.fit`. Expect `true` for A88,
+   A88G, A4, A416, A25 and A89.
+3. Run `Tools/Unreal/setup_weapons.py`, confirm `SOCKET_LeftHandGrip`/`SOCKET_RightHandGrip` exist on each
+   `SM_*` mesh, then build and test.### ADDENDUM — grip fit confirmed 6 of 6 on real data; A25 semi-auto was working all along; ADR-038 corrects ADR-037
+
+**Grip fit, real data: 6 of 6 `fit: true`.** A88 0.2418 · A88G 0.2929 · A4 0.3113 · A416 0.3381 ·
+A25 0.3486 · A89 0.3013 m hand span — matching the published table. `Tools/Common/test_adfrc_grip.py`:
+**0 failures** (24 checks). `setup_weapons.py`: **ok true**, 36 steps, 0 errors, each weapon mesh carries
+its left- and right-hand grip points.
+
+**`A25:semi_auto` was reported failing but was already correct.** The step said "0 set(s) now fire
+..._Pistol_C". Reading the granted abilities directly: the A25's equipment definition grants
+`GA_Weapon_Fire_Pistol_C` through its own `AbilitySet_SS_A25_Semi` — the semi-auto fire ability **is**
+in place. The step could never report success twice: it only acts on sets that still contain
+`GA_Weapon_Fire_Rifle_Auto`, so after the first successful swap there is nothing left to replace,
+`swapped` stays 0, and `ok = swapped > 0` is false on every subsequent run. **Fixed** to accept the end
+state ("already correct") as success, and the report now distinguishes swapped-this-run from
+already-correct. `setup_weapons.py` is **ok: true, 36 steps, 0 errors** after the fix.
+
+**Build and tests on `41348693`:** `Result: Succeeded`. Automation: **57 found, 57 Success, 0 Fail,
+exit 0, no crash.**
+
+**ADR-038 — I was wrong about leader pose, and the producer was right.** ADR-037 recorded the Quantum
+modules as "not leader-pose compatible" and the pivot as blocked. `SetLeaderPoseComponent` matches bones
+**by name**; child bones with no counterpart in the leader are simply not driven and hold their
+reference pose. My probe asked "does the child have bones the leader lacks" (192 of 351) and treated the
+answer as "unusable", which is not the test. Leader pose would drive the **159 shared bones and leave
+192 static**, and the mesh renders fine. The genuine cost is the one identified independently: straight
+fingers on a rifle. The `IKRetargeter` route also needs no export. **Neither route has been run.**
+
+**The three new candidate bodies, measured in Blender (`Build/probe_candidate_bodies.json`):** all three
+are in the Fab library cache as **source files** (FBX/GLB), which is the one thing better than Quantum.
+None is better or easier than what we have:
+
+| | Rig | Bones | Verts | Slots | Textures | Manny-compatible |
+|---|---|---|---|---|---|---|
+| Free Pack – Male Base Mesh (FBX) | **none** | 0 | 4,395 | 1 | **none** | n/a |
+| FSB Operator (GLB) | Mixamo | 52 | 108,616 | 41 | yes | **0/52** |
+| SWAT Operator (GLB) | Mixamo | 51 | 57,761 | 34 | yes | **0/51** |
+
+The Male Base Mesh is the **worst** of the three, not the easiest: no armature and no textures, so a rig
+would have to be built from nothing. FSB is the heaviest. SWAT is the best of the three and still not
+good enough — 34 slots, no modularity, the same straight-finger problem, and its materials reference
+**KSVR**, a real Russian camouflage brand, which is an accuracy problem for the main player model as well
+as a trademark one under R-57.
+
+### NEXT ACTION (Session 057 addendum)
+
+**Prototype the Quantum modules on the leader (fast, straight fingers) or on an IKRetargeter (slower,
+articulated hands), in camo, beside the current soldier** — that is the one comparison that settles
+ADR-036, and the producer's own recommendation is not to switch on paper. The new packs are assessed
+and none of them displaces Quantum.
+
+---
+
+## Session 058 — 2026-09-28 — W2 Finished In Code: The Left Hand Goes To The Grip Socket, First And Third Person
+
+### COMPLETED
+
+- **`USSHandIKMeshComponent`** (`Plugins/SouthernSpearLyraBridge`, the one module allowed to touch Lyra): a
+  skeletal mesh component that puts its left hand on the held weapon's `SOCKET_LeftHandGrip` (Session 057).
+  - **Where it runs.** It overrides `FinalizeBoneTransform`: after each animation evaluation, before the pose
+    is published, it runs a two-bone IK on the left arm in component space. Everything that follows the mesh
+    by leader pose reads that published pose, including the visible 3 ACR / MAF soldier parts and the
+    physics bodies. **No Lyra asset changes and no Animation Blueprint is needed**, which matters because
+    the repo has no headless route to author one.
+  - **Where the target comes from.** Each tick, before the evaluation, it finds the attached static mesh
+    that carries the grip socket. It stores that socket's transform relative to the socket or bone the
+    weapon hangs from; both come from the same (last) frame, so the offset is exact. After evaluation it
+    rebuilds the target from the new pose of that bone, so there is no frame lag.
+  - **The solve (`FSSHandIK::Apply`, pure, written here rather than calling the engine's).** The elbow
+    bends in the plane of the animated elbow. There is no stretching, and the hand stops at full reach.
+    The hand keeps its animated rotation, and twist bones and fingers are carried with their bones. The
+    effector blends by alpha.
+  - **When it switches off.** It fades out at 8 per second:
+    - while a montage named Reload, Equip, Holster, Draw or Inspect plays;
+    - while Lyra's `DisableLHandIK` curve is up;
+    - while ragdolled;
+    - when the target is beyond 1.05× the arm's length;
+    - when the weapon has no grip socket (the A9 pistol).
+    `ss.HandIK 0` turns it off for side-by-side comparison.
+  - **Bones** are found from candidate names, so one class serves Manny (`upperarm_l`, `lowerarm_l`,
+    `hand_l`) and the Fab first-person arms (`LeftArm`, `LeftForeArm`, `LeftHand`). It logs the chain it
+    found, or warns once and stays off.
+- **Wired in two places:**
+  - `ASSCharacter` swaps its body mesh class, as it already does for movement:
+    `SetDefaultSubobjectClass<USSHandIKMeshComponent>(ACharacter::MeshComponentName)`.
+  - `USSFirstPersonSubsystem` creates the first-person arms as the same class. `Play()` suppresses the IK
+    while a Draw, Holster or Reload clip plays, since those clips move the left hand themselves. The
+    subsystem's one-off grip measurement uses the left hand only in a log line, so it is unaffected.
+- A Python port of the solver was run on the test's own scenarios before handing over. The hand landed on
+  the target with error 0.0, bone lengths held to 1e-15, the finger and twist offsets were unchanged, full
+  reach was 57.462 cm against a 57.463 cm limit, and alpha 0.5 landed half-way.
+
+### FILES CHANGED
+
+`Plugins/SouthernSpearLyraBridge/Source/SouthernSpearLyraBridge/Public/SSHandIKMeshComponent.h` (new),
+`Private/SSHandIKMeshComponent.cpp` (new), `Private/Tests/SSHandIKTests.cpp` (new), `Private/SSCharacter.cpp`,
+`Private/SSFirstPersonSubsystem.cpp`; `CLAUDE.md` (test list); `Docs/WEAPONS_ANIMATION_PLAN.md`;
+`Docs/CHANGELOG.md`.
+
+### TESTING
+
+- `python Tools/validate_architecture.py`: **exit 0**, PASS.
+- New automation test `SouthernSpear.Bridge.HandIK.Solve`. It checks:
+  - the hand lands on a reachable target, and the shoulder stays fixed;
+  - both lengths are kept, and the hand keeps its rotation;
+  - the finger and twist bone are carried, and bones outside the arm are untouched;
+  - the elbow stays on the upper arm's axis and the wrist on the forearm's axis;
+  - an out-of-reach target stops at full reach, and alpha 0.5 lands half-way;
+  - alpha 0, a broken chain and mismatched parents are all refused and leave the pose unchanged.
+- Python port of `FSSHandIK::Apply` on those scenarios: all as expected (above).
+- **NOT RUN (the producer's machine):** the build (C++ written here, uncompiled). Also not run: the automation
+  suite (expect 58), and the in-game look in both views, including `LogSSHandIK` naming the chain for
+  `CharacterMesh0` and `SS_FirstPersonArms`.
+
+### ASSETS
+
+None.
+
+### RISKS
+
+- **R-65 (open, medium):** the IK relies on `FinalizeBoneTransform` being called with the new pose still in
+  the editable buffer. That is how `USkeletalMeshComponent` publishes a pose, but it is unverified here.
+  If the hand lags a frame or doesn't move, that is the place to look. The alternative is a post-process
+  Animation Blueprint on a copy of the mannequin mesh.
+- **R-66 (open, low):** the right wrist is anchored at `trigger_axis` (Session 057), so how deep the weapon
+  sits in the palm is an estimate. If the left hand looks consistently a few cm off on every weapon, adjust
+  the anchor once in `adfrc_grip.py`. The spacing between the hands is measured, not estimated.
+
+### DEFECTS FOUND
+
+None new.
+
+### NEXT ACTION
+
+**On the producer's machine:** build and run the tests (expect 58/58). Then, in a match, compare `ss.HandIK 1`
+against `ss.HandIK 0` with the A88 in both views (`-SSShotAt` captures). Also check the left hand leaves the
+grip for a reload and returns after it.
+
+---
+
+
+## Session 059 — 2026-09-28 — W3 Shell Ejection, And The Hand IK Was Looking For The Wrong Socket Name
+
+### COMPLETED
+
+- **Found and fixed a defect in Session 058's hand IK before it cost a build.** Unreal's FBX importer
+  strips the `SOCKET_` prefix from Blender empties: `SOCKET_Muzzle` arrives as `Muzzle`, which is the name
+  every existing lookup uses. The hand IK was looking for `SOCKET_LeftHandGrip`, which no imported mesh has,
+  so the left hand would never have moved. `USSHandIKMeshComponent::GripSockets` now tries `LeftHandGrip`,
+  then `SOCKET_LeftHandGrip`. `setup_weapons.py` now reports, per weapon, which of `Muzzle`, `LeftHandGrip`,
+  `RightHandGrip`, `Eject` and `EjectEnd` exist, so the next run proves the names.
+- **W3 shell ejection, first half:**
+  - **Sockets.** `Tools/Blender/adfrc_weapon.py` writes `SOCKET_Eject` at the ejection port
+    (`nabojnicestart`) and `SOCKET_EjectEnd` where the case is thrown (`nabojniceend`). Every committed weapon
+    manifest lists both memory points. Two sockets, not one rotated socket, so the throw direction survives
+    the FBX axis conversion. It is read at runtime as the direction between them. The manifest gets an
+    `eject` entry, or the reason there is none.
+  - **`USSShellEjectSubsystem`** (Lyra bridge, clients only; `ss.Casings 0` turns it off). On each rifle or
+    pistol fire cue, `ASSCharacter` asks it to throw one case. The pistol cue also covers the semi-auto A25,
+    which uses the pistol's fire ability.
+    - The case leaves the `Eject` socket towards `EjectEnd` at 2.5–3.8 m/s, with some lift, a little
+      rearward, and the shooter's own velocity.
+    - The local player's case comes from the first-person weapon (the only-owner-see view model); everyone
+      else's from the third-person one.
+    - It flies ballistically with light drag and spin. A line trace per moving case, per frame, bounces it
+      off the world at 35% restitution and 35% friction. It settles on its side and lies there for 30 s or
+      until its slot in the 48-case pool is reused.
+    - A case still in flight after 6 s (off the map) is dropped. The step is capped at 1/30 s so a long
+      frame can't tunnel a case through the floor.
+    - Presentation only (ADR-004): no collision, no gameplay effect.
+  - **The case** is the engine cylinder in a brass tint (`BasicShapeMaterial` with its `Color` parameter),
+    sized per calibre from the mesh name: 5.56×45 by default, 7.62×51 for the A25/A417, 9×19 for the A9,
+    and 7.62×39 for the MAF weapons. No new asset.
+  - A weapon without the sockets throws nothing; there is no guessed port.
+
+### FILES CHANGED
+
+`Tools/Blender/adfrc_weapon.py`, `Tools/Unreal/setup_weapons.py`;
+`Plugins/SouthernSpearLyraBridge/Source/SouthernSpearLyraBridge/Public/SSShellEjectSubsystem.h` (new),
+`Private/SSShellEjectSubsystem.cpp` (new), `Private/Tests/SSCasingTests.cpp` (new), `Private/SSCharacter.cpp`,
+`Public/SSHandIKMeshComponent.h`, `Private/SSHandIKMeshComponent.cpp`; `CLAUDE.md`;
+`Docs/WEAPONS_ANIMATION_PLAN.md`; `Docs/CHANGELOG.md`.
+
+### TESTING
+
+- `python Tools/validate_architecture.py`: **exit 0**, PASS.
+- `python3 -m py_compile Tools/Blender/adfrc_weapon.py Tools/Unreal/setup_weapons.py`: exit 0.
+- New automation tests:
+  - `SouthernSpear.Bridge.Casings.Motion`: gravity, a floor bounce (105 up, 65 along, spin 12), a slow
+    case resting, and a case thrown from 1.4 m resting within 3 s after at least 2 bounces, 1–4 m out.
+  - `SouthernSpear.Bridge.Casings.Calibre`: mesh name to weapon, and the calibre per weapon.
+- A Python port of `Step`/`Bounce` on the thrown scenario: rests at 1.17 s after 5 bounces, 2.77 m to the side.
+- A unity-build name check over the bridge found no clashes for the new file-level names.
+- **NOT RUN (the producer's machine):** the build (expect 60 tests: 57 + HandIK 1 + Casings 2). Also not run:
+  `build_adfrc_weapons.py` (the eject sockets), `setup_weapons.py` (its `sockets` report), and cases in
+  game in both views.
+
+### ASSETS
+
+None (engine cylinder and material).
+
+### RISKS
+
+- **R-67 (open, low):** the brass tint assumes `/Engine/BasicShapes/BasicShapeMaterial` exposes a `Color`
+  vector parameter. If it doesn't, cases render the material's default (pale grey). A brass material asset
+  fixes it.
+
+### DEFECTS FOUND
+
+- The hand IK looked for `SOCKET_LeftHandGrip` while imported meshes carry `LeftHandGrip`. Found while
+  wiring the eject sockets: every existing lookup of the muzzle socket uses `Muzzle`, which only works if
+  the importer drops the prefix.
+
+### NEXT ACTION
+
+**On the producer's machine:**
+1. Pull, then run `python Tools/build_adfrc_weapons.py` and `Tools/Unreal/setup_weapons.py`. Check the
+   report's `sockets` table: every rifle should have `LeftHandGrip`, `Eject` and `EjectEnd`.
+2. Build and run the tests (expect 60/60).
+3. In a match, fire the A88 in both views: check the left hand is on the handguard (`ss.HandIK 0/1`) and
+   cases leave the right side and land.
+
+---
+
+
+## Session 060 — 2026-09-28 — W3 Muzzle Light: Every Shot Lights Its Surroundings
+
+### COMPLETED
+
+- **A muzzle flash already existed.** Lyra's fire cue plays its flash sprite and tracer at its hidden
+  rifle's muzzle, and `ASSCharacter::AlignLyraMuzzle` (an earlier session) moves that muzzle onto our
+  visible barrel, in first person onto the view model's. What a real shot adds, and Lyra's sprite doesn't,
+  is light.
+- **`USSMuzzleLightSubsystem`** (Lyra bridge, clients only; `ss.MuzzleLight 0` turns it off). On each rifle or
+  pistol fire cue, `ASSCharacter` flashes a warm point light (1.0, 0.62, 0.28) just ahead of the muzzle of the
+  weapon the viewer sees. It lights the shooter's hands and face and the ground and walls near the muzzle,
+  and full-auto fire strobes.
+  - It fades quadratically from its peak to zero over the flash (`FSSMuzzleLightRules::Intensity`).
+  - Peak intensity varies ±20% per shot.
+  - The flash per weapon (`SpecFor`):
+
+    | Weapons | Peak | Radius | Duration |
+    |---|---|---|---|
+    | 5.56 rifles | 2,500 cd | 7 m | 45 ms |
+    | 7.62×51 (A25/A417) | 3,500 cd | 9 m | 55 ms |
+    | A9 pistol | 1,200 cd | 4.5 m | 35 ms |
+
+  - Eight pooled lights, no new asset. Shadows are off by default for cost; `ss.MuzzleLightShadows 1` turns
+    them on.
+- **Shared lookup.** "Which weapon mesh does this viewer see for this shooter" moved from the casing code to
+  `FSSWeaponPresentation::FindViewerWeapon`. The first-person view model is found for the local player, the
+  third-person weapon for everyone else. The imported socket names (`Muzzle`, `Eject`, `EjectEnd`) are
+  tried before the Blender `SOCKET_` names. Casings and the muzzle light both use it.
+- `Docs/ASSET_REGISTER.md`: E-001 muzzle flash describes what exists now, and new row E-005 is spent cases.
+
+### FILES CHANGED
+
+`Plugins/SouthernSpearLyraBridge/Source/SouthernSpearLyraBridge/Public/SSMuzzleLightSubsystem.h` (new),
+`Private/SSMuzzleLightSubsystem.cpp` (new), `Public/SSWeaponPresentation.h` (new),
+`Private/SSWeaponPresentation.cpp` (new), `Private/Tests/SSMuzzleLightTests.cpp` (new),
+`Private/SSShellEjectSubsystem.cpp`, `Public/SSShellEjectSubsystem.h`, `Private/SSCharacter.cpp`; `CLAUDE.md`;
+`Docs/ASSET_REGISTER.md`; `Docs/WEAPONS_ANIMATION_PLAN.md`; `Docs/CHANGELOG.md`.
+
+### TESTING
+
+- `python Tools/validate_architecture.py`: **exit 0**, PASS.
+- A unity-build name check over the bridge found no clashes for the new file-level names.
+- New automation test `SouthernSpear.Bridge.MuzzleLight.Rules`:
+  - the light is at its peak at the shot, at a quarter by half time, and dark at and after its duration;
+  - zero duration gives no light, and the fall is monotonic;
+  - a pistol is dimmer, smaller and shorter than a rifle, and 7.62 brighter and wider than 5.56;
+  - every flash is under 60 ms.
+- **NOT RUN (the producer's machine):** the build. Expect **61 tests**: 57 existing, HandIK 1, Casings 2,
+  MuzzleLight 1. Also not run: the look in game. The brightness is a first estimate; judge it indoors and
+  at dusk.
+
+### ASSETS
+
+None.
+
+### RISKS
+
+- **R-68 (open, low):** a daylight scene's exposure may make 2,500 cd barely visible outdoors while indoors
+  it reads strongly. That is correct behaviour, but check it looks intended. The values are in `SpecFor`.
+
+### DEFECTS FOUND
+
+None new.
+
+### NEXT ACTION
+
+**On the producer's machine, one combined run for Sessions 058–060:**
+1. Pull, run `python Tools/build_adfrc_weapons.py` and `Tools/Unreal/setup_weapons.py`, and check the report's
+   `sockets` table (every rifle: `LeftHandGrip`, `Eject`, `EjectEnd`).
+2. Build and run the tests (expect 61/61).
+3. In a match, with the A88 in both views, check:
+   - the left hand is on the handguard (`ss.HandIK 1` against `0`);
+   - cases leave the right side and land;
+   - each shot lights the surroundings (`ss.MuzzleLight 1` against `0`, best indoors).
+
+---
+
+
+## Session 061 — 2026-09-28 — Website: A Place For In-Engine Captures, a Roadmap Meter and a Press Kit
+
+### COMPLETED
+
+- **In-engine screenshot pipeline, ready for the first captures.** Frozen captures go in
+  `Docs/images/screenshots/` with an entry in its `screenshots.json` (file, title, alt, map, captured date,
+  optional session and note; the README there gives the steps). `python Tools/build_site_assets.py --only
+  screenshots` writes AVIF/WebP/JPEG derivatives at 960 and 1920 px to `Site/assets/screenshots/` and the view
+  model `Site/data/screenshots.json`, listing each file at its real width. An entry missing `alt`, `map` or a
+  `YYYY-MM-DD` date, or pointing at a missing file or an LFS pointer, stops the build (exit 1).
+  `build_site_assets.py` gained `--only <step>` so one step can run without the other sources.
+- **Media section** now opens with *In-engine captures*, rendered by `site.js` from `data/screenshots.json`
+  with a teal `In-engine` badge, the map, date and session under each, the newest at full width, and a
+  work-in-progress note. With no captures it shows a dashed "none published yet" note. The concept art below
+  keeps its orange labels; the section note now says only `In-engine` images come from the game.
+- **Lightbox** resolves its triggers when opened rather than once at start-up, so script-rendered captures
+  join the same previous/next sequence.
+- **Roadmap meter** above the timeline: one segment per phase, coloured by the state the roadmap records,
+  each linking to its phase, with "1 of 7 phases complete · Phase 1 in progress". No percentage (the
+  Development section says none is tracked).
+- **Development pulse**: sessions recorded, first session and latest session, counted from the changelog.
+- **FAQ "What PC will I need?"**: says minimum/recommended specs are not measured yet and will be set by
+  testing and listed on Steam; lists only what `Config/DefaultEngine.ini` fixes (DX12 + SM6, Lumen with
+  hardware ray tracing and software fallback, virtual shadow maps, TSR) and the TDD §9.1 target (60 fps at
+  1080p on an RX 9070 XT), labelled as a target, not a minimum.
+- **Press kit page** `presskit.html`: fact sheet, one-line/short/long descriptions drawn from existing site
+  copy, the logo, emblem and artwork as downloads (artwork labelled as artwork), contact (Discord, GitHub) and
+  the disclaimers. Linked from every footer, added to `sitemap.xml` and to `publish_site.py`.
+
+### FILES CHANGED
+
+`Site/index.html`, `Site/site.js`, `Site/styles.css`, `Site/changelog.html`, `Site/presskit.html` (new),
+`Site/sitemap.xml`, `Site/README.site.md`, `Site/data/screenshots.json` (new);
+`Tools/build_site_assets.py`, `Tools/publish_site.py`; `Docs/images/screenshots/README.md` (new),
+`Docs/images/screenshots/screenshots.json` (new); `Docs/Website/WEBSITE_DESIGN_SYSTEM.md`; `Docs/CHANGELOG.md`.
+
+### TESTING
+
+- `python3 Tools/build_site_assets.py --only screenshots` on a scratch copy with two fixture images (one
+  1672 px, one 2560 px wide): exit 0, 12 derivatives, view model lists the 1672 px file at 1672w.
+- Same, with an entry missing `alt`, `map` and `captured`: **exit 1**, names the entry and the missing fields.
+- Headless Chromium 1194 over `Site/` served locally, 1440 px and 390 px, reduced motion: no page or console
+  errors on `index.html`, `changelog.html` and `presskit.html`; no horizontal scroll at either width;
+  captures render and open in the lightbox, arrow keys step into the static gallery; meter reads "1 of 7
+  phases complete · Phase 1 in progress"; pulse reads 63 / 26 Sep 2026 / 28 Sep 2026; with the empty view
+  model the "none published yet" note stays and `aria-busy` clears. Every screenshot was looked at.
+- **NOT RUN:** `python Tools/publish_site.py` (not published from this session); the full
+  `build_site_assets.py` (the sources in `Docs/images/` are LFS pointers in this checkout); the
+  `Build/audit/text_audit.js` font-floor check (not present in this checkout).
+
+### ASSETS
+
+None. The press kit links existing derivatives only.
+
+### RISKS
+
+- **R-69 (open, low):** the press kit's largest logo is the 420 px lockup. Press usually wants a large
+  transparent logo; a 1024 px press derivative from `logo.png` would fix it, and needs the LFS source.
+
+### DEFECTS FOUND
+
+- None in existing code. Found in review of the new code: a source narrower than 1920 px was advertised in
+  `srcset` as 1920w. Fixed before commit by recording each file's real width.
+
+### NEXT ACTION
+
+**On the producer's machine:** carry out Session 060's NEXT ACTION (the weapon checks, the build, both
+views in a match), and in that same run capture the first in-engine screenshots with `-SSShotAt` or
+`HighResShot 1920x1080` (game viewport only, no window frame), then follow
+`Docs/images/screenshots/README.md` and publish.
+
+---
 
 ## Open Threads
 
@@ -3638,7 +4918,7 @@ about it. That closes R-41 and the R-40 class of defect from the same mechanism.
 | **Dedicated server target build (R-09)** | **Producer decision — this engine distribution cannot build Server targets at all. See `PROJECT_AUDIT.md` §6.1 and producer question 5** | **Producer** |
 | Fab account / engine registration (R-03) | Producer decision | Producer |
 | Second client machine for 4-client test (R-05) | Producer decision | Producer |
-| Insignia legal clearance (L-0003) | Legal review | Producer |
+| ~~Insignia legal clearance (L-0003)~~ | **CLOSED** — hold lifted by ADR-035 (free-to-play; R-57 accepted) | — |
 
 ---
 

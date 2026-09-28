@@ -106,7 +106,6 @@
         <li><a href="#training">Training</a></li>
         <li><a href="#operations">Operations</a></li>
         <li><a href="#loadout">Loadout</a></li>
-        <li><a href="#soldiers">Soldiers</a></li>
         <li><a href="#development">Development</a></li>
         <li><a href="#roadmap">Roadmap</a></li>
         <li><a href="changelog.html">Changelog</a></li>
@@ -716,92 +715,6 @@
         is not part of the game. Nothing here is captured gameplay; see the
         <a href="#development">development status</a> for where the work actually is, and the
         <a href="#training">training framework</a> for what each weapon unlocks.
-      </p>
-    </div>
-  </section>
-
-  <!-- =========================== SOLDIERS =========================== -->
-  <section class="section section--band" id="soldiers" aria-labelledby="soldiers-title">
-    <div class="shell">
-      <header class="section__head">
-        <p class="eyebrow">The two sides</p>
-        <h2 id="soldiers-title" class="section__title">Who you fight, and who you are</h2>
-        <p class="section__lede">
-          Both sides are built on the same body and rig, so a fair fight means the same silhouette,
-          the same movement and the same sightlines from both seats. What changes is the kit and the
-          camouflage &mdash; and, in a firefight, how quickly you read as the other one.
-        </p>
-      </header>
-
-      <ul class="soldiers" role="list">
-        <li class="soldier">
-          <button class="soldier__frame" type="button"
-                  data-lightbox-src="assets/soldiers/soldier-3acr-1200.png"
-                  data-lightbox-alt="Studio render of a 3 Australian Corps soldier in pale dry-country disruptive camouflage, a plate carrier and helmet, holding an A88 rifle at the low ready."
-                  data-lightbox-caption="3 Australian Corps &mdash; player model in the Southern Spear CMECU camouflage set, carrying the A88.">
-            <picture>
-              <source type="image/avif"
-                      srcset="assets/soldiers/soldier-3acr-720.avif 720w, assets/soldiers/soldier-3acr-1200.avif 1200w"
-                      sizes="(max-width: 700px) 88vw, 400px">
-              <source type="image/webp"
-                      srcset="assets/soldiers/soldier-3acr-720.webp 720w, assets/soldiers/soldier-3acr-1200.webp 1200w"
-                      sizes="(max-width: 700px) 88vw, 400px">
-              <img src="assets/soldiers/soldier-3acr-1200.png" width="991" height="1624"
-                   loading="lazy" decoding="async"
-                   alt="Render of a 3 Australian Corps soldier in pale dry-country disruptive camouflage with a plate carrier and helmet, holding a rifle at the low ready.">
-            </picture>
-            <span class="showcase__zoom" aria-hidden="true">View larger</span>
-          </button>
-          <div class="soldier__body">
-            <h3 class="soldier__name">3 Australian Corps</h3>
-            <p class="soldier__role">Your side. Held ground, taken objectives, contested when the enemy is on the ring.</p>
-            <dl class="kv">
-              <div><dt>Camouflage</dt><dd>CMECU &mdash; pale dry&#8209;country disruptives</dd></div>
-              <div><dt>Carrying</dt><dd>A88 in the current build</dd></div>
-            </dl>
-          </div>
-        </li>
-
-        <li class="soldier">
-          <button class="soldier__frame" type="button"
-                  data-lightbox-src="assets/soldiers/soldier-maf-1200.png"
-                  data-lightbox-alt="Studio render of a MAF opposition soldier in a dark red-earth disruptive camouflage, a Peacekeeper-style plate carrier and PASGT helmet, holding an A4 rifle at the low ready."
-                  data-lightbox-caption="MAF opposition &mdash; the hostile side in the Southern Spear red-earth camouflage set, carrying the A4.">
-            <picture>
-              <source type="image/avif"
-                      srcset="assets/soldiers/soldier-maf-720.avif 720w, assets/soldiers/soldier-maf-1200.avif 1200w"
-                      sizes="(max-width: 700px) 88vw, 400px">
-              <source type="image/webp"
-                      srcset="assets/soldiers/soldier-maf-720.webp 720w, assets/soldiers/soldier-maf-1200.webp 1200w"
-                      sizes="(max-width: 700px) 88vw, 400px">
-              <img src="assets/soldiers/soldier-maf-1200.png" width="992" height="1631"
-                   loading="lazy" decoding="async"
-                   alt="Render of a MAF opposition soldier in a dark red-earth disruptive camouflage with a plate carrier and helmet, holding a rifle at the low ready.">
-            </picture>
-            <span class="showcase__zoom" aria-hidden="true">View larger</span>
-          </button>
-          <div class="soldier__body">
-            <h3 class="soldier__name">MAF opposition</h3>
-            <p class="soldier__role">The other side of the ring. Red&#8209;earth disruptives, so you can read them at range.</p>
-            <dl class="kv">
-              <div><dt>Camouflage</dt><dd>MAF &mdash; red&#8209;earth disruptives</dd></div>
-              <div><dt>Carrying</dt><dd>A4 in the current build</dd></div>
-            </dl>
-          </div>
-        </li>
-      </ul>
-
-      <p class="section__note">
-        These are studio renders of the current internal models, not captured gameplay. The body and
-        the kit are the licensed third&#8209;party assets the game is built on and are published here
-        under a recorded producer risk acceptance as promotion &mdash; the same basis as the
-        <a href="#loadout">weapon renders</a> &mdash; and that is not a licence clearance. The
-        camouflage is the project's own: both sets are generated from noise by
-        <code>Tools/Textures/make_character_textures.py</code>, so the pattern is original work and
-        not a copy of any real&#8209;world camouflage. Southern Spear is a fictional project, is not
-        affiliated with or endorsed by the Australian Defence Force or any other military, and the
-        <span class="nowrap">M</span>&#8209;style kit shown is not a depiction of any real unit's equipment
-        or insignia.
       </p>
     </div>
   </section>

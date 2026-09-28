@@ -3053,97 +3053,96 @@ record a decision to keep the Minimi variant in the build and label it as such.
 
 ---
 
-## Session 042 — 2026-09-28 — Player Model Renders For Both Sides; Camouflage Retuned To The Reference; New Site Section
+## Session 042 — 2026-09-28 — Player-Model Renders For Both Sides: BUILT, PUBLISHED, THEN WITHDRAWN
 
-### COMPLETED
+### OUTCOME
 
-- **New renderer `Tools/Blender/render_soldiers.py`**, producing matched studio renders of both
-  playable sides: 3 ACR in CMECU carrying the A88, MAF in the red-earth set carrying the A4. The
-  pose is a solved low&#8209;ready carry (`Build/audit/solve_pose2.py` searched the arm axes and
-  elbow for the rotation that puts both hands together in front, at waist height) and the weapon
-  is anchored into the hands and aimed down the muzzle vector, so pose and prop agree.
-- **Three renderer bugs fixed**, all found by measuring the output rather than looking at it:
-  - **The gear had no armature and the body had one.** Each kit FBX carries its own copy of the
-    Lyra rig, scaled 0.01 to match the body's centimetre skeleton; the renderer deleted every
-    non-mesh object, which stripped that scale and blew the kit up 100x. The camera then framed a
-    183-unit box and the 1.8 m figure rendered as a speck in the top third — the MAF pass came out
-    head-and-torso only, with no legs. Every rig is now kept and posed with the same low&#8209;ready.
-  - **The framing used rest&#8209;pose vertices.** `data.vertices` is the bind pose, so the camera
-    was fitting the A&#8209;pose. Framing now reads the evaluated mesh through the depsgraph. The
-    camera also fits the figure rather than the whole scene, with the held weapon allowed to widen
-    the plate by at most 12%: fitting the A4's muzzle footprint put the soldier in a third of an
-    empty frame.
-  - **No base colour was ever linked.** `pbr()` was passed the full set stem and then split
-    `_BC` off it before looking for the colour map, so every soldier rendered as default grey.
-    It now builds `T_SS_CMECU_Camo_BC/_N/_ORM` and prints the path of any map it cannot find.
+**The Soldiers section was published and then withdrawn in the same session.** The
+producer reviewed the renders on the live site and rejected them: the body's proportions read
+as a mannequin, not a soldier. The section, its nav link, its styles and its published image
+derivatives have all been removed. The renders and the tooling remain in the repository for
+internal use. This entry records what was built, what was wrong with it, and what was learned,
+because the tooling work is sound and will be reused when there is a body worth rendering.
+
+### BUILT
+
+- **`Tools/Blender/render_soldiers.py`**, producing matched studio renders of both sides: 3 ACR
+  in CMECU carrying the A88, MAF in the red-earth set carrying the A4.
 - **Camouflage retuned to the producer's reference photography** (Australian Disruptive
-  Pattern&#8209;style uniform shots). `Build/audit/tune_camo.py` measures the fabric pixels in the
-  reference and searches the palette for the closest match rather than eyeballing it: reference
-  lum p10/p50/p90 = 40/129/235, median saturation 0.46, oxide&#8209;red population 8.7%. The old
-  four&#8209;tone set had no pale ground and no red and rendered as a khaki wash (sat 0.23, nothing
-  above 175). The new seven&#8209;tone set scores lum 43/107/205, sat 0.47, red 10.2% — and the
-  rendered 3 ACR measures sat 0.48, pale 9.8%. Still noise&#8209;generated, still original, still
-  not AMCU/Auscam (ADR&#8209;016).
-- **The two sides are exposure&#8209;matched.** The light rig is now keyed off the figure's own
-  height rather than the scene radius (the A88 carry was making the 3 ACR a stop brighter than the
-  MAF), and each side carries a small exposure trim for the inherent value of its camo set. The
-  pair now renders at median luminance 128 and 134, with 6.3%/7.5% crushed and no blowout on
-  either — against 6.3% and 14.5% before.
-- **New site section `#soldiers`** ("Who you fight, and who you are") between Loadout and Maps,
-  with a nav link, `picture` derivatives at 720/1200 in AVIF/WebP/PNG, lightbox, and the
-  provenance note: third-party body and kit published under the same recorded risk acceptance as
-  the weapon renders (L&#8209;0016 + L&#8209;0021, promotion, not a clearance), original camo, not
-  affiliated with the ADF, and no real unit's insignia.
-- `Tools/build_site_assets.py` gained `build_soldiers()`; the alpha margin is cropped and the
-  derivatives written, same as the weapons. Website rebuilt and published; `Docs/Website/*` updated.
+  Pattern-style uniform shots). `Build/audit/tune_camo.py` measures the fabric in the reference
+  and searches the palette for the closest match instead of eyeballing it: reference lum
+  p10/p50/p90 = 40/129/235, median saturation 0.46, oxide-red population 8.7%. The old four-tone
+  set had no pale ground and no red and rendered as a khaki wash (sat 0.23, nothing above 175).
+  The new seven-tone set scores lum 43/107/205, sat 0.47, red 10.2%. Still noise-generated,
+  still original, still not AMCU/Auscam (ADR-016). **This part is kept** — it is the game's
+  own texture, not a website asset.
+- Renderer bugs found and fixed along the way, all by measuring rather than looking:
+  - Each kit FBX carries its own armature scaled 0.01 to match the body's centimetre rig;
+    deleting it stripped the scale and blew the kit up 100x, which put a 1.8 m figure inside a
+    183 m camera frame and rendered the MAF as a torso with no legs.
+  - The camera was fitted to rest-pose vertices (the A-pose) rather than the evaluated mesh.
+  - `pbr()` looked for `T_SS_<set>` where the files are `T_SS_<set>_BC`, so **no base colour
+    was ever linked** and both soldiers rendered as untextured default grey.
+  - The weapon was anchored to the midpoint of the two wrists, which put it in mid-air beside
+    the figure. It is now fitted by construction: the grip point is placed on the right wrist
+    and the bore swung at the left, bringing each wrist to within 44–59 mm of the rifle
+    (a hand's width) from several metres.
+  - `bpy.ops.object.mode_set` returns CANCELLED with no exception unless the object is *also*
+    selected, so pose-bone rotations written from OBJECT mode were silently discarded.
 
-### TESTING
+### WHY IT WAS WITHDRAWN
 
-| Check | Command | Result |
-|---|---|---|
-| Renders | `blender --background --factory-startup -P Tools/Blender/render_soldiers.py` | 2/2 rendered, no missing textures |
-| Figure completeness | alpha row histogram + ASCII silhouette | both figures span 83–84% of frame height, full body, matched width (970/971 px) |
-| Exposure match | `python` luminance report over the opaque pixels | median 128 vs 134; crushed 6.3% vs 7.5%; blown 0.00% both |
-| Camo vs reference | `python Build/audit/tune_camo.py` + render statistics | reference sat 0.46 / red 8.7% / pale 10.2%; render sat 0.48 / red 10.2% / pale 9.8% |
-| Kit scaling | `blender -P Build/audit/probe_allrig.py` | with every rig kept, kit sits at z 0.881–1.839 on a 1.805 m body |
-| Website (local) | `node soldiers_check.js`, `node soldiers_lightbox.js` | 4 viewports clean; AVIF served; no image upscaled; lightbox, arrow-key stepping, alt and caption all pass |
-| Website (local) | `responsive_audit`, `text_audit`, `interaction_test`, `phase_measure`, `faq_check` | all pass |
-
-### ASSETS
-
-- No new third-party assets. `Docs/images/soldiers/*.png` are new studio renders of existing
-  models: the L-0016 Fab mannequin the game's rig is fitted to, wearing L-0021 ADFRC-derived kit,
-  under the same recorded website-promotion exception as the weapon renders. The camouflage is the
-  project's own (L-0022) and is regenerated by `Tools/Textures/make_character_textures.py`.
-- ASSET_REGISTER gained a row for the soldier renders; L-0022 records the regenerated CMECU and
-  MAF sets.
-
-### RISKS
-
-- **R-39 — the soldier renders are two restricted layers in one image.** The body is L-0016 and
-  the kit is L-0021, so unlike the weapon renders (one restricted layer) there is no single
-  material whose clearance carries the picture. Both layers are covered by the producer's
-  recorded risk acceptance of 2026-09-28 for website promotion, and the acceptance is explicitly
-  not a licence clearance. The release status of the underlying assets is unchanged.
-- The renders show the L-0016 mannequin and L-0021 kit, not the final original character. The
-  asset register already tracks the body as a placeholder (C-001) requiring an original mesh.
+- **The body is the blocker.** It is the L-0016 Fab mannequin — which ASSET_REGISTER already
+  tracks as C-001, "Manny is a placeholder; original body required" — wearing L-0021 kit fitted
+  to a *different* skeleton. The proportions read as a dummy and the carrier sits on the torso as
+  flat slabs. Neither lighting nor texture work fixes a fitting and silhouette problem, and the
+  producer's read was that the body is the most obviously wrong thing in the image.
+- **The rig cannot be posed properly.** The bone chain is disconnected: the upperarm's tail sits
+  16 cm from the lowerarm's head while the mesh spans the gap, so rotating the upperarm does not
+  carry the wrist. IK is impossible on it. `Build/audit/solve_carry.py` instead searches the four
+  arm angles against carry targets and converges to a 1.4 mm residual, which is good enough to
+  put the hands on the weapon but cannot make the pose read as natural.
+- **The preview tooling failed for the whole session** ("produced no frames"), so the renders
+  were never visually checked before publishing, and two changes made while guessing at numbers
+  made the result worse rather than better (see DEFECTS).
 
 ### DEFECTS FOUND
 
-- Gear rendered 100x oversized because its armature was deleted; the MAF figure was framed out of
-  shot and rendered as a torso with no legs.
-- Neither soldier had any texture: `pbr()` looked for `T_SS_<set>` where the files are
-  `T_SS_<set>_BC`.
-- Camera framed the rest pose, not the posed figure, and fitted the weapon's footprint as well as
-  the body.
-- The MAF render crushed 14.5% of its surface to black against the 3 ACR's 6.3%, because the light
-  rig scaled with the scene radius and the two sides carry different kits and weapons.
+- The weapon floated beside the figure instead of being held (midpoint-of-wrists anchoring).
+- No base colour was ever linked; both soldiers were untextured grey.
+- The gear rendered 100x oversized and the figure was framed out of shot.
+- The MAF render had no legs and the camera fitted the rest pose.
+- **UV tiling was the wrong fix and was reverted.** The FBX lays UVs 0..1 over the whole 1.8 m
+  figure, so the camo is genuinely coarse. Scaling the UVs 7x (camo) and 16x (fabric) was tried
+  on the reasoning that finer blobs would read better; at render resolution it turned the
+  pattern into high-frequency noise and looked worse. Reverted to 1.0, with a note that the
+  correct fix is UVs authored at the right scale in the source meshes, not a global multiplier.
+- **Flat ambient was the wrong fix and was reverted.** Raising the world background from 0.35 to
+  0.85 to open up crushed blacks removed the form-shaping entirely and made the figures read as
+  cardboard. Reverted to 0.35.
+- Both of the above were made without ever seeing the render, because the preview capture tool
+  was unavailable. **Process lesson: publish nothing visual that has not been looked at.**
+
+### ASSETS
+
+- No new third-party assets. `Docs/images/soldiers/*.png` are studio renders of existing models,
+  now internal-only. Nothing from this session is published.
+- The CMECU and MAF texture retune is kept and applies to the game, not the website.
+- ASSET_REGISTER and LICENCE_REGISTER L-0022 record the camouflage work and the withdrawal.
+
+### RISKS
+
+- **R-39 (closed).** The soldier renders were two restricted layers in one image (L-0016 body,
+  L-0021 kit) with no single material whose clearance carried the picture. Withdrawn, so the
+  exposure no longer exists.
 
 ### NEXT ACTION
 
-Decide whether the site keeps publishing the Fab body under the promotion exception now that the
-soldier renders are the most prominent use of L-0016, or holds the section until the original
-character (C-001/C-002) exists.
+**Do not render the player model for the website until C-001/C-002 has an original body.** The
+renders, the pose solver and the camera/lighting work in `render_soldiers.py` are ready to reuse
+the moment there is a mesh worth rendering. The gap the section was filling is better filled by a
+frozen in-engine capture, which is the site's top outstanding asset.
+
 
 ---
 

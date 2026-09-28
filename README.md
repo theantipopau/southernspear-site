@@ -29,7 +29,7 @@ site.js         navigation, Markdown subset renderer, status / roadmap / changel
 robots.txt      crawler policy
 sitemap.xml     sitemap: home sections plus the changelog page
 manifest.webmanifest
-assets/         optimised image derivatives (brand, hero, concepts, weapons, soldiers, social, favicons)
+assets/         optimised image derivatives (brand, hero, concepts, weapons, social, favicons)
 fonts/          self-hosted latin subsets (Barlow Condensed, Inter, IBM Plex Mono)
 data/           the published project documents, copied verbatim
 ```
@@ -54,12 +54,13 @@ CSS filter rather than a second drawing. The favicon suite is generated from the
 producer-supplied multi-size icon (`Docs/images/SouthernSpear.ico`), the same file the game
 executable installs, so the browser tab and the game show one mark.
 
-The `weapons/` and `soldiers/` derivatives come from 3D studio renders made in the private
-repository with `Tools/Blender/render_weapons.py` and `Tools/Blender/render_soldiers.py`. They
-are renders of the current internal models, not captured gameplay, and the site says so where
-they appear. The camouflage worn in the soldier renders is the project's own: it is generated
-from noise by `Tools/Textures/make_character_textures.py` and is original work, not a copy of
-any real-world camouflage.
+The `weapons/` derivatives come from 3D studio renders made in the private repository with
+`Tools/Blender/render_weapons.py`. They are renders of the current internal models, not captured
+gameplay, and the site says so where they appear.
+
+The project's own camouflage — used on the character in the game — is generated from noise by
+`Tools/Textures/make_character_textures.py` and is original work, not a copy of any real-world
+camouflage.
 
 ## Disclaimer
 

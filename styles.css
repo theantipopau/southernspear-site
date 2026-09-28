@@ -888,49 +888,6 @@ body[data-nav-open="true"] { overflow: hidden; }
 }
 .weapon__role { margin: 0; color: var(--sand-200); font-size: 0.96rem; }
 
-/* Soldiers — two full-length figures. Portrait, so the cards are a two-up
-   grid rather than the loadout's four-up: a 991x1624 render shown at a
-   quarter width is 150px of unreadable speckle. The frame is a button for the
-   same reason the weapon frames are. */
-.soldiers {
-  list-style: none;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 24px;
-  max-width: 880px;
-  margin-inline: auto;
-}
-.soldier {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-lg);
-  background:
-    radial-gradient(120% 70% at 50% 0%, rgba(200, 171, 114, 0.07), transparent 62%),
-    var(--ink-850);
-  overflow: hidden;
-}
-.soldier__frame {
-  position: relative;
-  display: block;
-  width: 100%;
-  padding: 18px 18px 8px;
-  border: 0;
-  background: none;
-  cursor: zoom-in;
-}
-.soldier__frame img { width: 100%; height: auto; transition: transform var(--dur-slow) var(--ease); }
-.soldier__frame:hover img { transform: scale(1.02); }
-.soldier__frame .showcase__zoom { bottom: 8px; }
-.soldier__body { padding: 6px 22px 24px; }
-.soldier__name {
-  margin: 0 0 6px;
-  font-size: 1.24rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.soldier__role { margin: 0; color: var(--sand-200); font-size: 0.96rem; }
-
 .map-grid { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
 .map-card {
   position: relative;

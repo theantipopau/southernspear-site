@@ -3146,6 +3146,98 @@ frozen in-engine capture, which is the site's top outstanding asset.
 
 ---
 
+## Session 043 — 2026-09-28 — Map Section Corrected: Four Invented Names Replaced With The Six Real Maps
+
+### OUTCOME
+
+**The website's map section was factually wrong and has been corrected.** It listed five maps —
+**Red Ridge, Ironbark, Port Wakefield and Wattle Creek** — that do not exist and never have. No
+level, no design document, no `.umap` file. They were carried over from the Phase 0 brief and GDD
+and were never reconciled with the maps actually built. The producer caught it.
+
+They are replaced with the **six real maps**, each at its true documented status, taken from
+`Docs/MAPS_*.md` and the ADR log. Published and verified live.
+
+### THE SIX MAPS, AS PUBLISHED
+
+| Map | Level | Published status | Source of truth |
+|---|---|---|---|
+| Red Gum Station | `L_RedGum_01` | **In the game** — the first playable map (ADR-022). Objectives re-laid and deployments pulled in for fairness; not signed off, no capture yet | `MAPS_REDGUM.md` |
+| Dry River | `L_DryRiver_01` | **In the game and in production** — the Phase 1 greybox vertical slice, and the design standard the other maps are measured against | `MAPS_DRYRIVER.md` |
+| Selat Canal | `L_SelatCanal_01` | **In production** — built; the only urban and only Special Forces map. Needs a fairness redesign before it can carry a three-objective sequence | `MAPS_SELATCANAL.md` |
+| Saltbush | `L_Saltbush_01` | **In production** — built; deployment and objectives rebuilt for fairness, and it has produced a capture in a bot match. Sightlines still unmeasured | `MAPS_SALTBUSH.md` |
+| Bluestone | `L_Bluestone_01` | **Early build** — the flooded slate-pit level, built 2026-09-28 from the quarry diorama. Not playtested, no design document | no document yet |
+| Ravenshoe Crossing | — | **Design proposal only. Nothing has been built.** | `MAPS_RAVENSHOE.md`, ADR-027 |
+
+Each card states what the map is for and what is *not* finished about it. Ravenshoe says in bold
+that nothing has been built, because that is the single most likely thing to be misread as
+implied work.
+
+### THE DEFECT WAS NOT ONLY IN THE HTML
+
+The invented names were in four places, and three of them were still live:
+
+- `Site/index.html` — the map grid, plus a count in the Adapt pillar ("Five original map concepts")
+  and the section title. Fixed.
+- `Docs/DEVELOPMENT_ROADMAP.md` §7 — the Phase 4 task table listed MP-02…MP-05 as *Red Ridge,
+  Ironbark, Port Wakefield, Wattle Creek*. **This file is published to the site as
+  `data/DEVELOPMENT_ROADMAP.md` and rendered in the live Roadmap section**, so the invented maps
+  were visible to any visitor who scrolled there. Rewritten against the real six, with the
+  remaining IDs renumbered to MP-08…MP-11.
+- `Docs/ASSET_REGISTER.md` §4.9 — the map table tracked Dry River, the four invented maps and
+  Ravenshoe, and did not track Red Gum, Selat Canal, Saltbush or Bluestone at all. M-002…M-005
+  now carry the real maps with their real statuses; Ravenshoe stays M-008.
+- `Docs/GAME_DESIGN_DOCUMENT.md` §4.7 — "Five map concepts" listing the invented set. Replaced
+  with the six real maps and a pointer to `Docs/MAPS_*.md` as the source of truth.
+
+`Docs/ORIGINAL_BRIEF.md` still lists the invented names. **Deliberately left alone**: it is the
+Phase 0 brief, a record of what was asked for at the time, and rewriting history in it would be
+worse than the staleness.
+
+### STATUS VOCABULARY
+
+The cards use three badges, and each is a text label rather than a colour, as the design system
+requires: `In the game` (new `.badge--live` modifier, sage), `In production` and `Early build`
+(`.badge--wip`, brass), `Design proposal` (default badge). The section is now titled **Maps in the
+build** rather than "Map concepts", because two of the six are not concepts.
+
+### FILES CHANGED
+
+- `Site/index.html` — map grid, section title, section lede, Adapt pillar bullet and link.
+- `Site/styles.css` — added `.badge--live`.
+- `Docs/DEVELOPMENT_ROADMAP.md` — Phase 4 map task table (**published**).
+- `Docs/ASSET_REGISTER.md` — §4.9 map table.
+- `Docs/GAME_DESIGN_DOCUMENT.md` — §4.7.
+- `Docs/CHANGELOG.md`, `Docs/Website/WEBSITE_TEST_REPORT.md` — this entry and the defect note.
+
+### TESTING
+
+- `python Tools/publish_site.py` — built and published.
+- `responsive_audit` — all 12 viewport/page combinations clean.
+- `text_audit` — no text under 12 px, no tap target under 44 px, no horizontal scroll (the single
+  reported spill is the intentional full-bleed hero, `scrollW == docW`).
+- `interaction_test` — all checks passed, no console errors, no failed requests.
+- `phase_measure` — shell gaps symmetric at 1920 and 390.
+- `faq_check` — 11 entries, Steam answer intact.
+- `live_verify.js` — console errors none, failed requests none.
+- Live content check: all six real names present, all four invented names and the phrase "map
+  concepts" return **0 hits** on the live page and in the live `data/DEVELOPMENT_ROADMAP.md`.
+
+### RISKS
+
+- **R-40 (open, low).** The website's copy is hand-maintained and is only ever as accurate as the
+  last time someone reconciled it with `Docs/`. A guard that fails the build when a published
+  document names a map with no matching `Docs/MAPS_*.md` entry would catch this class of error
+  automatically. Not written.
+
+### NEXT ACTION
+
+**Add the map-name cross-check to the audit suite** so a published map name without a design
+document behind it fails the build, the way a broken image link does today.
+
+
+---
+
 ## Open Threads
 
 | Item | Blocked on | Owner |

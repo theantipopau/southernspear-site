@@ -8111,3 +8111,32 @@ One section per work session, newest at the bottom. Always:
 - **RISKS** — new risks get IDs continuing from R-08; closed risks are struck through, not deleted
 - **DEFECTS FOUND** — with how they were found, since that is the real signal
 - **NEXT ACTION** — exactly one, the highest-priority item
+
+## Session 099 — 2026-10-05 — Documentation reconciliation and roadmap review after Session 098
+
+Producer: update the asset register, the backend documents and the changelog, then look at the roadmap.
+
+**COMPLETED**
+- `Docs/ASSET_REGISTER.md` new section 4.9r: Session 098 assets (watchtower ENV-012, Wandarra windmill/water tower/kangaroos ENV-013, ground ENV-014, Fab asphalt ENV-015, Namaqualand dressing ENV-016, UE5 C++ skills TOOL-001) and the new untracked packs not yet integrated (MCO Mocap Basics, MHBOP Lite, Screen Damage Indicator, KiteDemo, STF Landscape Pro, PKM/SVD).
+- `Docs/PROJECT_AUDIT.md`: risks R-98, R-99, R-100 added with the Session 098 wording; `Docs/MAPS_WANDARRA.md` section 3.2 (the Australian rebuild); `Docs/DEVELOPMENT_ROADMAP.md` current status; `Docs/NEXT_PRIORITIES.md` status block.
+- Roadmap review (below). No game code, assets or maps were changed this session.
+
+**ROADMAP: where to from here** (Phase 1 vertical slice; Phases 2 to 6 not started)
+1. *Close the slice's playability gap:* R-100 watchtower access, attended R-82 nav bake for Wandarra and Ravenshoe, Red Gum nav coverage (17%), then a bot match on each of the three playable maps.
+2. *The producer's art order:* character visual acceptance (uniform detail, helmet clip, faces, MAF gear), weapon material audit, then VFX (muzzle flash, tracers, impacts).
+3. *Weapon feel:* A88G hold, EF88 reload animation, zero and recoil from real data. The new MCO Mocap and MHBOP packs are the likely source for hold, reload and locomotion animation.
+4. *HUD:* integrate the Screen Damage Indicator as a C++ presentation widget in `SouthernSpearUI`.
+5. *Maps:* use KiteDemo/Namaqualand open-world foliage and decide the Landscape question (R-99, try STF Landscape Pro); Wandarra loading art.
+6. *Housekeeping that gates release:* untracked vendor packs (R-98), asset provenance for the new packs, CI and the R-09 server-target limit.
+
+**FILES CHANGED** `Docs/ASSET_REGISTER.md`, `Docs/PROJECT_AUDIT.md`, `Docs/MAPS_WANDARRA.md`, `Docs/DEVELOPMENT_ROADMAP.md`, `Docs/NEXT_PRIORITIES.md`, `Docs/CHANGELOG.md`.
+
+**TESTING** Documentation only. NOT RUN: any build, test or in-game capture.
+
+**ASSETS** Registered only (see 4.9r); no new imports.
+
+**RISKS** None new (R-98 to R-100 recorded in the audit).
+
+**DEFECTS FOUND** Roadmap status in `DEVELOPMENT_ROADMAP.md` section 13 was last updated 2026-09-26 and still read "Phases 2-6 not started" without the Session 098 state; fixed.
+
+**NEXT ACTION** Make the watchtowers usable: add a climb volume (or ramp from an owned asset) to the tower ladders and a bot route, then verify a sniper can hold the east Wandarra tower in a bot match.

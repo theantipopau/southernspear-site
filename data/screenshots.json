@@ -146,6 +146,216 @@
           "path": "assets/screenshots/shot-maf-portrait-1920"
         }
       ]
+    },
+    {
+      "id": "shot-weapon-a88",
+      "title": "A88 rifle",
+      "alt": "An A88 assault rifle with a Spectr optic, tan and black, against a blue sky.",
+      "map": "Model view",
+      "captured": "2026-10-05",
+      "session": "099",
+      "note": "In-engine model of the 3 ACR service rifle (bullpup); a presentation view, not gameplay.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-weapon-a88-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-weapon-a88-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-weapon-a88g",
+      "title": "A88G grenade launcher variant",
+      "alt": "A bullpup rifle with an under-barrel grenade launcher and optic, against a blue sky.",
+      "map": "Model view",
+      "captured": "2026-10-05",
+      "session": "099",
+      "note": "In-engine model of the grenadier's rifle; a presentation view, not gameplay.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-weapon-a88g-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-weapon-a88g-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-weapon-a89",
+      "title": "A89 light support weapon",
+      "alt": "A black light machine gun with bipod, optic and carry handle, against a blue sky.",
+      "map": "Model view",
+      "captured": "2026-10-05",
+      "session": "099",
+      "note": "In-engine model of the light support weapon; a presentation view, not gameplay.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-weapon-a89-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-weapon-a89-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-weapon-a4",
+      "title": "A4 carbine",
+      "alt": "A black AR-pattern carbine with an ACOG-style optic and rail handguard, against a blue sky.",
+      "map": "Model view",
+      "captured": "2026-10-05",
+      "session": "099",
+      "note": "In-engine model of the carbine; a presentation view, not gameplay.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-weapon-a4-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-weapon-a4-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-weapon-a416",
+      "title": "A416 rifle",
+      "alt": "A black piston-driven rifle with an ACOG-style optic, long rail and adjustable stock, against a blue sky.",
+      "map": "Model view",
+      "captured": "2026-10-05",
+      "session": "099",
+      "note": "In-engine model of the rifle; a presentation view, not gameplay.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-weapon-a416-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-weapon-a416-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-weapon-a25",
+      "title": "A25 marksman rifle",
+      "alt": "A tan marksman rifle with a thermal-style scope, rail handguard and fixed stock, against a blue sky.",
+      "map": "Model view",
+      "captured": "2026-10-05",
+      "session": "099",
+      "note": "In-engine model of the designated marksman rifle; a presentation view, not gameplay.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-weapon-a25-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-weapon-a25-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-weapon-a9",
+      "title": "A9 pistol",
+      "alt": "A black semi-automatic pistol with a red front sight, against a blue sky.",
+      "map": "Model view",
+      "captured": "2026-10-05",
+      "session": "099",
+      "note": "In-engine model of the sidearm; a presentation view, not gameplay.",
+      "width": 1600,
+      "height": 900,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-weapon-a9-960"
+        },
+        {
+          "width": 1600,
+          "path": "assets/screenshots/shot-weapon-a9-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-weapon-maf-svd",
+      "title": "MAF marksman rifle (SVD)",
+      "alt": "A wooden-furniture marksman rifle with a four-times optic, against a blue sky.",
+      "map": "Model view",
+      "captured": "2026-10-05",
+      "session": "099",
+      "note": "In-engine model of the Murasian Armed Forces marksman rifle; a presentation view, not gameplay.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-weapon-maf-svd-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-weapon-maf-svd-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-weapon-maf-pkm",
+      "title": "MAF machine gun (PKM)",
+      "alt": "A belt-fed general purpose machine gun with wooden stock and an olive ammunition box, against a blue sky.",
+      "map": "Model view",
+      "captured": "2026-10-05",
+      "session": "099",
+      "note": "In-engine model of the Murasian Armed Forces machine gun; a presentation view, not gameplay.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-weapon-maf-pkm-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-weapon-maf-pkm-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-weapon-maf-r1",
+      "title": "MAF assault rifle (AK pattern)",
+      "alt": "An AK-pattern assault rifle with red-brown wooden furniture and a curved magazine, against a blue sky.",
+      "map": "Model view",
+      "captured": "2026-10-05",
+      "session": "099",
+      "note": "In-engine model of the Murasian Armed Forces rifle; a presentation view, not gameplay.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-weapon-maf-r1-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-weapon-maf-r1-1920"
+        }
+      ]
     }
   ]
 }

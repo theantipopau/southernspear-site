@@ -2,13 +2,15 @@
 
 **Document ID:** `Docs/CHANGELOG.md`
 **Purpose:** Rolling record of what was actually done, what was actually tested, and what is still open. Appended to at the end of every work session.
-**Last updated:** 2026-09-28
+**Last updated:** 2026-10-01
 
 > **This file records evidence, not narrative.** A line here means a command was run and its result observed. If something was not done, it is not claimed. Anything marked `NOT RUN` is genuinely outstanding, not quietly skipped.
 
 ---
 
-## Status At A Glance
+## Status At A Glance — historical inception snapshot (Session 001, 2026-09-26; not current)
+
+> This table records the initial Phase 0 state only; later dated sessions below supersede it for present project status.
 
 | | |
 |---|---|
@@ -4909,7 +4911,3183 @@ views in a match), and in that same run capture the first in-engine screenshots 
 
 ---
 
-## Open Threads
+## Session 062 — 2026-09-29 — The animation decoder is fixed (R-64), and the guards that missed it
+
+Four workstreams were requested together and run in one session. Their file sets do not overlap, and
+their ID ranges were reserved rather than guessed: the decoder takes **R-70–R-74** (ADR-040 stays free —
+no decoder decision needed one), the two guard checkers take **R-75 onward**. The standing rules stand:
+one branch per workstream, merged to `main` only when that workstream's own tests pass. This session ran
+on `main` in a shared checkout; its work is one commit, rebased onto the W3 and site commits
+before pushing - which is why this entry is 062 and not the 060 it was written as.
+
+### COMPLETED
+
+**1. R-64 — the ADFRC animation decoder, fixed and tested (pure Python; no Unreal, no Blender).**
+
+`Docs/Sourced/ADFRC/rtm_rigs.py` carried the two errors Session 057 found in the decoded data. Both are
+fixed, and the fix is the same model `Tools/Common/adfrc_grip.py` already uses:
+
+- **The quaternion reading.** `rotation_from_stored(q)` now returns `mat_from_quat((-x, -y, z, w))`, and
+  `world_from_local` uses it. Reading the components as stored leaves every bone's transform without a
+  consistent fixed point (0.007–0.17 m per arm joint on the committed clips).
+- **The transform model.** A stored transform is a rotation of the bone **about its own rest joint**,
+  relative to its parent, so `p = J - R J` and the bone's joint is `R·J + p`. `solve_rest_joints` recovers
+  `J` as the least-squares fixed point of `(I - R) J = p` over every frame of every clip on the rig; a new
+  `posed_joint` helper states the model directly. `solve3` gained a **relative conditioning guard**, because
+  the residual alone does not catch an under-determined joint: the AUG shoulder solved to −21 m with a
+  0.16 mm residual, which would have been written into the armature as a bone head.
+- **The rig JSON** is now `adfrc-rig/2`: `rest_world` is the solved rest joints (falling back to the mean
+  world position only for a bone the clip set never rotates — an identity rotation pins no joint down),
+  with `rest_joints`, `rest_joint_rms_m` and `rest_joints_solved` alongside. 
+- `rtm2json.py`'s `notes` no longer tell a reader the transforms are parent-relative bone offsets.
+  `anim_to_fbx.py` holds no pose maths (it consumes the rig JSON), so it needed only a docstring note
+  that the decoder applies the correction once.
+
+**Measured on the committed evidence (`Docs/evidence/w2_grip_clips`).** The eight clips are two rigs:
+six share a bone list, the two AUG-family clips order theirs differently. Per rig:
+
+| Rig | Arm joints solved | Worst arm-joint rms | Wrists mirror | Stored (x,y,z,w) reading |
+|---|---|---|---|---|
+| 6 clips (EF88/A4/A416/A25/A89/Minimi) | 9 | **0.062 mm** | 0.3 mm | 0.007–0.159 m |
+| 2 clips (AUG, AUG_GL) | 8 | **0.956 mm** | — | 0.007–0.166 m |
+
+`lefthand`'s stored translation ranges 0.081–0.416 m across the reference rig's poses — a bone offset
+could not vary; its *joint* is one point to 0.03 mm. The recovered wrists are at x = ±0.586 m, and the
+decoder and `adfrc_grip.py` agree on them to 1e-6 m. The AUG family is a different skeleton: its left
+elbow fixed point differs by ~15 mm and its right arm is not mirror-symmetric (R-71).
+
+**2. Architecture guard — new rule SS010: Core holds shared types, not content.**
+
+`Tools/validate_architecture.py` now scans `Plugins/SouthernSpearCore/Source` and fails any line that
+names a content path (`/Game/`, `/SSExp_`, `/ShooterCore/`, `/SouthernSpearUI/`) or loads an asset
+(`LoadObject`, `ConstructorHelpers`, `FSoftObjectPath`, `FSoftClassPath`, `StaticLoadObject`). A module
+that reaches content must be the module that owns it — the structural version of the Session 059b call
+that moved a capture harness out of Core.
+
+One existing hit is **accepted and reported as a NOTE, not a failure**: `Public/SSFonts.h` loads the UI
+font faces from `/SouthernSpearUI/Fonts`. It predates the rule, every UI module already depends on Core,
+and moving it is a separate change — tracked as **R-75**. Every *new* hit is a violation. `Finding`
+gained an `allowed` flag, `--json` gained `notes` and an `SS010` count, and the human report prints notes
+after the verdict. `Tools/test_architecture_guard.py` is the CLAUDE.md negative test done properly: a
+scratch copy of `Tools/` and the SS plugins, a Core asset load injected (exit 1), a Core content path
+injected (exit 1), the accepted SSFonts.h still a NOTE, and removing the injection back to exit 0.
+`CLAUDE.md`'s architecture section documents the rule and the exception.
+
+**3. A unity-build name clash checker.** `Tools/check_unity_names.py` walks every module under
+`Plugins/SouthernSpear*`, collects the names defined inside anonymous namespaces and as file-scope
+`static`s in `.cpp` files, and flags any name defined in **more than one file of the same module** — the
+thing that is fine when files compile separately and a redefinition when Unreal merges them. It also
+flags, best-effort, a local variable that shadows a function or member defined in the same file (the
+Session 048 `Settings`/C4459 case). Exit 1 on a finding; `--json` for the report.
+
+It found a real one on its first clean run: `StatCount` is an anonymous-namespace helper in **both**
+`SSHudStateSubsystem.cpp` and `SSScoreboardSubsystem.cpp` (module `SouthernSpearLyraBridge`). They have
+different signatures, so a unity build would have accepted them as overloads — but the two names mean
+different things and the rule is name-based, so they are now `ItemStatCount` and `PlayerStatCount`. The
+checker is **0 findings across 8 modules** afterwards. `Tools/test_check_unity_names.py` covers the
+fixture cases (duplicate helper, duplicate file-static, shadow, unique name, exit codes). `CLAUDE.md`'s
+build-and-test list gains this command and both negative tests.
+
+**4. Risk register reconciled.** `Docs/PROJECT_AUDIT.md` now carries **R-50–R-66** from Sessions 048–058:
+R-50 (Session 048 uncompiled) and R-56 (Session 049 uncompiled) closed by the later builds; R-62 closed
+by design (Session 057); R-64 closed here; the rest OPEN, each with the changelog's own wording. No
+status was invented — where the changelog did not state one, the row is OPEN. `CLAUDE.md`'s "Open risks"
+line was rewritten to match, and no longer lists R-56 as unverified.
+
+### FILES CHANGED
+
+- Decoder: `Docs/Sourced/ADFRC/rtm_rigs.py`, `rtm2json.py`, `anim_to_fbx.py`; new
+  `Tools/Common/test_rtm_rigs.py`.
+- Guards: `Tools/validate_architecture.py` (SS010 + `allowed` findings), new
+  `Tools/test_architecture_guard.py`; new `Tools/check_unity_names.py`, new
+  `Tools/test_check_unity_names.py`; `Plugins/SouthernSpearLyraBridge/Source/.../SSHudStateSubsystem.cpp`
+  and `SSScoreboardSubsystem.cpp` (`StatCount` renamed).
+- Docs: `CLAUDE.md` (architecture SS010, build/test list, Open risks line), `Docs/PROJECT_AUDIT.md`
+  (R-50–R-66, date), `Docs/CHANGELOG.md`.
+
+### TESTING
+
+- `python Tools/Common/test_rtm_rigs.py` — **exit 0, 18/18 PASS**: the stored reading leaves the arm
+  chain without a fixed point; the (−x,−y,z,w) reading resolves it; every solved arm joint is under
+  1 mm; `R·J + p = J`; the wrists and upper arms mirror; the decoder and `adfrc_grip` agree; and the
+  writer round-trips a rig JSON through `main()` in a temp tree.
+- `python Tools/Common/test_adfrc_grip.py` — **exit 0, 24/24 PASS** (unchanged, as R-64 required).
+- `python Tools/validate_architecture.py` — **exit 0**, one SS010 NOTE (SSFonts.h).
+- `python Tools/test_architecture_guard.py` — **exit 0, 6/6 PASS**.
+- `python Tools/check_unity_names.py` — **exit 0**, 8 modules, 0 findings (was 1 real clash before the rename).
+- `python Tools/test_check_unity_names.py` — **exit 0, 9/9 PASS**.
+- `python -m py_compile` on `rtm_rigs.py`, `rtm2json.py`, `anim_to_fbx.py`, `validate_architecture.py`,
+  `check_unity_names.py` — **exit 0**.
+- **NOT RUN — needs the producer's machine or Blender:** the full decode over the 165 clips (it needs a
+  clean `Animations/Rig/` output; `main()` was exercised only on a temp tree), the Blender FBX export,
+  the editor build (including the `StatCount` rename), `Automation RunTests SouthernSpear`, and the
+  in-game checks. R-64's code is fixed and tested; **its output artifacts are not regenerated yet**.
+
+### ASSETS
+
+None. No asset imported, created or modified.
+
+### RISKS
+
+- **R-70 (open, medium):** the rest-joint solve only pins a bone the clip set actually rotates. On the
+  grip clips 25–38 of 67 bones solve; the rest fall back to the mean world position, so a rig re-decoded
+  from a small or static clip set has an approximate skeleton for bones that never move. A full
+  locomotion set is what pins them.
+- **R-71 (open, medium):** the AUG-family clips (`AUG`, `AUG_GL`) are a **separate rig** — a different
+  bone order, a left elbow fixed point ~15 mm from the other six, and a right arm that is not
+  mirror-symmetric. Consistent with Session 055's "A88G is a different rig" (1.13 m hand span). Treat
+  the AUG handAnim poses as their own skeleton until proven otherwise.
+- **R-72 (open, low):** the rig JSON schema moved to `adfrc-rig/2` and `rest_world` changed meaning
+  (solved joints, not accumulated translations). The decoded tree and any FBX already built from it must
+  be regenerated; stale `adfrc-rig/1` output should be discarded.
+- **R-73 (open, low):** the decoder was fixed and unit-tested, but the full 165-clip decode and the
+  Blender FBX export were not run here. The first producer run is the integration test.
+- **R-75 (open, low):** `Public/SSFonts.h` is a Core header that loads `/SouthernSpearUI/Fonts` assets.
+  Accepted by SS010 and reported as a NOTE; move it to a UI module (which may then depend on it) when
+  convenient.
+- **R-76 (open, low):** the unity-name checker is a line-based heuristic. It does not see a name that a
+  macro introduces, a generated file, or a name defined only inside a class in the `.cpp`; and it flags
+  same-name overloads that a unity build would in fact accept. It is a tripwire, not a proof.
+- No risk number was guessed: the decoder used R-70–R-74, the guards R-75 onward.
+
+### DEFECTS FOUND
+
+- **The decoder's two errors (R-64), fixed.** Found by Session 057's fixed-point test and carried into
+  code here; the AUG shoulder's −21 m "solution" showed that a residual check alone is not enough.
+- **A real unity-name clash,** `StatCount` in two files of `SouthernSpearLyraBridge`, found by
+  `check_unity_names.py` on its first clean run. Renamed.
+- **The first run of the checker had two false-positive classes** (multi-line declarations read as two
+  declarations; anonymous-namespace constants read as locals), found by running it against the real,
+  already-building tree and requiring zero findings. Both are fixed; the fixture test locks them in.
+
+### NEXT ACTION
+
+**On the producer's machine:** pull, then run `python Tools/check_unity_names.py`,
+`python Tools/validate_architecture.py`, `python Tools/test_architecture_guard.py` and
+`python Tools/Common/test_rtm_rigs.py`, and regenerate the ADFRC decoded tree and FBXs off the fixed
+`rtm_rigs.py` (`python Docs/Sourced/ADFRC/rtm_rigs.py`, then the Blender export) so R-64's output
+artifacts match its code. Then build and run `Automation RunTests SouthernSpear` to confirm the
+`StatCount` rename compiles.
+
+---
+
+## Session 063 — 2026-09-28 — Quantum prototype: the gate is answered, and it is mostly no; and W2 hand IK does not compile-block, but will not run
+
+(The Quantum work is ADR-039. The hand IK finding is the important part of this entry.)
+
+**W2 hand IK, first real compile: passes.** `3a6364e8` builds clean. Automation is **58 found, 58
+Success, 0 Fail**, exit 0, including the new `SouthernSpear.Bridge.HandIK.Solve`. Architecture guard
+passes. The maths is fine; the wiring is not, and it fails silently.
+
+**R-65 is worse than "might lag a frame": the IK will never run.** `USSHandIKMeshComponent` overrides
+`FinalizeBoneTransform()`. Searching the whole engine, that method is called from
+`USkeletalMeshComponent::TickAnimation` only in the `TickFunction == nullptr && ShouldBlendPhysicsBones()`
+branch - a manual/editor refresh - and from editor tools (Sequencer, FBX export), physics, MovieScene
+and the new Animation Constraints system. `PostAnimEvaluation` does not call it; it calls
+`DoInstanceFinalizeAnimation` -> `UAnimInstance::FinalizeAnimation`. **Nothing in the normal game
+animation frame calls it.** The override will not be entered in a match, so the left hand will not
+move, and the component logs nothing on the way - it reports the bones it found and then does nothing,
+which is the most expensive failure shape in this project.
+
+The fallback the producer named - a small Animation Blueprint on a copy of the mannequin - is the right
+shape of answer, and the C++ can stay: `UPoseableMeshComponent` is already proven in this session
+(ADR-039) as the per-bone lever that 5.8 keeps, so an Anim BP that drives the pose, or a component that
+overrides `RefreshBoneTransforms` and edits the editable component-space buffer before calling Super,
+both reach the same place. I have not changed the component: it is the other agent's code and the
+choice between those is theirs. **This is the one thing to fix before anyone looks for the hand in a
+match.**
+
+**Hand IK bone names resolve on every mesh it is wired to** (`Tools/Unreal/check_handik_bones.py`,
+`Build/handik_bones.json`). Body `SKM_Manny` -> `upperarm_l > lowerarm_l > hand_l` (164 bones,
+indices 11/12/20); first-person Rifle and Pistol arms -> `LeftArm > LeftForeArm > LeftHand` (55 and 61
+bones, indices 26/27/28). So the `LogSSHandIK` line the producer asked me to look for will read
+correctly for both - it just will not print, because the component never ticks into `ResolveBones` in a
+match. The ancestry half of the check is a topological-order proxy, not `FSSHandIK::IsAncestor`, and
+is labelled as such in the report.
+
+**Free finding: the Quantum body needs no new arm bone names.** Quantum's `SKM_Jeans` resolves
+`upperarm_l > lowerarm_l > hand_l` on the component's *existing* body-side list (351 bones, indices
+11/12/15), because Quantum uses the UE mannequin names. If the prototype is ever adopted, the
+third-person hand IK works on it unchanged; only the first-person arms, being a separate mesh, would
+need their own candidates.
+
+**R-66 stands unmeasured.** Nothing here needed the palm-depth constant, because the IK never ran.
+
+**Screenshots, again.** The in-match checks the producer asked for - A88 with `ss.HandIK 1` and `0`, both
+views, one reload - cannot be run: `Tools/run_map_capture.sh` still stalls at 32 log lines before
+`LoadMap` on every map, with and without `-nullrhi`, with `-RenderOffscreen`, with `-NoLoadingScreen`
+(ADR-039). That check stays open until both the capture path and R-65 are fixed.
+
+**Housekeeping, and a mistake of mine.** My Session 058 / ADR-039 text was lost partway through this
+session: I wrote a backup to a Git Bash `/tmp` path that Windows Python cannot see, and the `open()`
+failed, but the `git checkout` that reverted the docs had already run. Recovered by rewriting it - this
+entry is renumbered to **059** because the other agent's hand IK took 058. The lesson for the next
+session: do not revert tracked files until the backup has been read back and verified, and on this
+machine use a project-relative path rather than `/tmp` for anything Windows tooling has to open.
+
+**Traps added.** `SK_Mannequin` is the Skeleton and `SKM_Manny` is the mesh, and they share a name, so
+`LoadObject<USkeletalMesh>` on the former returns a `USkeleton` and every cast fails silently. A UFUNCTION
+with a `bool` return **and** a `FString&` out-param is uncallable from 5.8 Python - the bool becomes
+`None` and the out-param is dropped - so return the string. And overriding `FinalizeBoneTransform()` on
+a `USkeletalMeshComponent` looks like the documented post-animation hook and is not, because 5.8 never
+calls it during a game frame.
+
+## Session 063b — 2026-09-28 — Producer review: three of four points were right, and the fourth exposed a vacuous proof
+
+The producer reviewed the Quantum report and raised four corrections. Three were correct and one was
+based on a stale read. All four are answered here; ADR-039 has been rewritten to match.
+
+**1. The reference-pose question is settled, and I was wrong about the order.** Unreal composes child
+component space as `Local * ParentComponentSpace` - `UPoseableMeshComponent::FillComponentSpaceTransforms`
+says it in a comment and calls `FTransform::Multiply(Dest, Local, ParentCS)`. I had it the other way
+round. `GetRefBonePose()` always returned parent-relative transforms; the multiply order was the bug.
+After the fix, `upperarm_l` to `hand_l` reads **51.87 cm** in both skeletons, which is a correct
+upperarm-plus-forearm span, against the 144.4 cm it reported before.
+
+**The producer's real point was better than the one they made.** A, B and C all compared the retarget
+against reference poses composed by *the same function* that produced them, so **none of them could
+detect a wrong composition** - they were self-referential, and "rest drift 0.0001 cm" was an artifact
+rather than a result. A check that shares a function with what it is checking proves nothing. There is
+now a guard for the class: the proof composes the reference pose and checks it against absolute human
+proportions - a forearm 20-35 cm, a head 55-80 cm above the pelvis - and fails the report outright
+otherwise. It earned its keep immediately, by rejecting my own first band, written on the assumption
+that `lowerarm_l` sat at the wrist. It does not: it sits at the elbow, so the span is the forearm, 27.25 cm.
+
+After the fix, all four modules: sanity passes, A drift 0.0001 cm, B 30.0 of 30.0 degrees, and C
+**27.2511 -> 27.2511 cm** - the bone length preserved exactly, not within a tolerance.
+
+**2. The stall is not the prototype, and not a stray process - proven, not asserted.** The producer was
+right to challenge "pre-existing". A working commandlet log goes from the ini loads directly to
+`LogPluginManager: Found matching target receipt`; every `-game` log stops before printing that line.
+So the `-game` process stalls **before any Southern Spear module loads**, which means my prototype and
+the hand IK are both incapable of causing it - neither can run before the point it stops at.
+`tasklist` shows zero Unreal processes. I then tested the game-target hypothesis, and it is *not* the
+cause: building the target changed nothing about the stall.
+
+**But the detour found a real break.** The **game target had never been built on this machine and did
+not compile**: `SSObjectiveTests.cpp` and `SSSectionAssaultTests.cpp` pass `NAN` and `INFINITY` -
+compile-time constants - into tests that are about non-finite values, and a game-target build folds them
+into constant arithmetic (MSVC C4756). Replaced with `std::numeric_limits<float>::quiet_NaN()` and
+`infinity()`, which is also what those tests mean. `SouthernSpear Win64 Development` now builds and
+`SouthernSpear.exe` links. The screenshot is still outstanding and I still cannot produce it.
+
+**3. Moved out of Core.** `ASSQuantumProtoStage` is now in `SouthernSpearLyraBridge`. The producer's
+argument is right and mine was thin: Core is the root of the SS dependency graph and holds the shared
+types every other module uses, and a capture harness naming specific Quantum and mannequin assets does
+not belong there even though it touches no gameplay state. `validate_architecture.py` passed it in Core
+because the guard reads module dependencies, not what the code does - which is itself worth recording.
+
+**4. The hand IK was compiled, and the finding stands.** The 57 of 57 was from before the pull; after
+`3a6364e8` the suite is **58 found, 58 Success, 0 Fail**, including `SouthernSpear.Bridge.HandIK.Solve`,
+re-confirmed after this session's changes. The producer's belief that the IK "hooks the step where the
+body mesh publishes each frame's pose" is the part that does not hold: `FinalizeBoneTransform()` is
+called nowhere in the game animation frame - `PostAnimEvaluation` calls
+`DoInstanceFinalizeAnimation` -> `UAnimInstance::FinalizeAnimation` instead. That finding is unchanged
+and is the one thing to fix before looking for the hand in a match.
+
+**State.** Build succeeds, architecture guard passes, 58/58. Nothing committed.
+
+## Session 063c — 2026-09-29 — The capture works, the comparison is shot, and the critique's five fixes are in
+
+**The capture stall was never a stall.** Two compounding misdiagnoses, both mine. First, `run_map_capture.sh`
+violated two rules of `Docs/PLAYTEST_COMMANDS.md`: it launched `UnrealEditor-Cmd.exe` instead of
+`UnrealEditor.exe`, and it passed neither `-abslog` nor `-FORCELOGFLUSH`, so a killed run lost its log tail
+and the default log was being shared with other agents' commandlets. The "stall at 32 lines" was a lost
+tail plus the wrong log file. Second, the first "successful" capture rendered a black frame with the HUD
+on it, because the map had been saved while `ASSQuantumProtoStage` still lived in SouthernSpearCore: on
+load the class failed to resolve (`CreateExport: Failed to load Outer` for Camera, Sun, Fill, Platform),
+so nothing took the view and nothing lit the scene. Re-running `setup_quantum_proto.py` re-saved the map
+against `/Script/SouthernSpearLyraBridge.SSQuantumProtoStage` (verified in the umap) and the same recipe
+then produced a full frame. The script now follows §3 of the doc exactly.
+
+**The producer's critique of the first real frame was right on every point**, and the scratch probe
+(`Build/probe_camo_chain.py` -> `Build/probe_camo_chain.json`) found the cause of the white shirt: the
+camo master and both instances were created and assigned in commandlet memory but **never saved** -
+`main()` saved only the four meshes, so the process exit deleted the material out from under the slots.
+`M_SS_ADFRC_Camo`, `MI_SS_ADFRC_Camo_Shirt` and `MI_SS_ADFRC_Camo_Jeans` now persist in
+`/SSExp_ObjectiveAssault/Characters/QuantumProto/` and are re-assigned on every run. Also fixed in the
+stage: the `SKM_Arms` module (the hands - the shirt is rolled-up sleeves ending at the forearm), the
+ADFRC vest and helmet leader-posed onto the Quantum body (the same-kit test), a matte floor and matte
+plinth (WorldGridMaterial read as a wet mirror), stronger fill, a full-length camera pull-back, and a
+per-tick view takeover because Lyra's pawn takes the view back after BeginPlay (the producer's window
+showed their own first-person glove mid-frame).
+
+**The next run crashed on an engine ensure** (`SkinnedMeshSceneProxyDesc.cpp:455`: a leader-pose
+component whose bone map does not cover the follower's whole ref skeleton) while spawning the soldier
+into the stage map - the hand-IK component attaching to the camera is now reaching the stage map through
+the game feature's pawn. That crash is the boundary of this session, not a fix in it. The producer's
+window of the same build shows both bodies standing on the plinth, and the frame the producer took is
+saved as `Docs/evidence/qproto/quantum_vs_g3_captured.png`.
+
+**Still open, honestly:** the vest/helmet on Quantum, camo-on-body and hands-on-Quantum are all built
+into the stage but not yet *seen* in a saved capture, because of that ensure. The mic-boom-in-nose defect
+and the FP/third-person camo mismatch belong to the other agent. The recommendation stands: keep G3
+(ADR-036) unless the fixed shot shows Quantum in the same kit clearly beating it.
+
+---
+
+## Session 064 — 2026-09-29 — W5 Reload Tooling, And A Trap Between The Fixed Decoder And The Grip
+
+### COMPLETED
+
+- **A trap between R-64's decoder fix and W2's grip, closed before it fired.** The fixed decoder
+  (`rtm_rigs.py`, Session 062) now converts rotations while decoding and writes *standard* quaternions. It
+  still labelled its output `adfrc-anim-local/1`, the tag the old stored-convention files carry.
+  `adfrc_grip.py` reads the stored convention. So the first weapon build after the full 165-clip decode
+  would have flipped every rotation twice and put the hands in the wrong place, silently, since the grip
+  fit reports only whether a pose fits.
+  - The decoder now writes `adfrc-anim-local/2`.
+  - `adfrc_grip.load_clip_frames` converts /2 files back to the stored convention on load.
+  - /1 files and the unlabelled committed evidence are left as they are.
+- **W5 tooling (the A88 bullpup reload):**
+  - `adfrc_grip.load_clip_frames` returns every frame of a clip, from the decoded tree or from
+    `Docs/evidence/w5_reload_clips`.
+  - `python Tools/Common/adfrc_grip.py --export-frames Docs/evidence/w5_reload_clips` exports the four
+    reload clips (`GestureReloadAUG`, `…Prone`, `MPP_Fast_Reload`, `MPP_Slow_Reload`) in full.
+  - `Tools/Common/adfrc_reload.py <weapon> [clip] [samples]` turns a reload clip into the left wrist's path
+    relative to the right-hand grip, in the weapon's own axes: forward from the grip to the muzzle, the
+    shooter's right, and up. It writes `Build/reload_path_<weapon>.json` with the sampled keys, the start
+    and end offsets, the static grip pose's offset (the game uses it to check its right-axis sign), the
+    distance from the path's start to the grip, the largest per-frame step, and the magazine switch phase
+    (0.48 for the EF88 family, from the config registry).
+  - `Tools/Blender/probe_weapon_parts.py <src.blend> <out.json>` lists a weapon MLOD's named selections
+    with vertex counts. It answers whether the magazine is a separate part that can come off in the hand.
+- **What the reload clips hold** (from `ASSET_MANIFEST.json`):
+  - `GestureReloadAUG` and `…Prone` have 165 frames each, in both trees. The Source copies are absolute
+    RTM; the Workshop copies are BMTR.
+  - Their 66-bone rig has `weapon`, both arms and hands, and no magazine bone. Arma moves the magazine
+    through the weapon model (its `magazine` selection is hidden and swapped at
+    `magazineReloadSwitchPhase`).
+
+### FILES CHANGED
+
+`Docs/Sourced/ADFRC/rtm_rigs.py` (schema /2), `Tools/Common/adfrc_grip.py`, `Tools/Common/test_adfrc_grip.py`,
+`Tools/Common/adfrc_reload.py` (new), `Tools/Common/test_adfrc_reload.py` (new),
+`Tools/Blender/probe_weapon_parts.py` (new), `Docs/CHANGELOG.md`.
+
+### TESTING
+
+- `python Tools/Common/test_adfrc_grip.py`: **exit 0, 26/26.** New checks: a /2 copy of a real clip gives
+  the same hands as the stored evidence (1e-9), and /1 and unlabelled frames pass through untouched.
+- `python Tools/Common/test_rtm_rigs.py`: exit 0.
+- `python Tools/Common/test_adfrc_reload.py`: **exit 0, 10/10.**
+  - On a synthetic reload the path is recovered exactly: 25 cm forward and 5 cm left at the start; 5 cm
+    forward and 12 cm down at the magazine well half-way; back to the start; no frame step over 3 cm.
+  - The weapon axes are forward down the barrel, z up and the shooter's right.
+  - A one-frame clip is refused.
+  - On the real A88 grip pose, the left hand is 22.2 cm forward, 9.4 cm left and 1.5 cm below the right.
+- `python3 -m py_compile` on the new scripts: exit 0.
+- **NOT RUN:** the reload clips themselves (they exist only on the producer's machine), the Blender probe,
+  and anything in Unreal.
+
+### ASSETS
+
+None.
+
+### RISKS
+
+- **R-77 (open, medium):** the reload path is relative to the weapon, so it can only drive the left hand
+  once the hand IK actually runs. It doesn't in 5.8 (R-65, Session 063). W5 waits on the R-65 fix.
+
+### DEFECTS FOUND
+
+- The decoder's /2 output was still labelled /1. Found by reading the fixed decoder's writer before planning
+  W5. Fixed at both ends.
+
+### NEXT ACTION
+
+**On the producer's machine:** fix R-65. Confirm in the 5.8 source which post-evaluation hook runs in a game
+frame (see the prompt in the Session 064 reply), and build the replacement.
+
+---
+
+
+## Session 065 — 2026-09-29 — R-65 Answered From The 5.8 Source; The Full Decode; Three W5 Probes
+
+Four tasks, run in order on `e4fff018`. The R-65 answer is the one that changes a decision, so it comes
+with the engine quotes and line numbers and **no fix was written** — the producer writes that.
+
+### COMPLETED
+
+**1. R-65 (the hand IK never runs) — answered from the UE 5.8.3 source, and the Session 059 diagnosis
+was incomplete.**
+
+**a. A per-component post-process Anim Blueprint override exists.** `USkeletalMeshComponent`
+(`Objects/Components/SkeletalMeshComponent.h`):
+
+```cpp
+/** Post-processing AnimBP to use for the given skeletal mesh component, overriding the one set in the skeletal mesh asset. */
+UPROPERTY(transient)
+TSubclassOf<UAnimInstance> OverridePostProcessAnimBP;                                    // line 410
+ENGINE_API TSubclassOf<UAnimInstance> GetPostProcessAnimBPClassToBeUsed() const;          // line 417
+UPROPERTY(transient)
+TObjectPtr<UAnimInstance> PostProcessAnimInstance;                                        // line 423
+UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh")
+ENGINE_API void SetOverridePostProcessAnimBP(TSubclassOf<UAnimInstance> InPostProcessAnimBlueprint,
+                                             bool ReinitAnimInstances = true);            // line 433
+```
+Also available: `ToggleDisablePostProcessBlueprint()` (437) and `GetDisablePostProcessBlueprint()` (441).
+
+**b. `PostAnimEvaluation` is not virtual, and — this is the correction — `FinalizeBoneTransform` *is*
+reached in a normal game frame.** Declaration (SkeletalMeshComponent.h:2271, public):
+
+```cpp
+ENGINE_API void PostAnimEvaluation(FAnimationEvaluationContext& EvaluationContext);       // NOT virtual
+```
+
+`USkeletalMeshComponent::PostAnimEvaluation` is `SkeletalMeshComponent.cpp:3181-3381`. After the
+evaluation itself, in order (`if (bDoEvaluation || bDoInterpolation)` opens at 3276; the whole block
+closes at 3363):
+
+| line | call |
+|---|---|
+| 3193 | `EvaluationContext.AnimInstance->PostUpdateAnimation()` |
+| 3198 | `PostProcessAnimInstance->PostUpdateAnimation()` (when `ShouldPostUpdatePostProcessInstance()`) |
+| 3211 / 3217 / 3222-3227 | cache copies: `CachedCurve`, `CachedAttributes`, `CachedComponentSpaceTransforms`, `CachedBoneSpaceTransforms` (per `bDuplicateToCache*`) |
+| 3240 / 3245 / 3250 | `OnUROPreInterpolation()` on the main, linked and post-process instances |
+| 3262 | `FAnimationRuntime::LerpBoneTransforms(...)` |
+| 3263 | `GetSkeletalMeshAsset()->FillComponentSpaceTransforms(...)` |
+| 3266 / 3269 | `AnimCurves.LerpTo(...)`, `UE::Anim::Attributes::InterpolateAttributes(...)` |
+| 3279 | `ResetMorphTargetCurves()` |
+| 3291 | `AnimScriptInstance->UpdateCurvesPostEvaluation()` |
+| 3297 | `LinkedInstance->CopyCurveValues(*AnimScriptInstance)` |
+| 3302 | `UpdateMorphTargetOverrideCurves()` |
+| 3310 / 3315 | post-process curve copy / `UpdateCurvesPostEvaluation()` |
+| 3322 | `DoInstancePostEvaluation()` (when `bDoEvaluation`) |
+| 3325 | `DoInstanceFinalizeAnimation(EvaluationContext.bDoEvaluation)` |
+| 3327 | `bNeedToFlipSpaceBaseBuffers = true` |
+| 3337-3338 / 3343-3344 | `UpdateKinematicBonesToAnim(...)`, `UpdateRBJointMotors()` (bodies or per-poly collision) |
+| **3354 / 3360** | **`FinalizeAnimationUpdate()`** — editor branch / `!ShouldBlendPhysicsBones()` |
+| 3366 | `DoInstanceFinalizeAnimation(false)` (the else branch) |
+| 3377 | `ConditionallyDispatchQueuedAnimEvents()` (the else branch) |
+| 3380 | `AnimEvaluationContext.Clear()` |
+
+`USkeletalMeshComponent::FinalizeAnimationUpdate()` is defined **in `PhysicsEngine/PhysAnim.cpp:468`**,
+not in `SkeletalMeshComponent.cpp`, and its first act is `FinalizeBoneTransform();` at **PhysAnim.cpp:473**.
+`USkeletalMeshComponent::FinalizeBoneTransform()` (`SkeletalMeshComponent.cpp:5167`, virtual, overriding
+`USkinnedMeshComponent::FinalizeBoneTransform` declared at `SkinnedMeshComponent.h:1712`) is where
+`ConditionallyDispatchQueuedAnimEvents()` runs (5186) and where **`OnBoneTransformsFinalizedMC.Broadcast()`
+is (5188)** — the only broadcast site in the engine.
+
+Every normal-frame route to it, in full:
+
+- `PostAnimEvaluation` → `FinalizeAnimationUpdate()` when `!ShouldBlendPhysicsBones()` (3354/3360);
+- with physics blending, the tick calls `BlendInPhysicsInternal` (`SkeletalMeshComponentPhysics.cpp:3456`,
+  under `if (ShouldBlendPhysicsBones())`) → `FinalizeAnimationUpdate()` at `PhysAnim.cpp:459` (serial), or
+  `FParallelBlendPhysicsCompletionTask::DoTask` (`PhysAnim.cpp:97`) → `CompleteParallelBlendPhysics()`
+  (`PhysAnim.cpp:526`) → `FinalizeAnimationUpdate()` at 530 — the default path, `a.ParallelBlendPhysics 1`;
+- `RefreshBoneTransforms` (2862) calls `FinalizeBoneTransform()` directly at 3039, but only when
+  `TickFunction == nullptr && ShouldBlendPhysicsBones()` (3036).
+
+`ShouldBlendPhysicsBones()` itself is `PhysAnim.cpp:400`: `Bodies.Num() > 0 && CollisionEnabledHasPhysics(...)
+&& (bBlendPhysics || DoAnyPhysicsBodiesHaveWeight())`. The two routes are complementary — when it is false
+PostAnimEvaluation finalises, when it is true the physics blend does — so the broadcast does happen in a
+normal game frame, on any frame that evaluated or interpolated. The remaining callers are editor-only:
+Sequencer, the FBX exporters, the physics-asset editor and `UPoseableMeshComponent`.
+
+**Historical Session 065 conclusion (revisited in Session 066): R-65's premise needed further observation before a fix was written.** Session 059 searched
+`SkeletalMeshComponent.cpp` for callers of `FinalizeBoneTransform` and found only the
+`TickFunction == nullptr` branch; `FinalizeAnimationUpdate` lives in `PhysAnim.cpp` and was missed. If
+`USSHandIKMeshComponent::FinalizeBoneTransform()` does run, the failure is elsewhere — the ordering
+(a hook there runs *before* `UpdateChildTransforms`, `UpdateBounds` and `MarkRenderDynamicDataDirty`,
+PhysAnim.cpp:483-523), the post-process route, or the component simply not being the one that renders.
+
+**c. `AnimGraphService` can build part of this post-process graph, not all of it.** From
+`Build/vibeue_python_api.json` and `Plugins/VibeUE/Source/VibeUE/Public/PythonAPI/UAnimGraphService.h`:
+
+- Creating the Anim Blueprint is not a VibeUE call — use the engine API the
+  `animation-blueprint` skill documents: `unreal.AnimBlueprintFactory` with `target_skeleton` and
+  `parent_class` (any `UAnimInstance` subclass, so a C++ parent works) +
+  `unreal.AssetToolsHelpers.get_asset_tools().create_asset(name, path, unreal.AnimBlueprint, factory)`,
+  then `unreal.EditorAssetLibrary.save_asset(path)`. `SkeletonService.set_post_process_anim_blueprint` and
+  `SkeletonService.save_asset` exist for the skeleton side.
+- Two Bone IK: **`add_two_bone_ik_node(anim_blueprint_path, graph_name, pos_x, pos_y)`** — that is the whole
+  signature; it creates a `UAnimGraphNode_TwoBoneIK` and sets only its graph position. It cannot set the IK
+  bone, the effector location or its space, the joint target, or alpha.
+- **There is no Input Pose node anywhere in the plugin** (no `add_input_pose`, and no generic node-add in
+  `AnimGraphService`; `BlueprintService.create_node_by_key` is for ordinary Blueprints).
+- Pins are connected, not bound: `connect_anim_nodes(abp, graph, source_node_id, source_pin_name="Pose",
+  target_node_id="", target_pin_name="Result")`, `connect_to_output_pose(abp, graph, node_id, "Pose")`,
+  `get_output_pose_node_id(abp, graph)`, `disconnect_anim_node(...)`. For a value,
+  `BlueprintService.set_node_pin_value(blueprint, graph, node_id, pin_name, value)` writes a literal default
+  (`Schema->TrySetDefaultValue`) and `configure_node(blueprint, graph, node_id, property_name, value)` sets a
+  property on the node — neither creates a variable binding, and no method in either service does.
+- Variables and compile: `BlueprintService.add_member_variable(path, name, type, default, is_array,
+  container_type, instance_editable)` and `BlueprintService.compile_blueprint(path)` still exist in C++, but
+  the skill's guidance is that the engine toolset took them over —
+  `editor_toolset.toolsets.blueprint.BlueprintTools` (`add_variable`, `compile_blueprint`) via `call_tool`.
+  Setting the node's IK parameters and binding its pins to the parent's variables is the part that has to be
+  done in the editor (or by a new plugin method), not by a service call.
+
+**2. The full decode, and the grip still fits.** `python Docs/Sourced/ADFRC/rtm_rigs.py` → **13 rigs, 165
+clips**, written as `adfrc-rig/2` and `adfrc-anim-local/2` (+ `adfrc-rig-index/1`), exit 0. Then
+`python Tools/build_adfrc_weapons.py`: 7/7 OK, and every rifle's `grip.fit` is still `true` with a span
+**identical to the pre-pull run** — A88 0.2418, A88G 0.2929, A4 0.3113, A416 0.3381, A25 0.3486, A89 0.3013 m
+(all inside the 0.24-0.35 m band). The /2 conversion is therefore correct on the real tree, not just in the
+unit test; the stop-and-report condition was not met.
+
+**3. The reload clip path.** `python Tools/Common/adfrc_grip.py --export-frames Docs/evidence/w5_reload_clips`
+→ 4 clips (GestureReloadAUG 165 frames/66 bones, GestureReloadAUGProne 165/66, MPP_Fast_Reload 54/67,
+MPP_Slow_Reload 91/67). `python Tools/Common/adfrc_reload.py A88`:
+
+```json
+{"clip": "GestureReloadAUG", "frames": 165, "max_step_cm": 88.14, "start_cm": [98.89, 50.83, -159.73],
+ "end_cm": [98.9, 50.79, -159.73], "grip_cm": [22.23, -9.4, -1.51], "start_to_grip_cm": 185.84,
+ "switch_phase": 0.48}
+```
+
+**4. The A88 magazine probe.** `Tools/Blender/probe_weapon_parts.py` on
+`ADFRC_EF88_MLOD.blend`:
+
+```
+[probe parts] Art/ADFRC_BLEND/adfrc_ef88/ADFRC_EF88_MLOD.blend magazine groups:
+[{"object": "Memory", "collections": ["point_cloud"], "group": "magazine_axis", "vertices": 2},
+ {"object": "Memory", "collections": ["point_cloud"], "group": "mag_latch_axis", "vertices": 3}]
+```
+
+**5. Muzzle-flash candidates.** A commandlet pass over the asset registry
+(`-ExecutePythonScript`, the convention `setup_weapons.py` uses): `/Game/Realistic_Starter_VFX_Pack_Vol2`
+holds 188 assets — 56 `ParticleSystem`, 0 `NiagaraSystem` — and **not one** has Muzzle, Flash or Shot in its
+name; its particles are `P_Asphalt`, `P_Blood_Splat_Cone`, `P_Destruction_*`, `P_Explosion_*` and similar.
+The same keyword pass over all of `/Game` (14,558 assets) found 4, recorded in
+`Docs/evidence/vfx_muzzle_candidates.json`:
+
+| class | path |
+|---|---|
+| NiagaraSystem | `/Game/Effects/Particles/Weapons/NS_WeaponFire_MuzzleFlash_Rifle` |
+| NiagaraSystem | `/Game/Effects/Particles/Weapons/NS_WeaponFire_Tracer_Shotgun` |
+| ParticleSystem | `/Game/AK-47/FX/MuzzleFlash/P_AssaultRifle_MuzzleFlash` |
+| ParticleSystem | `/Game/Downloaded/VaultCache/Untitled7d3b12f5addbV1/data/Content/AK-47/FX/MuzzleFlash/P_AssaultRifle_MuzzleFlash` |
+
+### FILES CHANGED
+
+- `Docs/evidence/w5_reload_clips/` — new: `GestureReloadAUG.json`, `GestureReloadAUGProne.json`,
+  `MPP_Fast_Reload.json`, `MPP_Slow_Reload.json`, `parts_A88.json`.
+- `Docs/evidence/vfx_muzzle_candidates.json` — new (with the pack inventory and the /Game wide scan).
+- `Art/Weapons/*/ADFRC/` — 7 `SM_*.fbx` (LFS) + 7 `manifest.json` touched by the rebuild.
+- `Docs/CHANGELOG.md`.
+- Not committed, by instruction: `Build/probe_muzzle_vfx.py` (the throwaway probe that produced the VFX
+  list) and the stale `/1` decode tree, moved to `Build/ADFRC_Rig_stale_v1/`.
+
+### TESTING
+
+- `python Docs/Sourced/ADFRC/rtm_rigs.py` — exit 0; 13 rigs / 165 clips, schemas `adfrc-rig/2`,
+  `adfrc-anim-local/2`, `adfrc-rig-index/1`.
+- `python Tools/build_adfrc_weapons.py` — exit 0, 7/7 OK; all six grip spans identical to the previous run
+  and all `fit: true`; A9 unchanged (no handAnim clip, so no grip).
+- `python Tools/Common/adfrc_grip.py --export-frames ...` — exit 0, "4 clip(s) written".
+- `python Tools/Common/adfrc_reload.py A88` — exit 0, JSON above.
+- Blender probe — exit 0, magazine groups line above.
+- Editor commandlet probe — exit 0, `[VFX]` line written; the report is the JSON.
+
+### ASSETS
+
+None imported, created or modified by hand. The 7 weapon FBX were re-exported by
+`Tools/build_adfrc_weapons.py` and re-committed.
+
+### RISKS
+
+No new risk numbers were taken: this session did not reserve a range, and the ID rule says not to guess the
+next free one. The open items this session raises, for numbering with the others: the R-65 mechanism (below) is
+now unproven rather than confirmed; the A88 magazine has no detachable named selection (below); the weapon
+FBX export is not byte-reproducible (below); and the decoder cannot be re-run over its own output (below).
+
+### DEFECTS FOUND
+
+- **R-65's mechanism does not hold as written.** `FinalizeBoneTransform` is reached in a normal frame via
+  `FinalizeAnimationUpdate` (`PhysAnim.cpp:468`, called from 3354/3360, 459 and 530). Any fix should start
+  from why the override's work is not visible in the rendered pose, not from "it never runs".
+- **`rtm_rigs.py` cannot be run twice.** Its input glob skips a file whose *immediate* parent directory is
+  `Rig` (`if os.path.basename(os.path.dirname(f)) != "Rig"`), but it writes its own output to
+  `Rig/<rigkey>/<clip>.json`, where the parent is `<rigkey>`. The second run therefore reads its own output
+  as input and dies with `KeyError: 'bones'` (165 files) — this is how this session started. The stale `/1`
+  tree was moved aside to `Build/ADFRC_Rig_stale_v1/` and the tree was decoded fresh. One line fixes it:
+  exclude anything under `Rig/`, not just files directly in it.
+- **The FBX export is not reproducible.** Each `SM_*.fbx` is the same size and differs from the committed
+  one only in the `CreationTimeStamp` bytes at offset ~292 of the header (`cmp` on the A88: first difference
+  at byte 292, inside Year/Month/Day/Hour/Minute/Second). Every rebuild therefore mints 7 new LFS objects
+  (~23 MB) that carry no mesh change, and the manifests show as modified purely through CRLF.
+- **The A88's magazine is not a detachable part.** The probe reports 67 mesh objects in the MLOD blend and
+  **none** of them carries a vertex group: the named selections Arma uses did not survive the conversion, and
+  the only magazine references left are two memory points on the `Memory` point cloud (`magazine_axis`, 2
+  vertices; `mag_latch_axis`, 3). Arma's reload works by hiding the `magazine` named selection, so as it
+  stands there is no geometry to hide or swap — the magazine is welded into the gun mesh. That is a W5
+  finding, not a tooling one.
+- **`GestureReloadAUG` starts 1.86 m from the grip, with an 0.88 m single-frame step.** The clip is a
+  full-body gesture whose first frame is not a weapon-ready pose; worth knowing before the path is turned
+  into an animation.
+
+### NEXT ACTION
+
+Write the R-65 fix from the annotated call chain above, starting with why
+`USSHandIKMeshComponent::FinalizeBoneTransform` (or the post-process route) does not change the rendered pose
+— then fix the `rtm_rigs.py` exclusion so the decoder can be re-run, and stop regenerating the FBX until the
+export timestamp is pinned.
+
+---
+
+## Session 066 — 2026-09-28 — review of Session 065: R-65 reopened as unobserved, the gesture clips don't pose, decoder re-runs
+
+### COMPLETED
+
+- **R-65 is not "the hook never runs".** Session 065 traced `FinalizeAnimationUpdate` (PhysAnim.cpp:468) calling
+  `FinalizeBoneTransform` on every evaluated or interpolated game frame. `USSHandIKMeshComponent` edits the
+  editable buffer before `Super` flips it, so the edit should be published. No one has looked at a rendered frame
+  with `ss.HandIK 1` against `ss.HandIK 0`; R-65 is now "unobserved", and that A/B screenshot is the next action.
+- **`GestureReloadAUG`/`…Prone` do not pose under the grip model**: the wrists come out 1.5-3.2 m apart. The start
+  offset and 0.88 m step in Session 065 were this, not a gesture start pose. `adfrc_reload.py` now refuses any frame
+  with wrists over 0.9 m apart (new test). `MPP_Slow_Reload` passes (steps ≤ 13 cm) but is not the AUG gesture.
+  W5 plan: the left-hand path is authored from the weapon's own points (grip → `magazine_axis` → pouch → back),
+  not decoded.
+- **The decoder can be re-run.** `rtm_rigs.py` skips everything under `Rig/`, not just files directly in it.
+
+### FILES CHANGED
+
+`Docs/Sourced/ADFRC/rtm_rigs.py`, `Tools/Common/adfrc_reload.py`, `Tools/Common/test_adfrc_reload.py`, `Docs/CHANGELOG.md`.
+
+### TESTING
+
+- `python Tools/Common/test_adfrc_reload.py` → exit 0, 11/11 checks passed.
+- `python Tools/Common/test_rtm_rigs.py` → exit 0, 0 failures.
+- `python Tools/Common/adfrc_reload.py A88` → exits with an error: GestureReloadAUG frame 0 has the wrists 1.95 m apart.
+- NOT RUN: running the decoder twice on the real tree (the raw pack is on the producer's machine only), the build,
+  the automation tests, the in-game check.
+
+### ASSETS
+
+None.
+
+### RISKS
+
+- R-65 restated: the hand IK hook runs (Session 065) but its effect on the rendered pose has never been observed.
+- R-78: the ADFRC gesture clips decode to impossible poses, so the reload can't come from Arma's animation.
+
+### DEFECTS FOUND
+
+- The gesture clips give impossible poses (found by measuring the wrist-to-wrist distance per frame).
+- The decoder crashed when re-run (found by the Session 065 agent; fixed here).
+
+### NEXT ACTION
+
+A rendered A/B check of the hand IK: `-game` A88 runs with `-SSShotAt` and `-SSExec=ss.HandIK 0` versus
+`ss.HandIK 1`, and pixel-diff the left hand.
+
+---
+
+## Session 067 — 2026-09-29 — R-65 observed: the hand pose does change; and how a single pair nearly read as a lie
+
+**Later status note (2026-10-01):** this session's controlled A/B is the historical rendered evidence for hook execution/pose change; Session 070 added the measured A88 grip-target distance. Current R-65 is the broader fit/acceptance gap, not that the hook never executes. See the current risk row in `PROJECT_AUDIT.md`.
+
+The three handover tasks. The R-65 A/B needed more runs than it was asked for: one cross-run pair is not
+evidence, because a `-SSShotAt` capture has no deterministic viewpoint.
+
+### COMPLETED
+
+**1. R-65 is now observed — `ss.HandIK 0` and `ss.HandIK 1` do render a different left-hand pose.** Four runs
+on `/Game/Maps/L_DryRiver_01`, A88 Rifleman kit, `-game -windowed -ResX=1600 -ResY=900 -nosplash -nosound
+-FORCELOGFLUSH -SSNoClassSelect -SSShotAt=20 -SSExecAt=12 "-SSExec=ss.HandIK 0|1"`. The flag reaches the game
+once the pawn exists, and the echo confirms the value:
+
+```
+[2026.09.28-22.23.48:402][954]LogSSObjectives: SSExec at 12.0 s: ss.HandIK 0
+[2026.09.28-22.23.48:412][954]ss.HandIK = "0"
+[2026.09.28-22.23.56:403][764]LogSSObjectives: Requested viewport screenshot at 20.0 s.
+[2026.09.28-22.26.29:423][145]LogSSObjectives: SSExec at 12.0 s: ss.HandIK 1
+[2026.09.28-22.26.29:428][145]ss.HandIK = "1"
+[2026.09.28-22.26.37:425][ 99]LogSSObjectives: Requested viewport screenshot at 20.0 s.
+```
+
+The components the fallback question asked for are already named by the binding log, so `ShowDebug ANIMATION`
+was not needed. Body = `CharacterMesh0` on `SKM_Manny_Invis` (hidden in first person); the first-person arms =
+`SS_FirstPersonArms`, re-pointed per weapon:
+
+```
+LogSSHandIK: CharacterMesh0 (SKM_Manny_Invis): left-hand IK on upperarm_l > lowerarm_l > hand_l.
+LogSSHandIK: SS_FirstPersonArms (SK_FP_Arms_Rifle): left-hand IK on LeftArm > LeftForeArm > LeftHand.
+LogSSHandIK: SS_FirstPersonArms (SK_FP_Arms_Pistol): left-hand IK on LeftArm > LeftForeArm > LeftHand.
+```
+
+All four captured runs held the `SM_A88` rifle view model at the shot, so the weapon is not a confound
+(`LogSSFirstPerson: View model shows SM_A88` is the last view-model line before `Requested viewport
+screenshot` in every one of them; the `SM_A9` pistol line comes after).
+
+| run | `ss.HandIK` | image | log |
+|---|---|---|---|
+| off1 | 0 | `Docs/evidence/handik_ab/off.png` | `Saved/Logs/SS_handik_off.log` |
+| off2 | 0 | `Docs/evidence/handik_ab/off2.png` | `Saved/Logs/SS_handik_off2.log` |
+| on2 | 1 | `Docs/evidence/handik_ab/on.png` | `Saved/Logs/SS_handik_on2.log` |
+| on3 | 1 | `Docs/evidence/handik_ab/on3.png` | `Saved/Logs/SS_handik_on3.log` |
+
+Mean |RGB delta| / coarse-structure correlation (40x22 luma), so the two same-condition pairs are the noise
+floor and any real effect has to beat them in *every* cross pair:
+
+```
+              off1          off2           on2           on3
+off1            --     31.52/0.81    33.22/0.73    31.43/0.78
+off2     31.52/0.81           --     32.32/0.76    30.16/0.79
+on2      33.22/0.73    32.32/0.76           --     26.48/0.82
+on3      31.43/0.78    30.16/0.79    26.48/0.82           --
+```
+
+The whole-frame numbers overlap, so they settle nothing on their own. The localised statistic does: per tile of
+a 16x9 grid, flag the tiles where the **minimum** over the four cross-condition pairs exceeds the **maximum**
+over the two within-condition pairs by more than 2x. 7 of 144 tiles qualify, and they are all in one place —
+**x 31-56%, y 66-100% of the frame**, ratios 2.7x to 7.1x. Every other tile is at the noise floor (ratio <= 1.2).
+That cluster is the view-model region, bottom centre, which is where the gripping left hand sits.
+
+Pixel counts over the arms/weapon crop (x 448-960, y 558-900, 512x342 px), percent of pixels moving >30:
+within-condition **13.3%** (off1/off2) and **6.6%** (on2/on3); cross-condition **42.6%, 46.8%, 43.1%, 42.5%**.
+All four cross pairs agree; neither within pair does.
+
+**What this does not show:** that the hand *grips the foregrip*. Pixels show the view-model pose changed when
+the IK is on, in the hand's region; they do not name the bone or prove the target. An `-SSAnimDebug` run or a
+left-hand transform log is what would name it. The R-65 engine question (which post-process AnimBP route the
+edit needs) is untouched — the producer writes that fix.
+
+**2. The decoder re-runs (this was the asked-for pair, and the earlier attempt did not actually run).**
+`python Docs/Sourced/ADFRC/rtm_rigs.py` twice back to back, on a tree that already held `Rig/` output:
+run 1 exit 0 in 15 s, run 2 exit 0 in 16 s, zero `KeyError`/`Traceback` in either log (grep counts 0 and 0),
+both ending `-> E:\SouthernSpear\Content\Sourced\ADF_Extracted\Animations\Rig`. The Session 066 fix (skip
+everything under `Rig/`) holds for a real re-run.
+
+```
+python Tools/Common/test_adfrc_reload.py   -> exit 0, 0 failure(s)
+python Tools/Common/test_rtm_rigs.py      -> exit 0, 0 failure(s)
+python Tools/Common/test_adfrc_grip.py    -> exit 0, 0 failure(s)
+```
+
+**3. No rebuilt FBX committed.** A decoder rebuild only moves `CreationTimeStamp` in the FBX header, so the
+regenerated meshes are byte-different and content-identical; committing them would be pure churn (and 7 new
+LFS objects, ~21 MB, per rebuild). The exporter bug is left unfixed on the producer's instruction.
+
+**4. Committed** `Docs/evidence/handik_ab/` and this entry only, with `git commit --only -- <paths>`.
+
+### FILES CHANGED
+
+- Created: `Docs/evidence/handik_ab/{off.png, off2.png, on.png, on3.png, on_attempt1_hitched.png,
+  diff_map.png, hand_region_crop.png, handik_ab.json}`.
+- Modified: `Docs/CHANGELOG.md`.
+- Scratch, git-ignored, not committed: `Build/make_handik_evidence.py`, `Build/probe_handik_ab.py`,
+  `Build/probe_handik_ab2.py`, `Build/handik_null/`.
+
+### TESTING
+
+- Decoder run twice in a row: exit 0 / exit 0, no `KeyError` (see above).
+- `test_adfrc_reload.py`, `test_rtm_rigs.py`, `test_adfrc_grip.py`: 0 failures each.
+- Four `-game` captures (2 per condition) plus one control pair; all five reached `up for play` and wrote
+the shot at 20.0 s (exit 124 = the expected timeout kill after the shot).
+- `git status` after the decoder double-run: no tracked file under `Content/Sourced/` modified.
+- NOT RUN: the UE build and the Automation suites — no C++ or asset changed this session.
+
+### ASSETS
+
+None committed. The evidence PNGs are captures, not content. Rebuilt FBX deliberately not committed.
+
+### RISKS
+
+- **R-65 moves from "unobserved" to observed.** The hook fires *and* the rendered pose changes. What is still
+  open is whether the change is the right one (hand on the foregrip) — and the engine-side question in
+  Session 065 is unchanged.
+- **R-79 (new, this session): a `-SSShotAt` capture has no deterministic viewpoint, so a single cross-run pair
+  cannot support an A/B.** The first ON run was requested at 22:26:37.425, the same second Niagara compiled
+  `NS_WeaponFire_MuzzleFlash_Rifle`/`ShellEject`/`Tracer`; that frame correlates 0.35 with the others, against
+  0.81 for a same-condition control. Read naively it says "enabling the hand IK changes the whole scene".
+  Kept as `on_attempt1_hitched.png`. Only the two-per-condition design above made the answer safe. (The risk
+  register in `PROJECT_AUDIT.md` still lists only up to R-66, as with R-70-R-78.)
+
+### DEFECTS FOUND
+
+- The capture pipeline, not the hand IK, was the thing most likely to produce a false answer — found by
+  running a control pair instead of trusting the first one.
+- The world half of the frame is unusable at pixel level for A/B: 82.4% of its pixels move >30 between two
+  *same-condition* runs (grass/foliage/TAA), against 77.0% across conditions. Region statistics only; eyeballing
+  a pair proves nothing here.
+- The decoder's re-run crash is confirmed gone on the real tree, not just in the unit fixtures.
+
+### NEXT ACTION
+
+Pin the capture viewpoint — a capture flag that places the pawn and holds pitch/yaw for the shot — because
+this session spent two extra runs discovering that every future A/B on this project is only as trustworthy as
+that viewpoint.
+
+---
+
+## Session 068 — 2026-09-29 — The training environment that arrived on its own: MOUT, noted before it is used
+
+A producer note, not a build session. A Fab environment pack was downloaded and installed into `Content/`
+during the Ravenshoe work, nobody wrote it down, and it is the only new environment map in the project. This
+session finds it, measures what is actually on disk, and registers it as a **candidate** — deliberately
+without opening it in the editor, so nothing here is a claim about how it looks.
+
+### COMPLETED
+
+**The download is `Content/MOUT_Civilian/` — a MOUT ("Military Operation Urban Training") urban kit.**
+Staged at `Content/Downloaded/VaultCache/ModularM6dfea54fd98cV5/`, written 09:13–09:16 today, installed to
+`Content/MOUT_Civilian/`. **2.1 GB, 507 files** (504 `.uasset`, 3 `.umap`). Three maps, of which the only
+environment map is `Demo/FirstPersonBP/Maps/FirstPersonExampleMap` (8.5 MB + 14 MB `_BuiltData`); the other two
+are `LVL_AssetShowcase` and `LVL_Blueprints`. Contents: three modular mesh sets (Building, Church, Awning),
+thirteen prop sets (bus stop, bollards, park bench, playground, fire hydrant, clothes line, fencing, flag,
+fountain, police sign, post box, trash cans, electricity pole), nine building Blueprints, **five interactable
+door Blueprints**, 219 textures, and a first-person demo character and weapon.
+
+**Two findings that were not obvious from the filenames.**
+
+1. **The kit was authored in UE 4.26, not 5.x.** `++UE4+Release-4.26` sits in the demo map's header. Everything
+   in it upconverts on load, and none of it has been opened in 5.8. Raised as **R-67**.
+2. **The pack wrote no `metadata` sidecar anywhere** — `find -iname metadata` over all 2.1 GB returns nothing —
+   so the seller and `isAiForbidden` are **unverified**, not known-clear. Recorded per the L-0016c standing
+   action. Raised as **R-68**.
+
+**It does not fill `M-006` "Training range" as that entry is written.** The register and VS-17 both say *range*,
+which is open ground with long lanes, and Saltbush already covers that (built "to test engagement ranges past
+200 m"). This is a close-quarters **village**: doorways, rooms, awning-to-ground transitions, lookalike
+buildings. Scored against GDD §5 that makes it a strong fit for **Induction** (module 1) and **Field Skills**
+(module 4, where explicit identification training wants exactly this kind of geometry) and a weak fit for
+**Leadership** (module 5). Marksman lanes still have to come from elsewhere. Whether `M-006` is redefined or
+this becomes a second training map beside it is left open — that is a producer decision, and `MAPS_TRAININGRANGE.md`
+§6 lists it as the first of five.
+
+**Four register documents touched, in the same change as the install**, per the L-0016b standing rule that a
+pack's row is added *with* the import rather than after:
+
+- `MAPS_TRAININGRANGE.md` (new) — what arrived, what is in it, the two candidate uses with a per-module fit
+  table, provenance, what is not decided, the two risks, and the commands to re-verify every number
+- `ASSET_REGISTER.md` §4.9j (new) — the MOUT kit plus the four other listings downloaded today
+- `LICENCE_REGISTER.md` L-0016 table — the same five listings
+- `PROJECT_AUDIT.md` §7 — **R-67**, **R-68**
+
+**Two corrections to existing rows, both found by re-reading them against the disk.** §4.9i and the L-0016 row
+for *Old Abandoned Rusty Cars* both say "downloaded, not imported". It was installed to `Content/RustyCarsFree/`
+today (69 MB, and it ships its own `Overview/AssetsOverview.umap`). Both rows now say installed and still
+used by no map — the single Renault wreck on Ravenshoe remains the project's car.
+
+### FILES CHANGED
+
+Created: `Docs/MAPS_TRAININGRANGE.md`
+Modified: `Docs/ASSET_REGISTER.md` (§4.9j new, `M-006` row, header date), `Docs/LICENCE_REGISTER.md` (L-0016
+table, rusty-cars row, header date), `Docs/PROJECT_AUDIT.md` (§7 R-67/R-68, risks note), `Docs/CHANGELOG.md`
+
+### TESTING
+
+| Check | Command | Result |
+|---|---|---|
+| Pack identity and version | `strings -n 4 .../FirstPersonExampleMap.umap \| head` | **PASS** — `++UE4+Release-4.26`; the demo map's engine version read from the file, not inferred from the folder name |
+| Size and file counts | `du -sh`, `find … \| wc -l`, extension histogram | **PASS** — 2.1 GB, 507 files, 504 `.uasset` / 3 `.umap` |
+| Map inventory | `find Content/MOUT_Civilian -iname "*.umap" -printf "%s %p\n"` | **PASS** — 3 maps, sizes recorded |
+| Seller / AI flag | `find …/ModularM6dfea54fd98cV5 -iname metadata` | **PASS** — empty, sidecar absent; recorded as unverified. (The sibling `FabLibrary/listings_v1.db` was queried too and holds only the five *FabLibrary* listings, not this pack) |
+| Untracked, as intended | `git status --porcelain` | **PASS** — `Content/MOUT_Civilian/` untracked, raw pack stays git-ignored (ADR-021) |
+| Editor opened on any of the three maps | — | **NOT RUN** — deliberately. Nothing is claimed about how the kit looks or performs |
+| Navmesh, lighting, objectives, ADR-016 look check | — | **NOT RUN** — the kit has no layout and no name, so there is nothing to check it against yet |
+| `validate_architecture.py`, editor build, automation suite | — | **NOT RUN** — no source or content change. Documentation only |
+
+### ASSETS
+
+- No asset imported, modified, moved or deleted. The pack was already in `Content/` before this session and is
+  recorded, not touched.
+- Five listings registered that arrived today: the MOUT kit (installed, used by nothing), plus *Mega Moduler
+  Apartment Building*, *Modular 3D hospital environment*, *American Road with Parking Lot* and *IFAK* (cache
+  only). Two carry `isAiForbidden: true`; neither is installed in a map.
+- No new `M-` id opened, and no `L_*` map asset created. The kit is registered as a candidate against `M-006`.
+
+### RISKS
+
+- **R-67 (new):** UE 4.26 kit, never opened in 5.8, 2.1 GB, 219 legacy textures, unknown LOD/nav/texel cost.
+- **R-68 (new):** seller and `isAiForbidden` unverified for the whole pack (no `metadata` sidecar).
+- Neither blocks reading the kit; neither should hold up the decision about whether to design on it. No map
+  depends on it, so an upconversion failure costs an idea and nothing else.
+
+### DEFECTS FOUND
+
+- **A 2.1 GB environment kit sat in `Content/` with no row in any register** — the exact gap L-0016b was
+  opened to close, recurring two days later on a different pack. It survived because nothing referenced the
+  pack, so no failed build and no audit ever looked at it. The standing rule already covers this
+  (row added in the same change as the import); what is missing is a check that catches an *unreferenced*
+  installed pack, which is the failure mode L-0016b also could not catch.
+- **Two register rows were stale**: "downloaded, not imported" for the rusty-cars pack, which was installed
+  today. Corrected in both documents.
+
+### NEXT ACTION
+
+Open `MOUT_Civilian/Demo/FirstPersonBP/Maps/FirstPersonExampleMap` once, headless, and answer the three
+questions R-67 exists to ask — does the 4.26 content survive upconversion, what does the geometry measure, and
+what does it cost — so the producer can decide between "training range" and "urban training facility" on
+evidence instead of on a folder name.
+
+## Session 069 — 2026-09-29 — Ravenshoe gets the Session 041 world treatment; and the nav-bake doctrine, corrected by experiment
+
+The producer's ask: bring Ravenshoe up to how Dry River and Red Gum were actually made. This session
+ported the passes the map never inherited, then — chasing the frozen bots — tore apart the project's
+nav-bake doctrine and rebuilt it from measurements. The ground, the horizon and the audit are fixed.
+The bots are still frozen, and the session ends with the one action that fixes them, now known to be
+achievable.
+
+### COMPLETED
+
+- **The Dry River Session 041 world treatment, ported as `Tools/Unreal/expand_ravenshoe.py`** (idempotent,
+  report `Build/expand_ravenshoe_report.json`): outer skirt `SS_MAP_Ravenshoe_Skirt` (new
+  `Tools/Blender/ravenshoe_skirt.py` + `Tools/Common/ravenshoe_world.py`; 55,862 verts, z −25.9..+137.8 m,
+  **0.0 m edge-height error** against the terrain's 2 m grid — seamless by construction); the pack's
+  `MI_Ground_Dirt_01` on terrain and skirt (the terrain override had silently fallen back to the flat
+  `MI_SS_Raven_Road` — the white ground); four blocking volumes at terrain + 30 m; `SM_Horizon_01` ring
+  at ~2.6 km plus a VolumetricCloud (the black horizon band); nav bounds sized to the play space with
+  read-back correction (X ±130 m, Y ±180 m, Z −25..+40 m — asserts coverage of every deployment, both
+  ramp feet, bed and crest).
+- **The RecastNavMesh tile pool: 1024 → 4096**, persisted on the actor. The play space needs ~1,285
+  tiles at TileSizeUU 1000. The "2448" figure in the Session 045 fix history was the *required tile
+  count of the old oversized volume*, never the pool — the real pool was the 1024 default, which is
+  what capped the one interactive bake the map ever got.
+- **`build_ravenshoe_nav.py` repaired:** it was re-imposing 115/165/45 bounds on every build run —
+  silently reverting the §0 bounds fix; it now asserts bounds coverage and pool instead; single
+  BUILDPATHS (a second call rebuilds on live tiles); save via `LevelEditorSubsystem.save_current_level`
+  like `build_dryriver_nav.py` (`EditorLoadingAndSavingUtils.save_map` serialises no fresh tiles here).
+- **Audit repaired, 35/35:** the stale "two deployments placed" check counted the 16 Lyra starts as a
+  failure — a regression the starts fix introduced and nobody re-ran the audit on.
+- **The nav forensics** (logs `Saved/Logs/SS_probe_rav*.log`, `SS_probe_dr*.log`): a fresh cube gains
+  no nav poly after ten spaced BUILDPATHS on **either** map — headless generation consumes no new
+  geometry on this machine, so Dry River's "headless bake works" rode its persisted interactive tiles.
+  The editor with a real RHI builds (1.2 s passes) but consumes almost none of this map's geometry;
+  `bForceRebuildOnLoad=True` set and persisted, does not fire in game worlds. The pipeline's ini flag
+  (`bWaitForAsyncLoadingBeforeBuildingNavigationAutomatically=False`) makes the automatic load-time
+  build run **early, on partial geometry** — part of the fault, not the fix.
+- **`PLAYTEST_COMMANDS.md` compliance restored** after the producer's correction: own `-abslog` on every
+  engine invocation (the shared `SouthernSpear.log` had another agent's crash in it and produced a
+  false conclusion), scratch probes moved out of `Tools/`, screenshot re-taken properly next round.
+- **Both new Fab packs git-ignored** (`MOUT_Civilian`, `RustyCarsFree`) per ADR-021, complementing the
+  registration work in Session 068.
+
+### FILES CHANGED
+
+Created: `Tools/Common/ravenshoe_world.py`, `Tools/Blender/ravenshoe_skirt.py`, `Tools/Unreal/expand_ravenshoe.py`,
+`Content/Art/Blockout/SS_MAP_Ravenshoe_Skirt.fbx` + `.uasset`, `Docs/evidence/ravenshoe/SSShot_ground_skirt_0854.png`
+Modified: `Tools/Unreal/build_ravenshoe_nav.py`, `Tools/Unreal/audit_ravenshoe.py`, `Content/Maps/L_Ravenshoe_01.umap`
+(pool + flag + persisted fixes), `.gitignore`, `Docs/HANDOVER_RAVENSHOE.md` (§0b), `Docs/CHANGELOG.md`.
+Scratch (untracked, `Build/`): `probe_raven_*.py`, `probe_dr_*.py`, `fix_raven_rebuildonload.py` and their reports.
+
+### TESTING
+
+| Check | Command | Result |
+|---|---|---|
+| Skirt geometry | `blender -b --factory-startup -P Tools/Blender/ravenshoe_skirt.py` | **PASS** — `SS_SKIRT` 55,862 verts / 55,080 faces, `edge_height_error_m: 0.0` |
+| Spec verifier | `python Tools/Blender/verify_ravenshoe.py` | **PASS** — spec-only, 2/2 |
+| Expand pass | expand_ravenshoe.py | **PASS** — all steps ok, nav bounds ~1,285 tiles, pool 1024→4096 |
+| Map audit | audit_ravenshoe.py | **PASS 35/35** (was 32/33) |
+| Nav build (build mode) | build_ravenshoe_nav.py + env + ini flag | **RUN, exit 0, no crash**; report honest: 0/32 routes, ~12 persisted tiles |
+| Cube test, both maps | Build/probe_dr_cube.py, Build/probe_raven_cube.py | **FINDING** — 10 spaced builds, zero polys on a fresh cube |
+| Live game, bots | `-game` 6 bots, 210 s, own log | **RUN** — 0 spawn fails, rounds cycle, `Steered 0 idle bot(s)`, captures 0 |
+| Interactive editor bake (Build ▸ Build Paths, attended) | — | **NOT RUN** — needs a human at the editor; this is the one remaining action |
+| Look check in a real window | `UnrealEditor.exe ... -SSShotAt=40` (§3), `Docs/evidence/ravenshoe/SSShot_lookcheck_1011.png` | **PASS (measured)** — sky quarter RGB (135,151,163) vs ground quarter (178,128,91): the ground renders as red dirt, not white; 2163 distinct colours in frame. First capture attempt used `-Cmd -windowed` (§3 violation), re-taken with the full editor |
+| MOUT / RustyCars look checks (ADR-016) | — | **NOT RUN** — Session 068 scope |
+
+### ASSETS
+
+- `SS_MAP_Ravenshoe_Skirt` — class F, original, generated from `ravenshoe_world.height()` (which is
+  `ravenshoe_spec.ground_z()` inside the play area and authored hills/rim outside it).
+- Referenced in place, never modified: `MI_Ground_Dirt_01` + `SM_Horizon_01` (`RuralAustralia`, L-0016),
+  engine VolumetricCloud. New packs on disk registered in Session 068, not used by any map yet.
+
+### RISKS
+
+- **R-82 (new; first written as "R-69", renumbered by Session 070's finding):** no scripted process on
+  this machine — commandlet, `-RenderOffscreen`, or the interactive editor unattended — consumes
+  geometry in the nav generator. Every map bake requires the attended editor. CI can build and audit
+  maps but can never verify nav; the Dry River gate's nav evidence is the exception that proves this
+  rule.
+- **R-83 (new; first written as "R-70", renumbered likewise):** `PLAYTEST_COMMANDS.md` §5 and
+  CLAUDE.md present the async-loading ini flag as part of the working nav recipe. Measured this
+  session: it makes the automatic load-time build run early, on partial geometry. The docs were
+  corrected on 2026-09-29 in the same change; the flag's remaining role (inert in headless CI, harmful
+  as a documented recipe) is stated in `MAPS_DRYRIVER.md` §11.6.
+
+### DEFECTS FOUND
+
+- The audit had silently regressed to 32/33: the starts fix changed actor counts and the audit was
+  never re-run — the project's own rule ("re-run the verifier after every change") broken by the fix
+  that the verifier was checking.
+- `build_ravenshoe_nav.py` re-imposed stale bounds on every run, reverting the §0 fix. One owner per
+  piece of state, or two passes fight.
+- §0 #1's "navigation can be baked headless" was a misattribution: the underlying bake was Dry River's
+  persisted tiles; Ravenshoe's "success" was the early-build flag answering queries from a partial
+  in-memory mesh. The verify script's huge query extents (up to 50 m) made partial nav read as success.
+- Process defects, mine: read the shared `SouthernSpear.log` without `-abslog` (another agent's crash
+  nearly became my conclusion); used `UnrealEditor-Cmd -windowed` for a capture (§3 says full editor);
+  put probes in `Tools/`. All corrected after the producer pointed at `PLAYTEST_COMMANDS.md`.
+
+### NEXT ACTION
+
+**In the attended editor:** open `/Game/Maps/L_Ravenshoe_01`, run **Build ▸ Build Paths** (the pool is
+4096 and the bounds now cover the play space, so yesterday's cap and yesterday's bounds are both gone),
+save, then confirm `Build/ravenshoe_nav_report.json` reads 32/32 routes and a live `-game` run logs
+`Steered N idle bot(s)` with N > 0.
+
+## Session 070 — 2026-09-29 — The IK puts the hand on the weapon; the hand then turns to the grip
+
+R-65 asked whether the hand IK does what it claims. Measured first, as asked, and the measurement is
+clean: on the A88 the first-person left hand lands **exactly** on `LeftHandGrip`, with five centimetres of
+reach to spare. The same runs show why that is not yet "holding the weapon": the solve moves the *wrist*,
+the hand keeps whatever rotation the clip gave it, and the Fab arms' clip leaves the palm open. So the
+second half of this session adds a hand rotation behind the position solve, with its correction solved from
+the third-person body's own Lyra grip and kept in config.
+
+### COMPLETED
+
+**1. Where the IK actually puts the hand** (probe `-SSHandIKProbe`, one sample every 0.5 s for 5 s; arms =
+`SS_FirstPersonArms` / `SK_FP_Arms_Rifle`, weapon = `SS_ViewModel` / `SM_A88`; positions and distances in
+cm, component space; `gate` = arm length x `MaxReachFactor`):
+
+| t (s) | IK alpha | hand -> grip | shoulder -> grip | arm | gate | reach-limited |
+|---|---|---|---|---|---|---|
+| 0.40 | 0.00 | **8.37** | 47.98 | 51.80 | 54.39 | no |
+| 1.01 | 1.00 | **0.00** | 48.66 | 51.80 | 54.39 | no |
+| 1.52, 2.01, 2.50, 3.00, 3.51, 4.01, 4.51, 5.01 | 1.00 | **0.00** every sample | 48.66 | 51.80 | 54.39 | no |
+
+The wrist-only solve moves the hand **8.37 cm** onto the socket and holds it there exactly; the reach gate
+is never in play (48.66 wanted against 54.39, i.e. 89 % of a 51.80 cm arm at `MaxReachFactor` 1.05). The
+body's own `CharacterMesh0` (`SKM_Manny_Invis`) reaches the same 0.00 cm and is the mesh that *does* hit the
+gate: at alpha 0 it stands 42.39-42.94 cm off and logs `reach_limited=1 straight=1` for the first two
+samples. So the answer to the earlier "stop and report the weapon-frame offset" branch is **no**: the
+distance is under 3 cm, the position is right, and nothing in `Tools/Blender/adfrc_weapon.py`'s socket axes
+needs touching.
+
+**2. Every mesh component on the pawn in first person, with its mesh and material 0** (same probe, one-shot
+walk over 3 actors and 2 hand-IK components):
+
+| component | class | mesh | material 0 | visible | owner-no-see | only-owner-see |
+|---|---|---|---|---|---|---|
+| `CharacterMesh0` | `SSHandIKMeshComponent` | `SKM_Manny_Invis` | **none** | yes | yes | no |
+| `SS_FirstPersonArms` | `SSHandIKMeshComponent` | `SK_FP_Arms_Rifle` | `MID_MI_FP_Arms_Rifle` | yes | no | yes |
+| `SS_ViewModel` | `StaticMeshComponent` | `SM_A88` | `MID_MI_A88_adfrc_ef88_co` | yes | no | yes |
+| `B_SS_A88_Weapon_C_0.SSVisual` | `StaticMeshComponent` | `SM_A88` | `MID_MI_A88_adfrc_ef88_co` | yes | yes | no |
+| `B_SS_A88_Weapon_C_0.SkeletalMesh` | `SkeletalMeshComponent` | `SK_Rifle` | `MID_MI_Weapon_Rifle` | **no** | yes | no |
+| `B_SS_Soldier_C_0` x8 | `SkeletalMeshComponent` | 8 ADF/insurgent part meshes | `M_Eye_Source`, `MI_ADF_*`, `MI_MAF_*` | **no** | yes | no |
+
+(`CameraProxyMeshComponent_0` is the editor's `MatineeCam_SM`, visible=no.) **The walking tan block is not
+in this list** - every component that reaches the owner's camera has a real material, and the only untextured
+one (`CharacterMesh0`, no material 0 at all) is owner-no-see and hidden in first person. The two components
+that render to the owner are the arms and the view model, so the block is either part of `SM_A88`'s own
+texture/material state or a component the walk does not reach. The probe carries an ablation switch
+(`ss.Probe.Hide`) for exactly this and it was **not taken**, so the block stays **unidentified**.
+
+**3. The A89's reserve ammo: 200, and it comes from the loadout table.** `Config/DefaultGame.ini`,
+`[/Script/SouthernSpearLyraBridge.SSLoadoutSettings]` (line 308):
+`+Weapons=(Weapon=A89,RoundsPerMinute=750,MagazineSize=200,SpareMagazines=1,SpreadScale=1.74,bFullAuto=True)`
+- a 200-round magazine plus one spare magazine, so 200 in reserve and 400 on the pawn. The producer's A89
+shot reads 193/200. The row is applied through `SSWeaponStatsSubsystem` from `SSWeaponStats.h`; nothing else
+in config sets an A89 magazine count.
+
+**4. The hand rotation step (`FSSHandIK::RotateChain`).** After `Apply` has put the wrist on the socket, the
+hand bone's component-space rotation is set to **socket rotation x `HandRotationOffset`**, slerped by `Alpha`,
+and every descendant of the hand is rebuilt from its own local transform so fingers and wrist-twist bones
+follow. The offset is per skeleton and lives in config, not code:
+`[/Script/SouthernSpearLyraBridge.SSHandIKMeshComponent] HandRotationOffset=(Pitch=25.810,Yaw=146.002,Roll=-40.132)`
+(quat `[0.298391, 0.258492, 0.897973, 0.194394]`, 157.6 deg). It is not picked by eye: the body holds the
+same `SM_A88` with Lyra's own animation, so its hand's orientation in the weapon's frame is a known-good
+grip, and the offset that hands the arms that same grip is
+`offset = socketrot_arms^-1 * (weapon_in_cs_arms * hand_in_weapon_body)`, with the body's
+`hand_in_weapon = (-0.8980,-0.1944,0.2984,0.2585)`, the arms' `socketrot = (-0.7071,0.7071,0,0)` and
+`weapon_in_cs = (0,0,-0.7071,-0.7071)`. Predicted result 0.00 deg from the body's, and the live run after the
+config write reads the arms' `hand_in_weapon = (-0.8980,-0.1944,0.2984,0.2585)` with `hand_vs_socket = 157.6 deg`
+(it was 0.0 deg, i.e. the hand was simply left in the socket's orientation) while the body is untouched.
+`bRotateHandToGrip` defaults off, so this only ever applies to the first-person arms.
+
+**5. The solver is committed, not thrown away:** `Tools/Unreal/grip_solve.py` re-derives the offset from a
+grip log, and it validates its own quaternion-to-rotator conversion against the engine's printed pairs
+before it answers (0.00000 deg round-trip on all 44 logged pairs; the closed-form inverse was wrong and is
+gone).
+
+This change also carries the two documentation sessions that were sitting uncommitted on disk - **068** (the
+MOUT kit registered) and **069** (the Ravenshoe world treatment and nav doctrine) - in their own commit.
+
+### FILES CHANGED
+
+Created: `Docs/evidence/handik_pos/` (the five raw probe runs, committed as `.txt` because `.gitignore`
+ignores `*.log`), `Docs/evidence/handik_rot/` (`a88_off000.png`, `a88_fixed.png`),
+`Tools/Unreal/grip_solve.py`
+Modified: `Plugins/SouthernSpearLyraBridge/Source/SouthernSpearLyraBridge/Public/SSHandIKMeshComponent.h`
+(`bRotateHandToGrip`, `HandRotationOffset`, `RotateChain`), `.../Private/SSHandIKMeshComponent.cpp` (the pure
+`RotateChain`, the `GripCS` rotation and the call in `FinalizeBoneTransform`),
+`.../Private/SSFirstPersonSubsystem.cpp` (the arms component turns it on), `.../Private/Tests/SSHandIKTests.cpp`
+(`SouthernSpear.Bridge.HandIK.RotateHand`), `Config/DefaultGame.ini`, `Docs/CHANGELOG.md`
+Scratch (untracked, `Build/`): `handik_rot/{a88_off000,a88_fixed}.png`, `handik_pos` probes, `make_handik_evidence.py`.
+Also untracked and deliberately so: `SSHandIKProbeSubsystem.h/.cpp` (`-SSHandIKProbe`) - the throwaway measurement
+and ablation probe, self-labelled "not for commit", with the scratch probes rather than in the module.
+
+### TESTING
+
+| Check | Command | Result |
+|---|---|---|
+| Hand position, A88 | `-SSHandIKProbe` game run, `Saved/Logs/SS_handik_pos_a88*.log` | **PASS** - 8.37 -> 0.00 cm, 11/11 samples, `reach_limited=0` |
+| Reach gate honoured | same logs, body `CharacterMesh0` | **PASS (negative)** - the body trips the gate at alpha 0 (`reach_limited=1`) and the arms never do |
+| Hand rotation in the live game | `Saved/Logs/SS_grip_a88_fix.log`, 22 GRIP samples | **PASS** - arms' `hand_in_weapon` equals the body's on every steady-state sample; `hand_vs_socket` 0.0 -> 157.6 deg |
+| Offset solve | `python Tools/Unreal/grip_solve.py Saved/Logs/SS_grip_a88.log` | **PASS** - engine round-trip 0.00000 deg on all 4 pairs, predicted match 0.00 deg |
+| Rotation unit test | `Automation RunTests SouthernSpear.Bridge.HandIK.RotateHand` | **PASS** - alpha 1 matches the target, position kept, a finger keeps its local transform, alpha 0.5 is the slerp midpoint, zero offset takes the socket, 3 refusals leave the pose untouched |
+| Position unit test | `Automation RunTests SouthernSpear.Bridge.HandIK.Solve` | **PASS** - unchanged |
+| Full suite | `Automation RunTests SouthernSpear` | 61 pass, 1 fail - `Network.Gameplay.TwoPlayerAuthoritySmoke` (`ViewportOverlayWidget.IsValid()`). Called environmental here; **corrected in Session 071** - the run that produced it left out `-NoLoadingScreen`, which is the flag the test needs in a headless world. Not an environmental fault. |
+| Editor build | `Build.bat SouthernSpearEditor Win64 Development` | **PASS - Succeeded** |
+| A89 position probe | - | **NOT RUN** - only the A88 was sampled |
+| Tan-block ablation | `ss.Probe.Hide` | **NOT RUN** - component unidentified |
+| Finger-grip frames in `A_FP_Rifle_*` | - | **NOT RUN** - task stated as report-only |
+
+### ASSETS
+
+- No asset imported, modified or moved. The capture pair in `Docs/evidence/handik_rot/` is screenshot
+  evidence, not content.
+- The arms mesh does carry fingers: `LeftHandThumb1-4`, `LeftHandIndex1-4`, `LeftHandMiddle1-4`,
+  `LeftHandRing1-4`, `LeftHandPinky1-4` (and the right-hand mirror) are in the import sidecar
+  `Build/fp_arms/SK_FP_Arms_Rifle.fbx.json`, from the Fab **M4 - FPS Weapon Animations Pack FREE**, whose six
+  clips were cut from one FBX at the frame ranges that sidecar lists. A closed-hand grip pose is therefore
+  representable on this skeleton; whether any of the six clips contains one was **not measured**.
+
+### RISKS
+
+- **R-80 (new):** the arms' finger bones are **not** covered by any live measurement. `RotateChain`'s
+  propagation is proved by the unit test on a synthetic chain, and the grip logs' anatomy columns cannot
+  prove it on `SK_FP_Arms_Rifle` (see the defect below), so "the fingers follow the hand" is unverified in
+  the real mesh until the probe is re-run with a side-correct bone lookup.
+- **R-81 (new):** the walking tan block is still unidentified, and it is a *rendering* defect that no test
+  can see - it needs the ablation run (or a first-person capture with the view model hidden) to name the
+  component.
+
+### DEFECTS FOUND
+
+- **The probe measured the wrong hand.** `ProbeNamedBone` returns the first bone whose name *contains* the
+  stem, and `SK_FP_Arms_Rifle`'s bone order puts the right arm first (`M4_Root, FPS_Camera_j, Spine,
+  RightArm, RightForeArm, RightHand, RightHandThumb1-4, ...` before `LeftArm`), so the arms' `thumb`,
+  `index`, `palmraw` and `mid` columns are **`RightHandThumb1`/`RightHandIndex1`/`RightHandMiddle1` measured
+  against the left hand's position**. The `thumb_vs_barrel=137.6deg` printed for the arms in both grip logs
+  is therefore not the left thumb - it is the right thumb, and it is why the figure did not move when the
+  hand did. The pre-fix finding itself stands, because it was really carried by the hand quaternion
+  (`hand_vs_socket=0.0deg` against the body's 157.6deg, `hand_in_weapon=(0,1,0,0)` against the body's), and
+  the offset solve never used the thumb columns. The body's own `thumb_vs_barrel=12.9deg` is valid: Manny's
+  bone order puts `thumb_01_l` before any right-side thumb.
+- **The risk register in `PROJECT_AUDIT.md` now lags the changelog by eleven numbers**, and Session 069's entry
+  re-used two live ids: it introduces **R-69 and R-70** while this changelog already carries R-69 (the press
+  kit's 420 px logo, open) and R-70 (the rest-joint solve, open). R-69 and R-70 are therefore each claimed
+  twice. This session's new risks take **R-80/R-81**, the next numbers free in this file.
+- The position log's A88-only sampling is a gap against the ask, not a report of a failure: the A89 run simply
+  was not taken.
+
+### NEXT ACTION
+
+Fix the probe's bone lookup (match the whole bone name, or require the bone to be a descendant of the solved
+`Hand` index) and re-run `-SSHandIKProbe` on the **A89**, which answers three open things at once: the A89's
+hand-to-grip distance and reach headroom, the arms' real left-thumb/palm axes after the rotation step, and
+whether the fingers follow it. Then take the `ss.Probe.Hide` ablation on the same run to name the tan block.
+
+## Session 071 — 2026-09-29 — The hand is turned by its own anatomy, not by the body's hand bone
+
+The producer's correction: Session 070 wrote "the transfer is exact", and it was exact only in the bone
+language. Copying the body's hand-relative-to-weapon quaternion onto the first-person arms assumes both
+hands point their bone axes the same way, and Manny's `hand_l` and the Fab arms' `LeftHand` do not - which
+is the ~90 deg roll that stayed in the render. This session measures each hand from its finger bones
+instead, solves the arms' angle from that directly, and prints the three axis errors at every step.
+
+### COMPLETED
+
+**The defect, measured instead of argued.** Each hand is now read off its own finger bones - the distal
+thumb, index and middle bones *under the solved hand index*, palm normal = thumb x finger, then
+re-orthogonalised - and both hands' frames are expressed in the weapon's frame, which is the only language
+two rigs can be compared in. On the A88, before any correction:
+
+| hand | thumb vs the socket->muzzle line | frame vs the body's measured frame |
+|---|---|---|
+| Manny body (`thumb_03_l`, `index_03_l`) | 11.3 deg | - (the reference) |
+| FP arms (`LeftHandThumb4`, `LeftHandIndex4`, animated) | **15.0 deg** | palm **82.8 deg**, thumb 11.5, finger **82.1** |
+
+So the arms' *animation* already has the thumb down the barrel (15.0 against the body's 11.3). What it is
+missing is not the thumb at all but **83 deg of roll about it**: the palm normal and the finger direction
+are both ~82 deg out. A hand-bone-quaternion transfer cannot see that axis, and did not: it reported the
+arms matching the body while the palm stayed sideways.
+
+**The solve, and where it lives.** The arms' measured frame is aligned to the body's measured frame (both
+taken in the weapon's frame) with `align = twist * swing` - a shortest arc onto the palm normal, then the
+twist about it that brings the thumb across - and the config offset is
+`offset = socketrot^-1 * (align * hand)`. Logged by the probe as a ready config line, and written to
+`[/Script/SouthernSpearLyraBridge.SSHandIKMeshComponent] HandRotationOffset=(Pitch=70.599,Yaw=-79.336,Roll=19.550)`
+(align magnitude 83.0 deg). In-run residual after the alignment: **0.0 / 0.0 / 0.0 deg**.
+
+**Verified live, in the engine's own pose** (full run, rotation step on, the probe reading the published
+bone transforms): the arms' palm, thumb and finger now sit **0.0-0.2 deg** from the body's measured grip on
+every steady-state sample, and `thumb_vs_barrel` reads 11.3 deg against the body's 11.3. The body is
+unchanged to the digit (`hand_in_weapon=(-0.8980,-0.1944,0.2984,0.2585)`, `thumb_vs_barrel=11.3`,
+`hand_vs_socket=157.6`) because `bRotateHandToGrip` stays off for it.
+
+**Composition order mattered, and is now pinned by evidence, not by assumption.** Three angle errors of
+6-9 deg remained when the arcs were composed the other way. UE's `A * B` applies **B first**, checked
+against the engine's own logged triple (`weapon_in_cs * hand_in_weapon` reproduces that mesh's `handrot`
+exactly), so the probe composes `twist * swing` and `align * hand`; the residual went to 0.0.
+
+**Which fore-end the A88 actually has.** `Tools/build_adfrc_weapons.py` takes the A88's grip from the ADFRC
+pose **`EF88_Vg_static`** (`GRIP_CLIPS`), i.e. the EF88 *with a vertical grip*, and
+`SOCKET_LeftHandGrip` is that pose's own left wrist (report: `Docs/evidence/w2_grip_clips/EF88_Vg_static.json`).
+So the hand is placed on a **vertical foregrip**, while both candidate orientations - the body's Lyra hold
+and the arms' own Fab M4 hold - are *horizontal handguard* holds: in both, the thumb runs within 11-15 deg
+of the socket->muzzle line and the palm normal is perpendicular to it. Aligning the arms to the body is
+therefore right in the project's own reference terms and **not yet proven right for this fore-end**: a
+vertical post wants the palm across the post, not across a handguard.
+
+**The smoke-test failure was not environmental.** Asked to check it before calling it environmental, and it
+does not survive the check. With this change reverted and rebuilt, the single test passes; on the same tree
+restored, with the change in place, `-NoLoadingScreen` decided it: **without the flag `Result={Fail}` with 4
+`ViewportOverlayWidget` ensures, with the flag `Result={Success}` and 0**. The full-suite run that produced
+"61 pass, 1 fail" omitted the flag, which `CLAUDE.md`'s recipe and commit `ac9b642b` both call for. Session
+070's TESTING row is corrected above.
+
+### FILES CHANGED
+
+Modified: `Config/DefaultGame.ini` (the offset, 70.599/-79.336/19.550, and what it is solved from),
+`Docs/CHANGELOG.md`. The measurement instrument is the untracked dev probe
+`SSHandIKProbeSubsystem.h/.cpp`: this session added the descendant-correct finger lookup, the per-hand frame,
+the `-SSHandIKProbeNoRotate` measurement pose and the `OFFSET` line that prints the config value.
+
+### TESTING
+
+| Check | Command | Result |
+|---|---|---|
+| Arms vs body, measured, before | `-SSHandIKProbe -SSHandIKProbeNoRotate` (`Saved/Logs/SS_anat_a88_v3.log`) | **FINDING** - palm 82.8, thumb 11.5, finger 82.1 deg; thumb vs the barrel line 15.0 against the body's 11.3 |
+| Offset solve | same run, `OFFSET` line | **PASS** - align 83.0 deg, residual 0.0/0.0/0.0, `HandRotationOffset=(Pitch=70.599,Yaw=-79.336,Roll=19.550)` |
+| Arms vs body, measured, after | probe run with the offset in config (`Saved/Logs/SS_anat_a88_fixed.log`) | **PASS** - 0.0-0.2 deg on all three axes, every steady-state sample |
+| Body untouched | same log, `CharacterMesh0` | **PASS** - `hand_in_weapon` and `thumb_vs_barrel` identical to Session 070 |
+| Hand position | same log | **PASS** - held from Session 070: 8.37 cm -> 0.00 cm, gate never fired |
+| Composition order | engine's own logged triple, `weapon_in_cs * hand_in_weapon == handrot` | **PASS** - `A * B` applies B first; the probe's arcs corrected accordingly |
+| `TwoPlayerAuthoritySmoke`, change present | `UnrealEditor-Cmd -nullrhi ... -ExecCmds="Automation RunTests SouthernSpear.Network.Gameplay.TwoPlayerAuthoritySmoke"` | **FAIL without `-NoLoadingScreen`** (4 ensures), **PASS with it** - the invocation, not the machine |
+| `TwoPlayerAuthoritySmoke`, change reverted and rebuilt | same command | **PASS** with the flag - the change is not implicated either way |
+| A88 grip pose / fore-end | `Tools/build_adfrc_weapons.py` `GRIP_CLIPS`, `Docs/evidence/w2_grip_clips/EF88_Vg_static.json` | **FINDING** - the A88's socket is the `EF88_Vg_static` left wrist: a vertical foregrip |
+| A89 run | - | **NOT RUN** - the probe's finger lookup is only now correct; the A89 should be re-measured with it |
+
+### ASSETS
+
+- No asset imported, modified or moved. `Docs/evidence/w2_grip_clips/EF88_Vg_static.json` predates this
+  session; it is the ADFRC pose the A88's grip socket is fitted from, and it is what names the fore-end.
+
+### RISKS
+
+- **R-82 (new):** the correction targets the **body's** grip, and the A88's fore-end is a vertical grip. For
+  this weapon the authoritative reference is the asset's own pose (`EF88_Vg_static`), not Lyra's hold; until
+  that is measured, the arms hold the A88 the way Lyra holds its own rifle, to 0.2 deg.
+- **R-83 (new):** the probe's `barrel` is the grip socket -> muzzle socket line, and on this asset that line
+  is ~26 deg off the mesh's own +X (`barrel_local=(0.9,0.4,0.3)`), because the socket is the left wrist, not
+  a point on the bore. `thumb_vs_barrel` is therefore a comparison between hands, not a measurement of the
+  thumb against the barrel.
+
+### DEFECTS FOUND
+
+- **The probe's perpendicular was degenerate in every earlier run.** `axis_socket_to_barrel` was always
+  `(0,0,0)`, because it was built from the grip socket and the muzzle, and the grip socket lies on that line
+  by definition. The palm was being tested against a zero vector.
+- **The probe's finger lookup was measuring the wrong hand** (raised in Session 070 as R-80, fixed here at
+  the source): `SK_FP_Arms_Rifle` lists `RightHandThumb1` before `LeftHandThumb1`, so every `thumb`/`index`
+  number the arms printed before this session was the right hand's, relative to the left hand's position.
+- **Session 070's "the transfer is exact"** was exact only in the bone-frame language; the axis mismatch
+  between two rigs is invisible to a quaternion transfer and was worth 83 deg of roll on this pair.
+- **The smoke-test failure was misdiagnosed as environmental in Session 070**, and the fix was a missing
+  command-line flag in the run, not a machine fault.
+
+### NEXT ACTION
+
+Measure the A88's own pose - the left hand in `EF88_Vg_static` (`Docs/evidence/w2_grip_clips/EF88_Vg_static.json`,
+via `Tools/Common/adfrc_grip.py`) - in the same three axes, and decide the target on that evidence: if the
+asset's own hold differs from the body's by the roll a vertical foregrip implies, solve the offset to the
+asset's pose instead and change one config line. Then re-run `-SSHandIKProbe` on the **A89** (its fingers are
+now found correctly) together with the `ss.Probe.Hide` ablation for the tan block.
+
+---
+
+## Session 072 — 2026-09-29 — The nav docs stopped teaching a measured fault; and the two packs get a look-check verdict
+
+Continuation of Session 069's Ravenshoe work. Two items: close the documentation half of the nav
+forensics (the docs half of the fault, now that the bake is the one action still owed), and give the
+producer the desk-level look-check verdict on the two packs Session 068 registered, so the decision
+about them is grounded before any editor work.
+
+### COMPLETED
+
+- **Risk renumbering, correcting Session 069's entry:** its risks were written as "R-69"/"R-70", numbers
+  Session 070 then found already claimed (press-kit logo; rest-joint solve). They take **R-82/R-83**;
+  the changelog entry now says so inline, `PROJECT_AUDIT.md` carries the two rows (R-82 OPEN as a
+  machine/attendant constraint, R-83 CLOSED with the doc correction), and `MAPS_RAVENSHOE.md` §7.1's
+  pointer cites R-82.
+- **The retired ini flag removed from every working doc and recipe (closes the doc half of R-83):**
+  `PLAYTEST_COMMANDS.md` §5 now says plainly that no headless run bakes nav (R-82) and marks the flag
+  retired; `MAPS_DRYRIVER.md` §11.1 teaches no overrides and gains **§11.6**, the full correction — what
+  the flag actually does (early load-time build on partial geometry; holds the 0x20 lock), why Dry
+  River's headless passes kept "working" (the persisted gate-G1.1 tiles), and the rule now (bake once
+  attended, verify by path query); `CLAUDE.md`'s pipeline block drops the override and points at §11.6;
+  `HANDOVER_RAVENSHOE.md` §0 #1 and the rebuild order are corrected in place; `bake_ravenshoe_nav.py`
+  (superseded, referenced nowhere) gains a do-not-run banner; both `build_dryriver_*.py` headers gain
+  dated corrections; and `.github/workflows/build.yml` stops passing the flag (three sites) — inert in
+  CI, but CI should not teach the fault either.
+- **Pack look check, desk-level, in `HANDOVER_RAVENSHOE.md` §0b:** MOUT kit **rejected for Ravenshoe**
+  (church/playground/police-signage/European-vernacular per the Singapore Canal precedent; stays a
+  candidate for an urban/CQB map, R-67 measurement still owed); RustyCars **recommended as the deck/bed
+  wreck replacement** — four shells + ivy, seller verified, `isAiForbidden: false`, against the
+  incumbent Renault whose flag is unknown (no metadata) — provenance hardening under ADR-028, UE-native
+  so the M-008i in-place route applies. No content was imported; only the §0b assessment was written.
+- Session 069's testing table said "look checks NOT RUN — Session 068 scope"; this session records the
+  desk half of that scope. The editor views (MOUT demo map once; RustyCars shells before import) stay
+  owed.
+
+### FILES CHANGED
+
+Modified: `Docs/CHANGELOG.md` (this entry + renumbering), `Docs/PROJECT_AUDIT.md` (R-82/R-83 rows +
+provenance note), `Docs/MAPS_RAVENSHOE.md` (R-82 pointer), `Docs/HANDOVER_RAVENSHOE.md` (§0 corrections,
+§0b look-check verdicts), `Docs/MAPS_DRYRIVER.md` (§11.1 de-taught, §11.6 added), `Docs/PLAYTEST_COMMANDS.md`
+(§5 rewritten), `CLAUDE.md` (pipeline block), `.github/workflows/build.yml` (flag removed ×3, comment),
+`Tools/Unreal/bake_ravenshoe_nav.py` (superseded banner), `Tools/Unreal/build_dryriver_level.py` +
+`build_dryriver_nav.py` (header corrections).
+
+### TESTING
+
+| Check | Command | Result |
+|---|---|---|
+| Retired-flag sweep | `grep -rn bWaitForAsyncLoading` across docs, CLAUDE.md, Tools, CI | **PASS** — every remaining mention is inside a retirement/correction context; CI has zero |
+| Workflow validity | `yaml.safe_load` on build.yml | **PASS** — parses, 22 steps |
+| Script syntax | `ast.parse` on the three touched Python files | **PASS** |
+| Line-ending safety | `git diff --numstat` per file | **PASS** — each touched CRLF file shows only its own lines changed; no whole-file churn |
+| Attended editor bake | — | **NOT RUN** — unchanged from Session 069; still the one action that un-freezes the bots |
+| MOUT demo map opened (R-67) | — | **NOT RUN** — needs the editor; recorded as owed |
+| RustyCars shells rendered/inspected | — | **NOT RUN** — needs the editor or a Blender probe; recorded as owed |
+
+### RISKS
+
+- No new risks. R-82 stays OPEN (machine/attendant constraint); R-83 is CLOSED by this change. The
+  renumbering itself removes the standing double-claim of R-69/R-70 that Session 070 flagged.
+
+### NEXT ACTION
+
+Unchanged and singular: **the attended editor bake** — open `/Game/Maps/L_Ravenshoe_01`, Build ▸ Build
+Paths, save — then `build_ravenshoe_nav.py` verify mode must read 32/32 and a live `-game` run must log
+`Steered N idle bot(s)` with N > 0. The RustyCars swap rides the next map-touching session after that.
+
+---
+
+## Session 073 — 2026-09-29 — The hold socket's rotation was inverted by our own transpose, not by the FBX export
+
+### COMPLETED
+
+- **Found the cause of the upside-down hold socket.** Session 071's probe read `SOCKET_LeftHandGrip` in game with its thumb axis
+  pointing down, not along the bore, and put that down to the FBX exporter applying its axis change on the wrong side. The fault is in
+  `Tools/Blender/adfrc_weapon.py`. `adfrc_grip.hold_frame_rotation` returns a tuple of rows whose columns are the hand axes
+  (checked: column 0 = the report's palm, [0.1024, 0.5, 0.86] on an A88-like weapon). `mathutils.Matrix()` also takes rows, so it
+  already builds the rotation, and the `.transposed()` added in 520dc043 turned it into the inverse. The transpose is removed.
+- **The fore-end question is settled.** Session 071 raised it as a risk; that number was renumbered to Ravenshoe in Session 072. The A88
+  has no vertical foregrip. The `gl*` memory points mark an under-barrel launcher that isn't modelled, and nothing more than 0.9 cm below
+  the bore runs from 9 cm to 42 cm ahead of the trigger. So the hold is the plain handguard; `EF88_Vg_static` supplies position only.
+
+### FILES CHANGED
+
+`Tools/Blender/adfrc_weapon.py`, `Docs/CHANGELOG.md`.
+
+### TESTING
+
+- `python Tools/Common/test_adfrc_grip.py` → exit 0, 0 failures (no pure code changed).
+- The layout check that `resolve_hold`'s column 0 equals its reported palm: done in Python, output above.
+- NOT RUN: the Blender rebuild, the Unreal import, the in-game probe, the automation suite (all on the producer's machine).
+
+### ASSETS
+
+`Art/Weapons/A88/ADFRC/SM_A88.fbx` as committed in 520dc043 carries the inverted socket rotation. It must be rebuilt.
+
+### RISKS
+
+- R-84: `HandRotationOffset` in `DefaultGame.ini` was solved against the socket's old rotation (before the hold basis). Once the rebuilt
+  socket carries the hold basis, the offset has to be re-solved, or the hand turns by both.
+
+### DEFECTS FOUND
+
+- The transpose in `adfrc_weapon.py`, found by reading the matrix layout against `hold_frame_rotation`'s docstring and report.
+
+### NEXT ACTION
+
+Rebuild the A88 (`python Tools/build_adfrc_weapons.py`, then `setup_weapons.py`). Confirm with `probe_weapon_socket.py` that the socket's
++Z (thumb) lies along the bore. Re-solve `HandRotationOffset` against the new socket, log the three angles (each < 15°), then take a
+screenshot.
+
+---
+
+## Session 074 — 2026-09-29 — The hold is authored from the weapon, and the weapon says which hand it is
+
+The producer's correction, twice over. The Arma-pose derivation is dropped: the finger rest joints of
+that pose disagree with each other by ~50 deg, so it was never a measurement, only a shape. And a hold
+carried through the FBX is not a measurement either: the frame authored on `SOCKET_LeftHandGrip` came
+back in game with the thumb on `(0,0,-1)` while the bore at that socket is `(0.874,0.388,0.291)`.
+Session 073 found the cause — not the exporter, as I first wrote, but our own `.transposed()` on a
+matrix that was already the rotation. The fix belongs to whichever route carries a rotation through the
+export at all. This session does not carry one: socket *positions* survive the round trip exactly, so
+the hold is built at run time from the sockets, with its per-weapon angle as data in config, and
+Session 073's R-84 (re-solve the offset against a rebuilt socket) is answered by not using one.
+
+### COMPLETED
+
+**Point 1 — does `SM_A88` have a vertical foregrip? No.** Two independent measurements of the shipped
+asset agree. The `ADFRC_EF88_MLOD.blend` memory points `gl` (+17.3 cm), `gl_axis` (+27.2),
+`gl_cartridge_axis` (+21.9), `gl_lock_axis` (+12.7) and `muzzle_ugl_pos` (+31.6) all sit 4–5 cm *below*
+the bore: they are grenade-launcher attachment proxies, and there is no grenade-launcher geometry in
+LOD0 at all. In `SM_A88.fbx` (78 615 verts), every vertex more than 2 cm below the bore line lies
+between −35.9 and +9.1 cm — the stock, pistol grip, magazine and trigger guard. From +9.1 cm to the
+muzzle at +42.4 cm, nothing is more than 0.9 cm below the bore. The fore-end is a plain tube handguard
+with a top rail, the hand surface runs from about +9 cm to +30 cm ahead of the trigger, and the
+existing `LeftHandGrip` socket at +21.9 cm sits mid-handguard. `GRIP_CLIPS` still names
+`EF88_Vg_static`, but “Vg” names the handAnim *clip*, not the gun; it supplies position only, and
+`build_adfrc_weapons.py` now says so at the line.
+
+**Point 2 — the hold is built at run time, and it lives in config.** `FSSHandIK::BuildGripHold` takes
+the Muzzle and RightHandGrip positions and the weapon component's own up vector and produces the frame:
+`forward = muzzle − rightGrip`, `up` = component up orthogonalised against it, `right = up × forward`
+(UE satisfies `F × R = U`, so `U × F = R`), then `thumb = forward`, `palm` = up tilted `PalmTiltDeg`
+towards `right`, `finger = palm × thumb`. `USSHandIKMeshComponent::UpdateGrip` rebuilds it in the attach
+frame every time the grip resolves, and a weapon with no muzzle or right-hand socket falls back to the
+grip socket's own rotation, which is what the code did before. The angle is data, per weapon, in
+`Config/DefaultGame.ini`: `GripPalmTiltDeg=(A88=30)` and `DefaultPalmTiltDeg=30`, keyed off the held
+mesh's name so a weapon needs no code. Only the A88 is measured; the rest take the default until
+someone measures their mesh the same way, because a hold guessed from a weapon's real-world type is
+exactly the borrowed pose this replaced. The socket-rotation application in `adfrc_weapon.py` is
+reverted — the FBX is back to position-only and the manifest keeps the resolved frame as documentation.
+
+**The sign of `right` is checked against the weapon, not derived.** The ejection port is on the
+shooter's right and the left hand grip on the shooter's left, so `Eject` must land on `+Right` and
+`LeftHandGrip` on `−Right`. The probe now prints both every sample:
+`eject_on_right=1 left_grip_on_left=1 eject_dot_right=+1.625 grip_dot_right=−9.492`.
+
+**Handedness, and the bug a 0.0° residual was hiding.** A *left* hand has `palm = thumb × finger`, so
+`palm × finger = −thumb`: its own (palm, finger, thumb) triad is **left-handed and is not a rotation**.
+The first version of this work used `finger = thumb × palm` — a *right* hand's relation — and measured
+the palm as `finger × thumb` to match it. It reported `residual=0.0/0.0/0.0` on all eleven samples,
+because a mirrored frame still matches a mirrored target, and rendered the back of a closed fist on the
+handguard. Both sides are corrected. The pre-offset error against the arms' own clip pose fell from
+124.8/125.4° to 55.2/54.6°, and the fingers now wrap the tube. `ToHandRotation` is
+`FRotationMatrix::MakeFromXY(Palm, Finger)` — the engine's own helper, so its row/column convention is
+the one `FQuat` expects rather than one re-derived — which gives `+X` palm, `+Y` finger and `+Z` the
+back-of-hand axis. `Tools/Common/adfrc_grip.py` carried the same mirrored triad and is corrected with
+it; its `plain_handguard` finger axis is `−right` for the same reason.
+
+**Point 3 — the offset, solved from `SK_FP_Arms_Rifle`'s own finger bones.**
+`HandRotationOffset=(Pitch=33.853,Yaw=136.820,Roll=−89.996)`, in `Config/DefaultGame.ini`. Solved on
+the A88 from its own clip pose with `-SSHandIKProbe -SSHandIKProbeNoRotate`, identical on all eleven
+samples, and the **three post-offset angles are 0.0 / 0.0 / 0.0** — each far inside the 15° bar. Live
+afterwards, with the offset in config and the rotation step on, every sample t=0.5…5.0 s reads
+`palm_err=0.0 thumb_err=0.0 finger_err=0.0`, and the hold's thumb reads `(1.0,0.0,0.1)` in the weapon's
+frame: on the bore, which is the whole point of rebuilding it at run time. The `thumb_vs_bore=14.7°`
+figure is not an error — it is how far the arms' own idle clip already holds its thumb off the bore,
+the anatomical fact Session 071 measured at 11.5°.
+
+**The per-weapon data path, and a silent failure worth knowing about.** `GripPalmTiltDeg` is a
+`TMap`, and its ini form is unforgiving: `+GripPalmTiltDeg=(A88=30.0)` logs `import failed for
+GripPalmTiltDeg` and leaves the property **empty**, so every weapon silently falls back to
+`DefaultPalmTiltDeg` with nothing else looking wrong. `(("A88",30.0))` is the form that imports. It
+was caught by putting a distinctive 45 in the row and reading the realised tilt back — 30.0° with the
+broken form, 45.0° with the fixed one. Both the ini and the code now say so, because "my per-weapon
+value is being ignored" is exactly the symptom that sends people looking in the wrong place.
+
+**Reading the final live run correctly.** The FP arms settle at `0.0 / 0.0 / 0.0` from t=1.5 s and
+stay there for the remaining eight samples. The first three read 55.2 / 20.4 / 55.2 on the way there:
+`Alpha` ramps at `BlendSpeed=8/s`, so the hand is still the clip's own pose at t=0.4 and halfway at
+t=1.0. That is the blend, not an error, and it is why "every sample reads 0.0" is not a claim this
+session can make about the fade-in window.
+
+**Point 4 — `Build/measure_a88_grip_pose.py` deleted.** It was the cancelled Arma derivation, it was
+never committed (`Build/` is gitignored), and no committed value depends on it. The socket probe it
+fed, `Tools/Unreal/probe_weapon_socket.py`, is removed too: the runtime no longer reads a socket
+rotation, so there is nothing left for it to report.
+
+**Point 5 — `TwoPlayerAuthoritySmoke` on main without the change: PASS**, and **PASS with it**. It is
+not environmental and not this change. The `Fail` in Session 071's evidence is the same test run
+*without* `-NoLoadingScreen`, which produces 4 `ViewportOverlayWidget` ensures from
+`GameViewportClient.cpp:3378`; with the flag it passes, and it passed on the tree as it stood before
+this work began (`SS_smoke_now.log`, exit 0, 0 ensures). The flag, not the code, is the variable. The
+flag needs recording in `Docs/PLAYTEST_COMMANDS.md` so nobody re-derives it.
+
+### TESTS
+
+- `SouthernSpear.Bridge.HandIK.GripHold` (new, pure, no world) — Success. A synthetic bore at +X with
+  up +Z: thumb on the bore, `right = +Y`, `palm = (0,0.5,0.866)` i.e. exactly 30° off up towards
+  right, `palm = thumb × finger`, `palm × finger = −thumb`, `det[palm,finger,−thumb] = +1`,
+  `ToHandRotation` `+Z = −thumb`, 0° and 90° tilts, the frame follows a slanted weapon, and both
+  refusals (coincident sockets, up along the bore) return false with the hold **zeroed** rather than
+  stale — the first cut left `Out.Forward` set on the second refusal, which the test caught.
+- `SouthernSpear.Bridge.HandIK.RotateHand` — Success. `SouthernSpear.Bridge.HandIK.Solve` — Success.
+- Full suite: **63 pass, 0 fail** (`Saved/Logs/SS_suite_072.log`, exit 0).
+- `Tools/Common/test_adfrc_grip.py` 0 failures, `Tools/Common/test_adfrc_reload.py` 0 failures. The
+  grip suite's handedness block was asserting the right hand's relation, so it passed on a mirrored
+  frame; it now asserts the left hand's, and that it is *not* the right hand's.
+- Editor build clean.
+
+### RISKS
+
+- **R-85** — The hold's `PalmTiltDeg` is authored for the A88 only, and only from that weapon's own
+  mesh. Every other weapon takes the 30° default, which is a guess dressed as a default. Open.
+- **R-86** — The A88's palm still reads as a little high and left of the tube in the capture. The
+  rotation is right (the thumb is on the bore and the fingers wrap it); what is left is the *position*
+  of `LeftHandGrip`, 10.3 cm left of the bore, which comes from the ADFRC handAnim wrist and has never
+  been authored. Open — this is the next thing to look at, and it is a socket-position problem, not a
+  hold problem.
+- **R-87** — The socket-rotation route was abandoned in favour of building the hold at run time, and
+  `adfrc_weapon.py` no longer writes a rotation to `SOCKET_LeftHandGrip` at all. If a future weapon
+  needs a hold the runtime cannot build from muzzle/right-grip/up alone — a weapon with no muzzle
+  socket, say — it falls back to the grip socket's own rotation, which is arbitrary and, if anyone
+  reintroduces a rotation here, must not be transposed on the way out (Session 073). Open.
+- **R-88** — `-NoLoadingScreen` is required for `TwoPlayerAuthoritySmoke` and is not yet written down
+  in `Docs/PLAYTEST_COMMANDS.md`, so the next person to run it without the flag will read a `Fail` as
+  a regression. Open.
+
+### FILES
+
+`Plugins/SouthernSpearLyraBridge/Source/SouthernSpearLyraBridge/{Public/SSHandIKMeshComponent.h,
+Private/SSHandIKMeshComponent.cpp, Private/SSHandIKProbeSubsystem.cpp, Private/Tests/SSHandIKTests.cpp}`,
+`Config/DefaultGame.ini`, `Tools/Common/adfrc_grip.py`, `Tools/Common/test_adfrc_grip.py`,
+`Tools/Blender/adfrc_weapon.py`, `Tools/build_adfrc_weapons.py`, `Art/Weapons/A88/ADFRC/manifest.json`,
+`Art/Weapons/A88/ADFRC/SM_A88.fbx` (rebuilt, position-only sockets again), deleted
+`Tools/Unreal/probe_weapon_socket.py`, evidence `Docs/evidence/handik_hold/SS_hold_frame.txt`.
+
+---
+
+## Session 075 — 2026-09-29 — Casualty care, step 1: the rules, and every asset usable whatever its AI flag
+
+### COMPLETED
+
+- **ADR-040 accepted** by the producer, with its build order: rules, then component and kit, then the bridge, then the HUD.
+- **`isAiForbidden` overruled for every asset (L-0016d, producer).** Recorded in the licence register, CLAUDE.md's content
+  rules and ADR-040. The flag is still recorded at import time; it no longer holds anything back. The Fab IFAK is now
+  `PLANNED` as the medic's kit.
+- **New module `SouthernSpearCasualty`** (Core only), enabled in the `.uproject`. Step 1 is its rules:
+  `Public/SSCasualtyRules.h`, engine-free like `SSInsigniaRaster.h`. It covers hit zones and bleeding, the downed state and
+  bleed-out, being finished, every treatment row in ADR-040 (who may do it, how long, the outcome), dressings, the medic's
+  kit (charges, lifetime, carry limits) and `Tick`, which never raises health.
+- **One set of checks, run twice.** `Private/Tests/SSCasualtyRuleChecks.h` runs in the automation suite
+  (`SouthernSpear.Casualty.Rules`) and outside Unreal (`Tools/Casualty/check_casualty_rules.py`, g++ with `-Wall -Wextra -Werror`).
+
+### FILES CHANGED
+
+New: `Plugins/SouthernSpearCasualty/` (`.uplugin`, `Build.cs`, `SSCasualtyModule.cpp`, `Public/SSCasualtyRules.h`,
+`Private/Tests/SSCasualtyRuleChecks.h`, `Private/Tests/SSCasualtyTests.cpp`), `Tools/Casualty/check_casualty_rules.py`.
+Modified: `SouthernSpear.uproject`, `CLAUDE.md`, `Docs/DECISION_LOG.md` (ADR-040 accepted), `Docs/LICENCE_REGISTER.md`
+(L-0016d), `Docs/ASSET_REGISTER.md` (IFAK row), `Docs/CHANGELOG.md`.
+
+### TESTING
+
+- `python Tools/Casualty/check_casualty_rules.py` → exit 0, "53 checks, 0 failure(s)".
+- Mutation check (scratch copy, four separate mutations; each caught): head hits never kill → 2 failures; `Tick` regenerates
+  → 3; self-dressing faster than a teammate's → 2; kit treatment costs no charge → 1.
+- `python Tools/validate_architecture.py` → exit 0 (the new module passes SS001/SS002/SS005).
+- `python Tools/check_unity_names.py` → exit 1, but the same on `main` without this change: two shadows in
+  `SSHandIKProbeSubsystem.cpp` (`GHaveBodyFrame`, `GBodyFrameInWeapon`) from 520dc043. Not this change's; see DEFECTS.
+- NOT RUN: the editor build and `SouthernSpear.Casualty.Rules` in the automation suite (producer's machine).
+
+### ASSETS
+
+None imported.
+
+### RISKS
+
+- R-89: until the bridge wires it (step 3), the rules are inert in play. Lyra's own death still applies.
+
+### DEFECTS FOUND
+
+- `check_unity_names.py` fails on `main` in `SSHandIKProbeSubsystem.cpp` (found by running the guard before committing).
+  The parallel session's unpushed 024b9f0d rewrites that file, so it is left to that merge.
+
+### NEXT ACTION
+
+Build the editor and run `SouthernSpear.Casualty.Rules` (expect 1 more test, and all to pass with `-NoLoadingScreen`). Then step 2:
+`USSCasualtySettings` (the `FTuning` numbers in `DefaultGame.ini`), the replicated `USSCasualtyComponent`, and `ASSMedicalKit`.
+
+---
+
+## Session 076 — 2026-09-29 — Loading screens name the operation and its rules; the front end fits at 1080p
+
+### COMPLETED
+
+- **Loading screen per operation.** When the destination is an operation, the screen shows:
+  - "LOADING OPERATION" and the map's name, e.g. RED GUM STATION;
+  - its objective count and terrain line, and its description;
+  - the rule set's name, with a short summary written from ADR-018/ADR-031 of what the rules ask of you;
+  - a tip.
+
+  It shows the map's own art when `T_SS_Load_<Key>` exists, else the key art. The front end and unlisted maps get the
+  plain screen, as before. Where the destination comes from:
+  - the front end's request (`USSMenuWidget::PendingMap`, set just before `OpenLevel`);
+  - otherwise the engine's `TravelURL`/`LastURL`, where `Rules=Section` selects the rules.
+- **One operation list.** `Private/SSOperations.h` holds the maps, art keys, titles, descriptions and meta lines. The
+  front-end cards, their handlers, the loading screen and `setup_ui.py` all read it.
+- **Drone shots drop in without code.** Place `Docs/images/loadingscreens/<Key>.png` (keys listed in its README), then run
+  `setup_ui.py` with `SS_UI_LOADING_ONLY=1`.
+- **Front end fits at 1080p.** The operation grid is 3 columns (was 2). In the producer's screenshot the RULES row sat
+  under the disclaimer and its buttons were cut off. Cards are 6 px taller so a three-line description no longer
+  touches DEPLOY.
+- **Scoreboard:** the team total reads "3 KILLS", not the ambiguous "3K".
+
+### FILES CHANGED
+
+New: `Plugins/SouthernSpearUI/Source/SouthernSpearUI/Private/SSOperations.h`, `Docs/images/loadingscreens/README.md`.
+Modified: `SSLoadingScreenWidget.h/.cpp`, `SSMenuWidget.h/.cpp`, `SSScoreboardWidget.cpp`, `SSUIAssets.h`,
+`Tools/Unreal/setup_ui.py`, `Docs/CHANGELOG.md`.
+
+### TESTING
+
+- `python Tools/validate_architecture.py` → exit 0.
+- `python Tools/check_unity_names.py` → exit 1, the same two pre-existing shadows in `SSHandIKProbeSubsystem.cpp` as in
+  Session 075. Nothing from this change.
+- `python -m py_compile Tools/Unreal/setup_ui.py` → ok. The art-key regex returns the five keys from `SSOperations.h`.
+- NOT RUN: the editor build; a front-end deploy to see the new loading screen; a 1080p front-end capture.
+
+### ASSETS
+
+None yet. Per-map loading art is waiting on the producer's drone shots.
+
+### RISKS
+
+None new.
+
+### DEFECTS FOUND
+
+- The front end's RULES row was clipped at 1080p (found from the producer's screenshot).
+- Scoreboard names show the platform default ("hurleym-…") because no callsign is set, and the only way to set one is
+  the `ss.Callsign` console command. A callsign field on the front end needs a request path through Core, because UI
+  may not depend on Progression (SS001). Not done here.
+- The class-selection preview holds an M4-pattern rifle while the card says A88. Not investigated.
+
+### NEXT ACTION
+
+Build the editor. Deploy to Red Gum from the front end once with each rule set, and screenshot the loading screen
+(`-SSShotAt` is too late for a load; use the editor's High Resolution Screenshot during the load, or a paused run).
+
+---
+
+## Session 077 — 2026-09-29 — Casualty care, step 2: settings, component and kit; loading art path
+
+### COMPLETED
+
+- **Loading art path corrected** to `Docs/images/loadingscreens/` (the producer's folder; `dryriver.png` is already there).
+  `setup_ui.py` now matches file names to art keys **case-insensitively**, so `dryriver.png` is the DryRiver art.
+- **Casualty step 2 (ADR-040), written blind, not compiled:**
+  - `USSCasualtySettings`: every `FTuning` number, plus the treat range, the kit mesh, `bEveryoneIsMedic`, and the bone-name
+    lists behind `ZoneForBone`. The values are in `Config/DefaultGame.ini`.
+  - `USSCasualtyComponent`: replicated state, bleed, bleed-out, dressings and treatment progress. Server-only entry points
+    for hits, treatments, kit dressings and reset. `OnTransition` (Downed/Died) is for the bridge. Damage cancels treatment
+    both ways, and the patient has to stay in range.
+  - `ASSMedicalKit`: replicated charges and age, self-destroying when spent or old, mesh loaded from settings.
+  - Health only rises inside `FinishTreatment`, through the rules' `Complete`.
+- **Tests added:** `SouthernSpear.Casualty.Settings` (the ini really imported: empty bone lists mean it failed; zones for
+  Manny's bone names), `.Component` (hit, self-dressing, no regeneration over 60 s, stabilise, finish, cancel), `.Kit`
+  (range, no passive heal, dressing, kit self-treat, charges).
+
+### FILES CHANGED
+
+New: `Public/SSCasualtySettings.h`, `SSCasualtyComponent.h`, `SSMedicalKit.h`; `Private/SSCasualtySettings.cpp`,
+`SSCasualtyComponent.cpp`, `SSMedicalKit.cpp`, `Private/Tests/SSCasualtyRuntimeTests.cpp` (all under
+`Plugins/SouthernSpearCasualty/Source/SouthernSpearCasualty/`).
+Modified: `SouthernSpearCasualty.Build.cs` (DeveloperSettings), `Config/DefaultGame.ini`, `Tools/Unreal/setup_ui.py`,
+`SSOperations.h`/`SSUIAssets.h` comments, `Docs/images/loadingscreens/README.md` (moved), the handover and CLAUDE.md.
+
+### TESTING
+
+- `python Tools/Casualty/check_casualty_rules.py` → exit 0, 53 checks, 0 failures (the rules are unchanged).
+- `python Tools/validate_architecture.py` → exit 0. `python Tools/check_unity_names.py` → the same two pre-existing shadows in
+  `SSHandIKProbeSubsystem.cpp`; nothing from this change.
+- NOT RUN: the editor build. **None of this C++ has been compiled.** Expect a first-build fix or two (an include, a signature).
+  The three runtime tests have never run.
+
+### ASSETS
+
+None. The kit mesh is the engine cube until the Fab IFAK is imported.
+
+### RISKS
+
+- R-90: step 2 has not been compiled. The runtime tests build a bare world by hand and tick components manually; if the
+  first run shows `HasAuthority()` false or components not registering, fix the fixture before suspecting the rules.
+
+### DEFECTS FOUND
+
+None new.
+
+### NEXT ACTION
+
+Build, and run `SouthernSpear.Casualty.*` (expect 4 tests). Then step 3: read Lyra's health and death code (prompt C in
+`Docs/HANDOVER_CLAUDE_CLOUD.md`) before writing any bridge code.
+
+---
+
+## Session 078 — 2026-09-29 — The grip socket's position gets authored too, and the arm turns out to be the constraint
+
+R-86 answered. `GripNudgeCm` joins `GripPalmTiltDeg` as per-weapon data: `(Forward, Right, Up)` in
+centimetres, in the hold's own axes, applied to the wrist target in `UpdateGrip`. The A88 takes
+`(Forward=-4.7, Right=5.4, Up=2.1)` and its wrist lands 4.5 cm off the bore, in the 4–5 cm band a
+hand round a handguard belongs in.
+
+The interesting part is not the number, it is that the number **cannot** be chosen by eye, and the
+first two attempts were wrong in a way that looked like the code was broken.
+
+### COMPLETED
+
+**Point 1 — the probe was measuring the wrong point.** It reported `hand_to_grip`, `shoulder_to_grip`
+and `reach_limited` against the **grip socket**, which is correct only while the nudge is zero. A
+6 cm nudge turns the socket into a point the solver is never handed, and the arm's own arithmetic
+(`reach_limited=0`, `shoulder_to_grip=48.66`) went on describing it. The probe now reads the realised
+target — `FSSHandIK::ApplyGripNudge(Hold, GripCS, Nudge)` — and redoes the reach figures against that,
+logging the shoulder, the target and the wrist all in the hold's frame so the numbers can be compared
+offline. The old line is left in place, still honestly labelled as the socket's.
+
+**Point 2 — the arm was at full extension, and that is why the nudge moved the wrist the WRONG way.**
+`FSSHandIK::Apply` puts the wrist at `A + Dir * clamp(|Target-A|, …, L1+L2-0.001)`. Past `L1+L2` the
+arm goes straight and the wrist can only ever sit on that sphere. The first nudge put the target
+53.7 cm from the shoulder against a 51.8 cm arm: out of reach by 1.9 cm. The `reach_limited` flag read
+`0` the whole time, because it was reading the socket. Sliding the target around the sphere is not
+moving it — raising `Right` from 5.5 to 6.0 moved the wrist 0.5 cm *further left*, which looked like
+a sign error and was not.
+
+**Point 3 — reach is why `Forward` is negative.** The first-person shoulder's own bone sits 44.4 cm
+left of the bore and the whole arm is 51.8 cm, so the socket is already 48.7 cm out: **3.1 cm from
+straight before any nudge at all.** Every centimetre the wrist moves in towards the tube is a
+centimetre of arm spent, and it has to be paid back somewhere. Back along the tube is the only
+somewhere that keeps the hand on the handguard (+9 to +30 cm), so the row pulls the wrist 4.7 cm back
+as well as 5.4 cm in. Enumerating the whole 4–5 cm ring across the handguard: every point on it needs
+the entire arm. 1.2 cm of elbow was spent on purpose — 0 cm reads as a pole, not an arm.
+
+**Point 4 — solved, then verified.** `Saved/tmp/solve_nudge.py` reproduces the measured run to 0.01 cm
+(wrist-to-bore 5.54 predicted vs 5.55 logged, `short_by` 1.93 vs 1.92) before it is allowed to
+predict anything. The live run with the new row: `wrist_to_bore=4.54cm along_bore=17.17cm
+off_right=-4.09 off_up=-1.96`, `wrist_to_target=0.00cm` (the wrist now lands **on** the target rather
+than 1.9 cm short of it), `shoulder_to_target=50.60` against `reach=51.80`. Screenshot
+`Saved/tmp/nudge_a88.png`.
+
+**Point 5 — R-88 recorded.** `-NoLoadingScreen` was already written down for the whole-suite command
+(`PLAYTEST_COMMANDS.md` §7) but not for running a **single** test, which is how the hand-IK work
+actually runs them. Both forms are now there, with the correct test path
+(`SouthernSpear.Network.Gameplay.TwoPlayerAuthoritySmoke`, verified against this run's log — not
+`LyraGame`) and the four `ViewportOverlayWidget` ensures named.
+
+**Tests.** 63/63 `Result={Success}`, 0 failures, with the change. `test_adfrc_grip`, `test_adfrc_reload`,
+`test_rtm_rigs`, `test_architecture_guard`, `test_check_unity_names`: 0 failures each.
+`validate_architecture.py`: PASS. New pure assertions in `HandIK.GripHold` cover `ApplyGripNudge`
+(a zero nudge is the identity, the three axes are independent, and a hold is not left stale by one).
+
+### FILES
+
+`Plugins/SouthernSpearLyraBridge/Source/SouthernSpearLyraBridge/{Public/SSHandIKMeshComponent.h,
+Private/SSHandIKMeshComponent.cpp, Private/SSHandIKProbeSubsystem.cpp, Private/Tests/SSHandIKTests.cpp}`,
+`Config/DefaultGame.ini`, `Docs/PLAYTEST_COMMANDS.md`,
+evidence `Docs/evidence/handik_hold/SS_hold_frame.txt` (points 9–11).
+
+
+## Session 079 — 2026-09-29 — The two "shadows" were the checker reading a name's own assignment as a declaration
+
+`Tools/check_unity_names.py` reported two shadows in `SSHandIKProbeSubsystem.cpp`:
+
+```
+shadow GBodyFrameInWeapon line 692
+shadow GHaveBodyFrame line 693
+```
+
+**Both are false positives, and the C++ was never at fault.** Lines 692-693 are assignments, not
+declarations:
+
+```cpp
+GBodyFrameInWeapon = InWeapon;   // file-scope FProbeHandFrame, declared line 244
+GHaveBodyFrame = true;           // file-scope bool, declared line 245
+```
+
+A file-scope variable being assigned is not shadowed by anything. The name it is written under is the
+name it already has, in the same scope, so there is nothing to hide and no C4459 to raise. The build
+succeeded before this report and succeeded again afterwards with the probe source untouched
+(`Result: Succeeded`), which is the measurement that settles it.
+
+**The earlier cloud claim that C4459 would break the build was wrong.** It read a checker finding as a
+compiler diagnostic. A real C4459 is a compiler error and would have been in the build output; it was
+not, and it could not have been, because the two lines are not declarations. Recording this so the
+next reader does not spend a session renaming correct code.
+
+### DEFECTS FOUND
+
+**`declared_name()` treated any identifier before a delimiter as a declaration**
+(`Tools/check_unity_names.py:162`). It cut the line at the first `[`, `=` or `;` and read whatever
+identifier sat in front of it as a declared name. Measured directly against the function:
+
+| Line | Read as | Correct? |
+|---|---|---|
+| `GBodyFrameInWeapon = InWeapon;` | `GBodyFrameInWeapon` | no — an assignment |
+| `GHaveBodyFrame = true;` | `GHaveBodyFrame` | no — an assignment |
+| `Alpha += 1;` | `Alpha` | no — a compound assignment |
+| `Foo[0] = 3;` | `Foo` | no — an element assignment |
+| `FString Text(GBodyFrameInWeapon);` | `None` | yes — it is a call |
+
+A C++ declaration is a **type and a name**: two identifiers before the delimiter. A lone identifier is
+a use of something declared elsewhere. Found by reading the two flagged lines instead of renaming
+them.
+
+### COMPLETED
+
+**The checker.** One guard after the `if not names: return None` early-out:
+
+```python
+if len(names) < 2 and delimiter != "(":
+    return None
+```
+
+Function definitions (`Type Name(...)`) are kept by the `delimiter != "("` arm, so the anonymous-namespace
+check the shadow rule relies on is unchanged. Documented in `declared_name()`'s docstring with the three
+assignment forms it now rejects and the `GBodyFrameInWeapon` case that motivated it.
+
+**The regression fixture.** `Tools/test_check_unity_names.py` gains an `ETA` fixture — file-scope
+`FVector GFrame;` and `bool GHaveFrame = false;` in an anonymous namespace, then a function that only
+ever assigns them (`=`, `+=`, `[0] =`). The new assertion *"assigning to a file-scope name is not a
+shadow of it"* fails against the old checker and passes against the new one, and the existing *"only the
+two real shadows are reported"* assertion still holds at exactly 2, so the guard did not blunt the check
+it exists to perform.
+
+**The probe source is unchanged.** `GBodyFrameInWeapon` / `GHaveBodyFrame` keep their names. The fix
+belongs in the tool that was wrong, not in the code it misread.
+
+### TESTING
+
+| Command | Exit | Result |
+|---|---|---|
+| `python Tools/check_unity_names.py` | 0 | `PASS - no name clash across 9 module(s).` |
+| `python Tools/test_check_unity_names.py` | 0 | 13 PASS, `0 failure(s)`, including the new assignment case |
+| `python Tools/validate_architecture.py` | 0 | PASS (pre-existing SS010 note for `SSFonts.h`, R-75) |
+| `Build.bat SouthernSpearEditor Win64 Development -WaitMutex` | 0 | `Result: Succeeded` (no C++ change, so a no-op link) |
+| `UnrealEditor-Cmd.exe ... -nullrhi -unattended -nosplash -nosound -NoLoadingScreen -ExecCmds="Automation RunTests SouthernSpear;Quit"` | 0 | **67 passed, 0 failed** (63 + 4 casualty) |
+
+### FILES
+
+`Tools/check_unity_names.py`, `Tools/test_check_unity_names.py`, `Docs/CHANGELOG.md`.
+
+### ASSETS
+
+None. Two loading-screen PNGs (`Docs/images/loadingscreens/dryriver.png`, `redgum.png`) are present in
+the tree and LFS-matched but still untracked; they are left as found.
+
+### RISKS
+
+None new. The real defect here was in the guard, and the lesson generalises: every finding this checker
+produces is a hypothesis until the flagged line has been read. A finding that asks for a rename in code
+that already builds should be opened before it is acted on.
+
+### NEXT ACTION
+
+Read the flagged line first. The checker's output is a pointer at a place to look, not a verdict on it.
+
+
+## Session 080 — 2026-09-29 — A callsign field on the Interface tab (cloud; uncompiled)
+
+### COMPLETED
+
+- **Callsign setting.** Scoreboards showed the platform name ("hurleym-CB9A…") because the only way to set a callsign was the
+  `ss.Callsign` console command. The Settings screen's INTERFACE tab now has CALLSIGN: a text field, SET, and feedback (the rule
+  in words on entry; "Callsign set to X…" or "Not accepted…" after). It shows only once a service record has loaded.
+- **Layering respected (SS001).** UI can't depend on Progression, so Core's `USSLocalProfileState` gained `CallsignSetter` and
+  `RequestCallsign()`; `USSPlayerProfileSubsystem` installs the setter in `Initialize` and clears it in the new `Deinitialize`
+  (the lambda captures `this`). The rule itself is still `FSSProgressionRules::IsValidCallsign`; the field calls `SetCallsign`,
+  which saves, publishes and reports the name to the server (`ChangeName`), so an in-match change shows straight away.
+
+### FILES CHANGED
+
+`SSLocalProfileState.h` (Core), `SSProgressionSubsystems.h/.cpp`, `SSSettingsWidget.h/.cpp`, `Docs/CHANGELOG.md`, the handover.
+
+### TESTING
+
+- `python Tools/validate_architecture.py` → exit 0. `python Tools/check_unity_names.py` → exit 0 (after the Session 079 checker fix).
+- NOT RUN: the editor build; the field in game. **Uncompiled.** Watch: `UEditableTextBox` styling on the dark panel (foreground
+  set to Sand100; the box's own background is the engine default), and that the six-word INTERFACE page still fits.
+
+### ASSETS
+
+None.
+
+### RISKS
+
+- R-91: the callsign is local and unauthenticated by design (R-53). Anyone can pick any valid name, including another player's.
+  Fine for the offline-with-bots slice; a real name policy belongs with real accounts.
+
+### DEFECTS FOUND
+
+None new.
+
+### NEXT ACTION
+
+Casualty step 3 from `Docs/evidence/casualty_lyra_hooks.md` once it is committed (it is still untracked on the producer's machine).
+
+---
+
+## Session 081 — 2026-09-30 — Cloud's callsign field compiles first try; the loading art and the Lyra research are committed
+
+Pulled main first thing: `7da97511..6bdfb4c8`, fast-forward, no conflicts. The cloud's Session 080 added the
+CALLSIGN field (`SSLocalProfileState.h` gains `CallsignSetter`/`RequestCallsign`/`CallsignRule`; Progression
+wires `SetCallsign` into the setter and clears it in a new `Deinitialize`; `SSSettingsWidget.cpp` builds the
+Interface-tab block). Its commit message says "uncompiled".
+
+**It compiles as committed.** `Build.bat SouthernSpearEditor Win64 Development -WaitMutex`: exit 0, 10 actions
+(Core, Progression, UI each compile and link), `Result: Succeeded`, 37 s. This session changed nothing in the
+callsign code — there was nothing to fix. Full suite afterwards with `-NoLoadingScreen`: exit 0,
+`**** TEST COMPLETE. EXIT CODE: 0 ****`, **passed=67, failed=0** (`Saved/Logs/SS_suite_callsign.log`).
+
+### COMPLETED
+
+- Committed last session's untracked work, LFS first: `git lfs push origin main` before the commit and again
+  after it, then `GIT_LFS_SKIP_PUSH=1 git push`. The four binaries — two paintings, two imported textures —
+  are `filter: lfs` per `git check-attr`.
+- `Content/EuropeanBeech/` (7 GB foliage, not this session's) left untracked and untouched.
+
+### TESTING
+
+| Command | Exit | Result |
+| --- | --- | --- |
+| `git fetch origin` | 0 | `7da97511..6bdfb4c8 main`, 0 ahead / 1 behind |
+| `git merge origin/main --no-edit` | 0 | Fast-forward, 7 files +132/−2, no conflicts |
+| `Build.bat SouthernSpearEditor Win64 Development -Project=... -WaitMutex` | 0 | 10/10 actions, `Result: Succeeded` |
+| `UnrealEditor-Cmd ... -nullrhi -NoLoadingScreen "Automation RunTests SouthernSpear;Quit"` | 0 | `TEST COMPLETE. EXIT CODE: 0`; 67 `Result={Success}`, 0 `Result={Fail}` |
+
+### FILES
+
+- `Docs/evidence/casualty_lyra_hooks.md` — Lyra death-chain and interact research, 301 lines, every file:line verified last session.
+- `Docs/evidence/ui_session078/` — six 1080p captures (front end, 3+2 card crop, rules-caption crop, three loading screens).
+- `Docs/images/loadingscreens/dryriver.png`, `redgum.png` — the two paintings (3.6 / 3.8 MB, LFS).
+- `Plugins/SouthernSpearUI/Content/Textures/T_SS_Load_DryRiver.uasset`, `T_SS_Load_RedGum.uasset` — imported textures (LFS).
+- `Docs/CHANGELOG.md` — this entry.
+
+### RISKS
+
+- The Interface page grew by four widgets (label, 300 px box + SET button row, feedback line). Whether the
+  six-item page still fits 1080p without clipping is not yet measured — that, the live typing behaviour and
+  the scoreboard name are this session's next measurements.
+
+### NEXT ACTION
+
+In game, Settings > INTERFACE: capture the CALLSIGN field; type `Dingo 2-1`, press SET, report the feedback
+text; boot a match and read the scoreboard name; try `x` and require the rule text in red. Evidence to
+`Docs/evidence/ui_session081/`.
+
+## Session 082 — 2026-09-30 — Wandarra (M-009): the MOUT village built from three packs, nav bake pending
+
+### COMPLETED
+
+The producer's 2026-09-29 decision — one big map from the MOUT kit and the other installed-but-unused
+packs — is now built. `L_Wandarra_01` exists (1,050,985 bytes), laid out by a new single-source spec
+and placed by a new Dry River-pattern pipeline:
+
+- **`Tools/Common/wandarra_spec.py`** — pure-Python layout spec (no unreal): 300 × 300 m site,
+  two crossing streets (7 m + 1.5 m footpaths), 11 building rows, church assembly, 35 furniture
+  rows, 5 fence runs with gate gaps, 10 cars, 6 tree rows, two deployments, three objectives,
+  PROTECTED zones and `run_clears_protected` (corner + Liang–Barsky interior check — the corner-only
+  version first written let a segment pass through a zone interior untouched, caught by unit check
+  before any editor run).
+- **`Tools/Unreal/build_wandarra_level.py`** — level pass. `LevelEditorSubsystem.new_level` (the
+  proven call), ground slab under `MI_SS_WorldGround_Wandarra` (Ravenshoe gravel on
+  `M_SS_WorldGroundVT`, world-mapped 3 m tile), 11 vendor building Blueprints, 17 ChurchKit parts
+  (nave walls/windows/roof, west tower + cross, east door — the vendor set has no church), 168 fence
+  segments, 35 props, 10 RustyCars wrecks, 38 EuropeanBeech SimpleWind trees (seeded jitter), two
+  tagged deployments (TeamOne depot NW, TeamTwo green SE), three sequential objectives with 900 cm
+  discs, director, NavMeshBoundsVolume (75/75/15 — the ×4 reload factor from R-10 pre-accounted),
+  RecastNavMesh saved into the map, WorldSettings experience set, light_dryriver lighting rig.
+- **`Tools/Unreal/build_wandarra_nav.py`** — nav pass that verifies the *designed*
+  Depot→A→B→C→Green chain and repairs only what cannot walk it (the spec is the layout authority,
+  not a computed path). BUILDPATHS ×1 per run (a second issue access-violates on this machine).
+- **`Tools/Unreal/light_wandarra.py`** — idempotent `SS_Light_*` re-light pass, as `light_dryriver.py`.
+- **Name**: Wandarra — invented locality, "place of the crow", same bird-name convention as
+  Ravenshoe. No real locality is reproduced; `MAPS_TRAININGRANGE.md` §6's three blockers (author,
+  name, layout) are all resolved, so **M-009 opened**.
+- **Register/audit/licence updates**: `ASSET_REGISTER.md` M-009 row; MOUT kit and RustyCars rows
+  `CANDIDATE`/`NOT_USED` → `IN_USE`; new EuropeanBeech row (§4.9k); M-006 note updated (village
+  committed beside it, range question stays the producer's). `LICENCE_REGISTER.md`: MOUT row in
+  use, RustyCars row in use, new beech row — all three recorded with the L-0016c unverified
+  posture (neither Vault pack wrote a `metadata` sidecar; the beech chunk carries a manifest only).
+  `PROJECT_AUDIT.md`: R-67 first-load half measured, new **R-89** (ADR-016 look check deferred,
+  not passed) and **R-90** (vendor building footprints unmeasured against the 1 m spec grid).
+- **`.gitignore`**: `Content/EuropeanBeech/` added — the 7 GB pack was installed but unignored
+  (would have been committable; ADR-021/R-14 class defect caught on session-open status).
+
+### FILES CHANGED
+
+- `Tools/Common/wandarra_spec.py`, `Tools/Unreal/build_wandarra_level.py`,
+  `Tools/Unreal/build_wandarra_nav.py`, `Tools/Unreal/light_wandarra.py` — new (Class F original).
+- `Content/Maps/L_Wandarra_01.umap`, `Content/Art/Environment/Fab/MI_SS_WorldGround_Wandarra.uasset`
+  — new build products (LFS).
+- `Docs/MAPS_WANDARRA.md`, `Docs/evidence/S082_wandarra_level_report.json`,
+  `Docs/evidence/S082_wandarra_nav_report.json` — new.
+- `Docs/ASSET_REGISTER.md`, `Docs/LICENCE_REGISTER.md`, `Docs/PROJECT_AUDIT.md`, `Docs/CHANGELOG.md`,
+  `.gitignore` — modified.
+- `Content/MOUT_Civilian/`, `Content/RustyCarsFree/`, `Content/EuropeanBeech/` — raw packs, git-ignored,
+  referenced in place (ADR-021).
+
+### TESTING
+
+| # | Command | Exit | Result |
+|---|---|---|---|
+| 1 | `python -m py_compile Tools/Common/wandarra_spec.py Tools/Unreal/build_wandarra_*.py Tools/Unreal/light_wandarra.py` | 0 | all four compile |
+| 2 | spec unit checks (`seg_point_distance`, protected-zone blocking, street clearance) | 0 | 3/3 pass after the Liang–Barsky fix |
+| 3 | `UnrealEditor-Cmd … -ExecutePythonScript=…build_wandarra_level.py` (`Saved/Logs/SS_wandarra_level.log`) | 0 | report `ok: true`, 12/12 steps, **0 missing assets, 0 Python errors, 0 fatals** (`Docs/evidence/S082_wandarra_level_report.json`) |
+| 4 | `UnrealEditor-Cmd … -ExecutePythonScript=…build_wandarra_nav.py` | 0 | **expected fail recorded honestly**: 0/3721 grid points on navmesh — headless BUILDPATHS is a no-op under -nullrhi (R-82) (`Docs/evidence/S082_wandarra_nav_report.json`) |
+| 5 | `layout_spawns.py`, `audit_map_playability.py`, bot match | — | **NOT RUN** — all three need the navmesh bake |
+
+### ASSETS
+
+- Created: `L_Wandarra_01` (map), `MI_SS_WorldGround_Wandarra` (material instance).
+- Referenced in place, unmodified: MOUT kit (4.26 → first 5.8 load **silent**, R-67 evidence),
+  RustyCars `SM_asset_00–04`, EuropeanBeech SimpleWind statics (5.1 native).
+- Licence rows updated as above; both Vault packs remain seller/AI-flag **unverified** (L-0016c).
+- Excluded by rule: MOUT `Demo/` character and weapon (ADR-020), Flag skeletal mesh, AwningKit
+  Blueprints, beech PivotPainter/WIG variants, ivy meshes.
+
+### RISKS
+
+- **R-89** (new): Wandarra's ADR-016 look check deferred, not passed — nothing has eyeballed the
+  built map.
+- **R-90** (new): vendor building footprints unmeasured against the spec's 1 m grid; a building may
+  overlap a footpath or fence until bounds are dumped.
+- R-67 updated: first 5.8 load of the 4.26 kit measured silent; render-cost half still open — and
+  the map now *depends* on the kit, so an upconversion failure is no longer free.
+- R-82 unchanged: the attended bake is the only way this map gets a navmesh.
+
+### DEFECTS FOUND
+
+- The spec's first `run_clears_protected` checked zone corners and endpoints only; a segment could
+  pass through a zone interior without touching a corner. Found by the pre-editor unit check
+  (through-objective-B test returned False-blocked incorrectly); fixed with Liang–Barsky.
+- `Content/EuropeanBeech/` was installed without a `.gitignore` row — 7 GB of raw pack sat untracked
+  but committable. Found on session-open `git status`; fixed in this change.
+
+### NEXT ACTION
+
+Attend the editor: open `L_Wandarra_01`, Build ▸ Build Paths, save (the R-82 attended bake), then
+re-run `build_wandarra_nav.py` to verify the designed legs and run `layout_spawns.py` with
+`SS_MAPS=L_Wandarra_01`. Evidence to `Docs/evidence/session082/`.
+
+## Session 083 — 2026-09-30 — The callsign field verified live: Dingo 2-1 accepted, rejected in red, and on the scoreboard
+
+The Interface-tab field the cloud added in Session 080 and this shop compiled in Session 081 was exercised in the
+real front end, end to end, with captures at every step (`Docs/evidence/ui_session083/`, 1920x1080).
+
+**What was measured.** SETTINGS opens from the top bar; the INTERFACE tab activates; the CALLSIGN block renders
+(label, 300 px box with the Sand100 text and engine-default field, SET, rule line). Typing `Dingo 2-1` over a
+Ctrl+A selection and pressing SET turns the rule line **brass** — measured 855 pixels matching Brass300
+`D6C49D` (first sampled pixel exactly `(214,196,157)`) — with the "Callsign set to ..." text. Typing `x` and
+pressing SET turns it **red** — 758 pixels matching Opfor300 `C98A7C`, zero brass/sage contamination — the
+"Not accepted." reject. Re-setting the good name returns the brass accept. The game log carries the server-side
+receipt twice: `LogSSProgression: Service profile: Dingo 2-1 level 2.`
+(`Saved/Logs/SS_load_s081h.log:2224-2225`).
+
+**Scoreboard.** DEPLOY → `Browse: "/Game/Maps/L_RedGum_01?NumBots=8"` → spawned; holding Tab shows the local row
+highlighted at rank 2, named **Dingo 2-1**, ping 0 ms, between the bots (`06_scoreboard_dingo_2_1.png`). The
+Session 080 comment "shows on the scoreboard from the next match" is true, and the in-match ChangeName path
+(`SSServiceRelay::ServerReportProfile`) makes it immediate.
+
+**The six-item Interface page fits.** Measured text bands on the 1080p client: FRAME RATE COUNTER y≈359-373,
+DEVELOPER MESSAGES y≈417-431, CALLSIGN label y≈475-489, box row y≈512-553, rule line y≈570-584; BACK/APPLY at
+y≈787-843; panel bottom ≈880. Roughly 300 px of spare room below the rule line — no clipping, no scroll.
+
+### DEFECTS FOUND
+
+None in the callsign feature. Three environment notes, none actionable here: the engine's AI-toolset Python
+spams `AttributeError` at boot (engine-side, pre-existing); one D3D12 GPU device loss ended a match mid-session
+(`D3D12Util.TerminateOnGPUCrash`, crash dir `UECC-Windows-038C...` — the game was closed cleanly afterwards);
+automation clicks on tab labels only registered a few pixels below centre while every manual click worked, so
+the driver now finds live hit pixels by hover-scanning (capture-side quirk, recorded in `Saved/tmp`, not a
+product bug).
+
+### TESTING
+
+| Command | Exit | Result |
+| --- | --- | --- |
+| `python Saved/tmp/loadshots/csign/boot.py s081h` | 0 | Front end up, client 1920x1080 at (8,31) |
+| SETTINGS click, INTERFACE tab (hover-verified) | — | Underline moved to x 1082-1176; callsign block present |
+| Ctrl+A, `Dingo 2-1`, SET | — | Brass accept (855 px `D6C49D`); log line :2224 |
+| Ctrl+A, `x`, SET | — | Red reject (758 px `C98A7C`, 0 brass) |
+| Ctrl+A, `Dingo 2-1`, SET (restore) | — | Brass accept; log line :2225 |
+| DEPLOY → hold TAB in match | — | `Browse: "/Game/Maps/L_RedGum_01?NumBots=8"`; scoreboard shows Dingo 2-1 |
+
+### FILES
+
+- `Docs/evidence/ui_session083/01..06` — field, typed states, brass accept, red reject, scoreboard.
+- `Docs/CHANGELOG.md` — this entry. Capture drivers stay in gitignored `Saved/tmp/loadshots/csign/`.
+
+### NEXT ACTION
+
+The callsign feature is verified; the Session 080 handover's "watch" items are all closed. Remaining from the
+handover: Wandarra's attended nav bake (Session 082), and the casualty-care work still awaits a live test of
+the Lyra death-chain hooks documented in `Docs/evidence/casualty_lyra_hooks.md`.
+
+## Session 084 — 2026-09-30 — Wandarra dressed in design: awnings and gate doors queued behind a yaw-defect rebuild; vendor doors ruled scenery (ADR-041)
+
+### COMPLETED
+
+The producer's "bring the awnings in" direction, executed as design + code + a recorded decision.
+The interactive editor was open on the project all session (one-writer rule), so **no headless pass
+ran against the map** — everything below is written, checked, and queued behind one attended
+sequence:
+
+- **`Tools/Common/wandarra_spec.py` extended**: `AWNING_BPS`/`AWNING_ROWS` (6 verandahs from the
+  four `BP_GovernmentAwning_*` types — civic face ×2, west row main-street footpath, east row
+  park side, cross-street store, depot-lane corner) and `DOOR_BPS`/`DOOR_ROWS` (2 scenery doors:
+  depot side gate, green picket gate). Depot gate gaps narrowed to **2.4 m personnel width**; the
+  main gate deliberately keeps an **open** gap, no door — see the defect below.
+- **`Tools/Unreal/dress_wandarra_awnings.py`** — new pass: idempotent `SS_Dress_*` placement,
+  ground-snapped doors, and the **R-90 measurement** riding along: dumps all 11 vendor building
+  boxes to site coordinates, reports road-corridor overlaps, and pushes each awning out of its
+  building's *measured* box by 40 cm (spec row = intent, footprint = evidence).
+- **ADR-041 recorded** (`DECISION_LOG.md`): the vendor interactable door Blueprints are **scenery,
+  not gameplay**. Evidence: the shipped BPs carry embedded compile errors (`Could not find a
+  variable named "Left Door Rotation" in 'BP_GreenDoors_Interactable_C'`, read from the compiled
+  asset) and client-local timelines; Lyra's interact input is already assigned to casualty care
+  (ADR-040). Any future gameplay door is a server-owned `USSDoorComponent` on a project-owned
+  actor referencing the vendor *meshes* — the vendor BPs stay unreferenced by gameplay code forever.
+- **Yaw defect found and fixed (map pending rebuild)**: the site→Unreal rotation shipped as
+  `-yaw`; the correct transform is **`yaw − 90`** (site north = Unreal −Y = Unreal yaw −90; site
+  east = +X = 0; site south = +Y = 90). Every rotated actor in the built `L_Wandarra_01` —
+  building facings, church walls, fence runs, furniture — sits one cardinal direction off, the
+  exact silent-failure class MAPS_DRYRIVER §11.2 documents. Found while deriving the awning
+  push-out vector, not by an editor look. `build_wandarra_level.py` fixed; the on-disk map keeps
+  the defective rotations until the level pass re-runs, and **the nav bake must come after that
+  rebuild**, not before.
+- **Door-seals-spawn flaw caught pre-placement**: a closed door actor bakes into the navmesh as a
+  blocker, and TeamOne spawns inside the depot compound — a door on the main gate would have made
+  the team's only walkable exit depend on an unwired scenery door. Main gate = open 2.4 m gap;
+  doors only at the side gate and the green gate (no one spawns inside that yard).
+- Docs: `MAPS_WANDARRA.md` §3.1 (dressings), corrected transform section, R-90 remedy line;
+  ADR-041 in `DECISION_LOG.md`.
+
+### FILES CHANGED
+
+- `Tools/Common/wandarra_spec.py` — modified (awning/door tables, gate gaps, main-gate rule).
+- `Tools/Unreal/build_wandarra_level.py` — modified (yaw transform corrected).
+- `Tools/Unreal/dress_wandarra_awnings.py` — new (Class F original).
+- `Docs/DECISION_LOG.md` (ADR-041), `Docs/MAPS_WANDARRA.md`, `Docs/CHANGELOG.md` — modified.
+
+### TESTING
+
+| # | Command | Exit | Result |
+|---|---|---|---|
+| 1 | `python -m py_compile` (spec, builder, dressing pass) | 0 | compile clean |
+| 2 | spec table checks (row shapes, gap arithmetic, door/awning coordinates inside fence gaps) | 0 | pass — two coordinate errors caught and fixed pre-commit |
+| 3 | `dress_wandarra_awnings.py` headless run, level rebuild, R-90 bounds dump | — | **NOT RUN** — interactive editor open (one-writer rule); queued |
+| 4 | nav bake + verify, `layout_spawns.py`, playability audit | — | **NOT RUN** — still gated on the attended bake, which is now gated on the rebuild |
+
+### ASSETS
+
+- Referenced in place, unmodified: `BP_GovernmentAwning_01a/b`, `02a/b`; `BP_WoodenDoor_Interactable`
+  (2 placements). `BP_GlassDoors_Interactable` / `BP_GreenDoors_Interactable` / AwningKit loose
+  meshes: **not used** (glass/green BPs broken; meshes unneeded — ADR-041 consequences).
+- No new project assets created this session.
+
+### RISKS
+
+- **Yaw defect (new, in code fixed / in map pending):** until the rebuild, every rotation in
+  `L_Wandarra_01` is one cardinal off; any measurement taken on the current map is invalid. The
+  queued sequence must be rebuild → dress → bake → verify → spawns.
+- R-90's dump is now wired into the dressing pass but has produced no numbers yet.
+- R-89 (ADR-016 look check) unchanged — still no eyes on the map; R-82 unchanged.
+
+### DEFECTS FOUND
+
+- **Yaw transform** (above) — found by derivation while coding the awning push-out, not by
+  inspection; the class of failure MAPS_DRYRIVER §11.2 warns about, caught at the second build
+  instead of the first because the spec's own self-checks verify positions, not rotations.
+- Awning yaw sign error in the first spec draft (a west-row verandah faced away from the street)
+  and three door coordinates that did not sit in their gate gaps — all caught by re-deriving the
+  geometry before commit, none by tooling; the spec should get a rotation-aware self-check.
+- **Door-seals-spawn** (above) — found by asking "what does the navmesh bake see?" before placing,
+  not after; recorded in ADR-041 so the main-gate rule survives future edits.
+
+### NEXT ACTION
+
+Attend the editor once the current session closes it: re-run `build_wandarra_level.py` (applies
+the yaw fix and the 2.4 m gate gaps), run `dress_wandarra_awnings.py` for the R-90 dump, correct
+spec rows if the dump demands, then Build ▸ Build Paths, `build_wandarra_nav.py`,
+`layout_spawns.py` with `SS_MAPS=L_Wandarra_01`. Evidence to `Docs/evidence/wandarra_bake/`.
+
+## Session 085 — 2026-09-30 — The kangaroo easter egg is placed (and one floated in a tree); Dry River gets its overhaul defect list
+
+The producer's two new model sets — ghost gum (ENV-003) and kangaroo (ENV-004, both L-0024, provenance
+initially unverified and recorded as such with R-90a) — arrived in `Content/ghostgum/` and
+`Content/kangaroo/`. The registers were updated in the same change as the sources landed (`d7c2d93b`).
+**Later the same day the producer confirmed all models downloaded for or used in the project are free and
+cleared for game use; R-90a is closed and L-0024 reclassified to Class A under producer risk acceptance.**
+
+**The easter egg.** `Tools/Unreal/dress_kangaroo_easteregg.py` imports the kangaroo FBX (legacy FBX path with
+`combine_meshes` — Interchange split it into 25 pieces first), authors `MI_SS_Kangaroo` as an instance of the
+project's `M_SS_ScanPBR` master wired to the vendor's own body maps, derives a uniform scale from the mesh's
+real bounds (63.4 × 24.9 × 53.3 cm source → 2.3668 to stand 1.5 m), and places **two kangaroos per map** on
+Red Gum Station and Dry River under named dressing trees — terrain-anchored, collision off, labels
+`SS_EasterEgg_Kangaroo_1/2`, idempotent per label, each map saved.
+
+**The defect the producer caught, and what it exposed.** First placement floated two animals in the canopy:
+the script's downward visibility trace at the trunk hit the tree's own collision top and used *that* z. The
+producer's screenshot (`Docs/evidence/session084_dryriver/DR_kangaroo_in_canopy.png`) is what found it — the
+placement script's report said ok. Fix: anchor to the tree's own pivot z (dressing passes spawn trees at
+terrain height) and re-place all four; re-run clean, 4/4, maps saved. **Process rule recorded in the map doc:
+no placement pass is done without in-engine captures of the placed actors; script reports are not verification.**
+
+**Dry River overhaul.** The producer walked the map and recorded seven defects — front-facing-only assets,
+untextured assets, the windmill caught in trees, random prop placement, no water in the creek, sparse small
+foliage versus Red Gum, and a general need for more density. Recorded as D-DR-01..07 with evidence in
+`Docs/evidence/session084_dryriver/` and standing in §11 of `Docs/MAPS_DRYRIVER.md` as the overhaul's spec.
+The ghost gum model is imported as part of that overhaul (canopy variety), per the producer's direction.
+
+### TESTING
+
+| Command | Exit | Result |
+| --- | --- | --- |
+| `UnrealEditor-Cmd -run=pythonscript -Script=.../dress_kangaroo_easteregg.py` | 0 | `ok: true`; textures 9, mesh 1, material 1; Red Gum 2/2, Dry River 2/2; both maps saved |
+| Re-run after the pivot-z fix (idempotent) | 0 | 0 warnings, 4/4 replaced, both maps saved |
+| Interchange first import | — | produced 25 piece meshes; purged, re-imported combined (legacy FBX path) |
+
+### FILES
+
+- `Tools/Unreal/dress_kangaroo_easteregg.py` — the import + placement pass (idempotent, bounds-derived scale).
+- `Content/Art/Environment/Kangaroo/` — SM_Kangaroo, MI_SS_Kangaroo, 9 textures.
+- `Content/Maps/L_RedGum_01.umap`, `Content/Maps/L_DryRiver_01.umap` — 2 easter-egg actors each.
+- `Docs/ASSET_REGISTER.md` §4.9k, `Docs/LICENCE_REGISTER.md` L-0024 — in the earlier same-session commit.
+- `Docs/MAPS_DRYRIVER.md` §11 — D-DR-01..07 overhaul spec; `Docs/evidence/session084_dryriver/` — producer evidence.
+
+### RISKS
+
+- ~~R-90a~~ CLOSED same day: the producer confirms all downloaded/used models are free for game use
+  (L-0024 reclassified Class A; the missing vendor metadata remains a credits-record note only).
+- The easter-egg placement is script-verified and pivot-snapped but **not yet re-verified with in-engine
+  captures after the fix** — first item for the overhaul session, along with every D-DR fix.
+
+### NEXT ACTION
+
+The Dry River overhaul per §11: ghost gum import, water in the creek, ground-foliage density pass, prop
+re-composition, textured/backface audit — each fixed with before/after in-engine captures.
+
+## Session 086 — 2026-09-30 — Wandarra rebuilt and dressed; Recast export policy narrowed to walkable geometry
+
+### COMPLETED
+
+- Rebuilt `L_Wandarra_01` from the layout spec with the corrected site-to-Unreal yaw (`yaw - 90`) and current gate layout. The level report is `ok: true`: 11 buildings, 17 church parts, 183 fence segments, 35 props, 10 cars and 38 trees; no missing assets or Python errors.
+- Ran the idempotent dressing/bounds pass. It measured all 11 building bounds, found **0 road-corridor overlaps**, placed **6/6 awnings** (five pushed clear of the measured building boxes, max push 2.7 m), and **2/2 scenery doors**. The report is `ok: true`, with no missing assets or errors.
+- Tree and car render-mesh components are excluded from Recast geometry export at the placed-actor level (38 trees, 10 cars); world collision remains enabled and no vendor mesh assets are modified. The level builder applies the same policy to newly generated actors.
+- Removed headless `BUILDPATHS` from `build_wandarra_nav.py`. It now checks saved actor nav policy and saved tile coverage only; this machine's null-RHI bake is a measured no-op (R-82), so a failed/empty report directs the operator to the attended editor bake instead of claiming success or triggering another asynchronous build.
+- Updated `MAPS_WANDARRA.md` and R-90 in `PROJECT_AUDIT.md` with the measured road clearance, rebuild state, nav-filtering policy and honest outstanding checks.
+
+### FILES CHANGED
+
+- `Content/Maps/L_Wandarra_01.umap` — rebuilt and dressed; no Dry River map or assets included.
+- `Tools/Unreal/build_wandarra_level.py`, `dress_wandarra_awnings.py`, `build_wandarra_nav.py` — actor-level nav exclusions, measured dressing and saved-nav verification.
+- `Docs/MAPS_WANDARRA.md`, `Docs/PROJECT_AUDIT.md`, `Docs/CHANGELOG.md` — implementation status and risk update.
+- `Docs/DECISION_LOG.md`, `Docs/PLAYER_MODEL_PLAN.md`, `Docs/HANDOVER_CLAUDE_CLOUD.md` — corrected the G3/Quantum decision framing and documented the live head-assembly mismatch discovered while returning focus to the character model.
+
+### TESTING
+
+| Command / evidence | Result |
+|---|---|
+| Headless level build report | **PASS** — `Build/wandarra_level.json`: `ok: true`, 12/12 steps, no missing assets/errors |
+| Headless dressing report | **PASS** — `Build/wandarra_dressing.json`: `ok: true`, 11 bounds, 0 road overlaps, 6 awnings, 2 doors, 38 tree + 10 car nav exclusions |
+| `python -m py_compile Tools/Common/wandarra_spec.py Tools/Unreal/build_wandarra_level.py Tools/Unreal/dress_wandarra_awnings.py Tools/Unreal/build_wandarra_nav.py Tools/Unreal/layout_spawns.py` | **PASS** (exit 0) |
+| Saved nav verification | **BLOCKED as expected** — `Build/wandarra_nav.json` reports 0/3721 projected points; attended-editor Build ▸ Build Paths and save still required (R-82) |
+| `layout_spawns.py`, in-engine visual inspection, playability audit | **NOT RUN** — depend on the attended nav bake and rendered editor validation |
+
+### ASSETS
+
+- `L_Wandarra_01.umap` is the only generated project asset changed. Vendor pack assets are referenced in place and unmodified. No Dry River asset is included.
+
+### DEFECTS FOUND
+
+- The MOUT building Blueprints measured clear of the defined road corridors (0 overlaps); the headless report does not prove footpath/fence clearance or the visual read.
+- Vendor tree/car render collision caused high-triangle Recast-export warnings. The fix is per-instance nav exclusion with world collision retained; vendor assets remain unchanged.
+- The old nav pass attempted `BUILDPATHS` despite measured null-RHI no-op behavior. It is now a saved-nav verifier only.
+
+### RISKS / NEXT ACTION
+
+R-82 remains open: perform Build ▸ Build Paths in the editor, save, then rerun the read-only nav verifier and spawn layout. R-89's visual/look check and R-90's footpath/fence clearance are also still open; the measured road-overlap result alone does not close them. Other-agent Dry River changes were intentionally left out.
+
+**Next action:** attend the editor for Wandarra's Build Paths bake and save, then verify saved coverage and planned routes.
+
+The character-model audit resumed in Session 086 as a documentation correction only: `setup_soldiers.py` still puts the Modern Insurgent 7 head on the ADFRC G3 uniform/gear, and the installed ADFRC source set has no character body/head mesh. ADR-036 no longer overstates the head as a same-pack G3 asset or Quantum as retired; see `PLAYER_MODEL_PLAN.md`. No soldier asset or runtime configuration was changed. The next model work is candidate inventory and a safe same-condition comparison; do not switch skeleton/body before the producer's choice.
+
+## Session 087 — 2026-09-30 — The Quantum body is live for the friendly look (ADR-042): runtime retarget, preview, first-person fixes
+
+### COMPLETED
+
+- Producer decision executed: the friendly soldier is now the **Quantum character on its own
+  skeleton** (ADR-042), ending the ADR-036–039 comparison gate. The pawn's gameplay skeleton stays
+  Manny (hit zones, hand IK, sockets untouched); the Quantum modules are retargeted per tick from
+  the pawn mesh's evaluated pose. Opposing MAF look unchanged. The producer's in-game screenshots
+  confirm the Quantum body rendering live with the ADFRC vest and helmet in both the class-select
+  preview and third person.
+- `ASSCharacterPartActor` rewritten to a minimal retarget path: per-mesh bone maps built lazily
+  with the prototype's rest-pose tolerances (6% height / 30°), pose read from the pawn mesh's
+  component-space transforms, root held at identity, local rotations composed parent-before-child
+  into component space. Rejected the earlier WIP's separate pose-driver component (it could not
+  see the pawn's animation) and its out-of-bounds map indexing. Verified in a headless live run:
+  all 4 pawns spawned `4 retarget + 2 leader + 4 opposing part(s), leader CharacterMesh0,
+  retarget=1`, zero script errors.
+- `FriendlyLeaderPoseParts` added to the part actor for the Manny-rigged ADFRC vest and helmet
+  layered over the Quantum body; `setup_soldiers.py` now writes the Quantum configuration and
+  `Build/soldiers_setup.json` reports `ok: true` (4 retarget, 2 leader-pose, 4 opposing).
+- First-person fixes for the skinned-part world (producer screenshots showed the local player's own
+  Quantum head filling the camera in body view, and an arms-view dark mass): body view now hides the
+  head bone on every attached skinned part (the Quantum head is its own component), the arms
+  view-model path hides every attached *skinned* mesh (`USkinnedMeshComponent`, not the
+  skeletal-only cast that missed the poseable Quantum modules), and body view un-hides parts when
+  switching view models.
+- Class-select preview mirrors the runtime split without a Team dependency (SS001): the Quantum
+  modules self-animate with the pack's own idle, the vest/helmet leader-pose the invisible Manny,
+  and a soldier configured with mannequin parts only still previews the old way. Confirmed live by
+  the producer's screenshot.
+- ADR-042 written; `PLAYER_MODEL_PLAN.md` §5 rewritten to record the decision (the historical
+  assembly mismatch is configuration history now); this changelog entry.
+
+### FILES CHANGED
+
+- `Plugins/SouthernSpearTeam/.../SSCharacterPartActor.{h,cpp}` — retarget implementation,
+  `FriendlyLeaderPoseParts`, cached per-mesh bone maps. `AnimationCore` dependency removed again
+  (the retarget needs only `ReferenceSkeleton.h`, which Engine already exports); Build.cs now
+  byte-identical to HEAD, and the final build after removal is green (15 s, 0 errors).
+- `Plugins/SouthernSpearLyraBridge/.../SSFirstPersonSubsystem.cpp` — skinned-part-aware head hide,
+  arms-view hiding and body-view restore.
+- `Plugins/SouthernSpearUI/.../SSClassSelectWidget.cpp` — Quantum preview (self-animated modules,
+  leader-posed kit, legacy fallback).
+- `Tools/Unreal/setup_soldiers.py`, `Tools/Unreal/setup_character_textures.py` — Quantum friendly
+  configuration; the texture pass no longer authors friendly overrides.
+- `Docs/DECISION_LOG.md` (ADR-042), `Docs/PLAYER_MODEL_PLAN.md`, `Docs/CHANGELOG.md`.
+
+### TESTING
+
+| Check | Command | Result |
+|---|---|---|
+| Architecture guard | `python Tools/validate_architecture.py` | **PASS** (exit 0; the accepted SS010 note is pre-existing) |
+| Unity-name check | `python Tools/check_unity_names.py` | **PASS**, 9 modules, no clash |
+| Editor build | `Build.bat SouthernSpearEditor Win64 Development` | **PASS ×3** — zero errors, zero warnings (one intermediate failure per wrong engine API, each fixed) |
+| Automation suite | `UnrealEditor-Cmd … RunTests SouthernSpear` (with `-NoLoadingScreen`) | **67/67 `Result={Success}`, 0 fails** |
+| Soldier setup | `setup_soldiers.py` commandlet | `Build/soldiers_setup.json` `ok: true`; one prior run failed on the bool's Python name (`retarget_friendly_pose`, not `b_retarget_friendly_pose`) — fixed and re-run |
+| Live headless smoke | Dry River `?NumBots=4` `-game -nullrhi`, 150 s | `SSCharacterPart … 4 retarget + 2 leader + 4 opposing part(s) … retarget=1` ×4 pawns, 0 `LogScript` errors |
+| Producer visual | In-game screenshots 2026-09-30 | Quantum body + ADFRC vest/helmet render in class-select preview and third person; first-person defects reproduced by screenshots, C++ fix built **NOT yet captured in game** |
+| Quantum proof | `prove_quantum_retarget.py` | **NOT RUN** this session (editor lock); the proof targets the prototype stage's copy of the same arithmetic — the runtime path's own evidence above is the spawn log + screenshots |
+| Camo verification | `probe_quantum_material.py` + asset read-back | **ROOT CAUSE CONFIRMED**: mesh-asset material slots are **read-only from Python in 5.8** — `set_editor_property` on the materials array returns without error and without effect, and `set_material` does not exist on the asset. Session 058's `ok:true` was a silent no-op. Fixed by routing the camo through `FriendlyMaterialOverrides` (the same component-override mechanism as the MAF green uniform, ADR-004): `setup_quantum_proto.py` re-ran `ok: true` with a cleaned graph (`delete_all_material_expressions` after measuring 12 expressions from reruns), `setup_soldiers.py` re-ran `ok: true` writing the overrides, and the saved `B_SS_Soldier.uasset` greps for both `MI_SS_ADFRC_Camo_*` instances and all three Quantum + ADFRC part names. **NOT yet captured in game** — the next play session shows the camo |
+
+### ASSETS
+
+- `B_SS_Soldier.uasset` reconfigured (Quantum friendly parts, leader-pose kit, retarget flag).
+- QuantumProto module meshes and materials unchanged on disk this session (their camo defect is
+  Session 058's, resurfaced; the producer's own untracked Quantum content edits are preserved).
+
+### DEFECTS FOUND
+
+- The WIP retarget from the previous session could never have worked: its pose driver was a
+  separately animated skeletal component (reference pose, not the pawn's animation) and its bone
+  map indexing read `FriendlyRetargetComponents[Num]` out of bounds. Found by re-reading the diff
+  before building on it.
+- First person: attached **poseable** soldier parts escaped both first-person hiding paths (skeletal
+  casts) — the local player wore their own head. Found by the producer's screenshots.
+- `setup_quantum_proto.py` claimed camo slots it never persisted (Session 058's `ok:true` vs. the
+  blue shirt in game). Found by grepping the saved mesh assets for material names.
+- UE 5.8 Python booleans drop the `b` prefix (`retarget_friendly_pose`); found by running the
+  commandlet, not by assuming.
+
+### RISKS
+
+- **R-91:** CLOSED as a pipeline defect (root cause measured, scripts fixed and re-run,
+  asset read-back verified). The in-game camo confirmation is pending the producer's next capture.
+- R-58 narrows (visible body no longer Manny-welded; the gameplay skeleton still is).
+- First-person fix is built but not yet producer-captured; the hide-bone call on poseable meshes is
+  the one untested engine-behaviour claim in this session.
+
+### NEXT ACTION
+
+Play a round on the new build: confirm the shirt and jeans render the ADFRC camo, the first-person
+view is clean (no head, no dark mass), and the vest/helmet and hands sit right in motion. Then set
+the friendly overrides read-back as a scripted check in a future session.
+
+## Session 088 — 2026-09-30 — Dry River harvest overhaul: D-DR-01..07 fixed from assets already in the project
+
+### COMPLETED
+
+- The producer's Dry River overhaul defect list (`MAPS_DRYRIVER.md` §11) is now worked end to end by one
+  idempotent script, `Tools/Unreal/harvest_dryriver.py`. It removes only its own labels
+  (`SS_Overhaul_*`, `SS_Gum_*`) before re-placing, so it never touches hand-placed dressing and can be
+  re-run to iterate. **Report `ok: true`, 0 warnings, 0 errors, 42 actors placed, 100 own actors cleared
+  on the re-run.**
+- **The harvest came entirely from assets already in this project** — nothing was downloaded. Scene Quarry
+  Slate (L-0005) for the creek surface mesh and bed stones, RuralAustralia (L-0016) for the bush vocabulary,
+  Namaqualand (Session 041) for searsia/rooibos/didelta shrubs, the four-flower pool, dead-quiver driftwood
+  and stones, the ghost gum (ENV-003, L-0024) for the canopy, and one normal map out of the WaterPlane pack.
+- **D-DR-03 windmill caught in trees.** Measured root cause, not the impression: three `SS_RA_Tree` /
+  `SS_RA_Cover_Tree` with 28–38 m bounds radii overlapped the mill at 24–33 m. They carry no trunk
+  colliders, so deleting them is nav-safe. The mill is now framed by a **ring of 10 imported ghost gums at
+  10.5 / 13.5 / 16.5 m** — the classic outback windmill-in-gums shot — each with a hidden trunk collider so
+  agents cannot walk through the trunk while the canopy stays collision-free.
+- **D-DR-05 no water.** Six water segments placed **trace-anchored**: the old placement used the `height()`
+  formula, but the rendered creek terrain is excavated *below* that formula, so all six planes were buried
+  in the ground. Every segment is now `bed_z + 12 cm`, and `water_audit` in the report records the water z,
+  the traced bed z and the segment centre for all six. `M_SS_CreekWater` was authored from scratch
+  (`Tools/Unreal/author_creek_water.py`) because the pack water reads as a glossy orange strip on red dirt.
+- **D-DR-06 / D-DR-07 density, measured.** The audit previously counted only `StaticMeshActor`s, so the new
+  HISM scatter registered as zero. Fixed to count HISM **instances** through the same subobject path the
+  placement uses: Dry River small-foliage **92 → 592** against Red Gum's 124, of which **500 are instanced
+  pieces** (bed stones 90, bush A 150 / B 90 / C 60, flowers 110) plus 26 driftwood logs. Static-mesh actors
+  1173 → 1222. Nothing the producer placed by hand was removed.
+- **D-DR-02 raw grey.** The audit now scans for *visible* actors with empty/default material slots:
+  **0**, with the 10 hidden trunk-collider helpers counted separately so they can never masquerade as a
+  defect. The producer's **grey leafless gum** had the same root cause as the discs — the ghost gum mesh has
+  two slots (`blinn5` trunk, `TH_Gum_Branch_Blinn` **foliage cards**), the branch slot was taking the bark
+  instance, and the tree rendered grey and bare. Slots matching *branch*/*leaf* now take the alpha-masked leaf
+  instance. **The producer confirms the gums are properly leafed.**
+- **Two placements were retired outright** rather than tuned, because both were wrong as assets:
+  the QuarrySlate `SM_Qua_Sla_Patch_*` round discs (flat discs float on any slope, and their cream albedo
+  fights the red dirt — the producer's "round discs floating" screenshot) and the QuarrySlate "European
+  Spindle" bushes (European broadleaf, near-black; Dry River and Red Gum are both Namaqualand didelta, so
+  they were the wrong continent as well as the wrong colour). Replaced with Namaqualand searsia. Bed stones
+  and driftwood now carry the creek floor.
+- **Kangaroo, partially fixed.** The animals were sunk into the terrain; they are re-seated on a real trace
+  (+6 cm) and the producer confirms they stand. `MI_SS_Kangaroo`'s texture overrides were found **empty** in
+  the saved asset — the original egg script's parameter writes never persisted — so both maps are now bound
+  by registry lookup and read back through `MaterialEditingLibrary`
+  (`base=znzmoModel-1132355448-0277`, `norm=…-0278`). **The roo still renders clay-grey in game**, so this is
+  not closed; see DEFECTS FOUND.
+- Nav verified after the new trunk colliders: `build_dryriver_nav.py` `ok: true`.
+
+### FILES CHANGED
+
+- `Tools/Unreal/harvest_dryriver.py` *(new)* — the whole overhaul pass; `Tools/Unreal/author_creek_water.py`
+  *(new)* — authors `M_SS_CreekWater`.
+- `Tools/Unreal/audit_dryriver_overhaul.py` *(new)* — D-DR-01..07 ground-truth audit, extended this session to
+  count HISM instances, to separate hidden collision helpers from visible grey assets, and to restore the
+  Red Gum comparison prefixes it had lost.
+- `Tools/Unreal/inventory_map_assets.py`, `probe_gum_params.py`, `probe_kanga_water.py`, `probe_mat_api.py`,
+  `probe_sweep.py`, `probe_water_state.py` *(new)* — the diagnostic probes this work needed. Kept: each one
+  documents an engine behaviour that is not obvious.
+- `Content/Maps/L_DryRiver_01.umap`, `Content/Art/Environment/Kangaroo/MI_SS_Kangaroo.uasset` *(modified)*.
+- `Content/Art/Environment/DryRiver/M_SS_CreekWater.uasset`,
+  `Content/Art/Environment/Fab/TH_Complete_Full_Ghoast_Gum.uasset`, `…/MI_SS_GhostGum_{Trunk,Branch,Leaf}.uasset`,
+  `Content/Art/Environment/Fab/GhostGum/*` *(new, imported from ENV-003)*,
+  `Content/WaterPlane/Lake/Textures/T_MediumWaves_N.uasset` *(new — the single pack file the water material
+  references; the other 33 files of that 140 MB pack stay local)*.
+- `Docs/MAPS_DRYRIVER.md` §11 statuses + new §11.1, `Docs/ASSET_REGISTER.md` §4.9h/ENV-003/§4.9l,
+  `Docs/CHANGELOG.md`, `Docs/evidence/session088_dryriver_overhaul/*.json`,
+  `Docs/evidence/ui_session088/*.png`.
+- **Not touched:** anything belonging to the concurrent character-model/Wandarra thread — the Quantum and
+  ADFRC character assets, `SSCharacterPartActor`, the first-person and class-select C++, the Wandarra map, or
+  `probe_quantum_material.py`. This entry also lands in a working tree that already held that thread's
+  uncommitted Session 087 changelog section; both are additive and neither was rewritten.
+
+### TESTING
+
+| Check | Command | Result |
+|---|---|---|
+| Overhaul pass | `UnrealEditor-Cmd … -run=pythonscript -Script=Tools/Unreal/harvest_dryriver.py` | **PASS** — `ok: true`, 0 warnings, 0 errors, 42 actors placed, 100 own actors removed on re-run |
+| Water material | `-Script=Tools/Unreal/author_creek_water.py` | **PASS** — `ok: true`, 1 warning (see DEFECTS FOUND) |
+| Defect audit | `-Script=Tools/Unreal/audit_dryriver_overhaul.py` | **PASS** — `ok: true`: 0 visible untextured actors (+10 collision-only), 0 windmill tree conflicts inside 12 m, creek bed 65–217 cm below bank, small-foliage DR 592 vs RG 124, 0 paper-thin candidates, 1222 actors |
+| Water height | report `water_audit` | **PASS** — all 6 segments at exactly `bed_z + 12.0 cm` (e.g. seg 3: water 10.6 / bed −1.4) |
+| Windmill clearance | report `windmill_clearance` | **PASS** — nearest canopy gap 2.74 m (gum ring; threshold 2.5 m), nearest other scenery 5.99 m (threshold 5.0 m) |
+| Kangaroo material | report `fix_kangaroos` | **PARTIAL** — MI reads back with both maps bound; the render is still grey. Not closed |
+| Nav | `-Script=Tools/Unreal/build_dryriver_nav.py` | **PASS** — `ok: true`; two non-gating steps fail on the documented R-10 reload quirk |
+| Producer visual | screenshots, 2026-09-30 | **MIXED** — gums confirmed leafed, kangaroos confirmed standing, discs and black bushes confirmed gone; **no water seen**, and the kangaroo is still grey |
+| In-engine captures | six-spot spectator/player capture pass × 6 | **PARTIAL** — 42 frames in `Docs/evidence/ui_session088/`; the final pass matches the current build. The water close-up has not been inspected for D-DR-05 |
+
+### ASSETS
+
+- **ENV-003 ghost gum `VENDORED` → `IN_USE`**: mesh + 6 imported maps + 3 `MI_SS_GhostGum_*` instances; 10
+  placed on Dry River. Register row updated in the same commit.
+- **ENV-005** `M_SS_CreekWater` and **ENV-006** the gum trunk-collider helpers registered as Class F
+  originals in the new §4.9l.
+- **WaterPlane pack registered** in §4.9h as a bookkeeping correction: it was installed in `Content/` with no
+  register row and no `metadata` sidecar, so it is recorded as **unverified, never clear** (L-0016c posture),
+  not Class A. One texture file is committed because the material references it.
+- L-0024 (ENV-003/004 provenance) is unchanged — producer risk acceptance stands.
+
+### DEFECTS FOUND
+
+- **The creek water was buried because the placement formula was wrong, not the material.** `height()` is
+  the *design* profile; the rendered terrain is excavated below it by up to 2.2 m. Every water plane placed
+  on the formula was under the ground. Found by tracing the bed instead of trusting the spec function.
+- **The "windmill caught in trees" report was really crowding at 24–33 m** — no canopy actually overlapped
+  the mill. Re-reading the producer's screenshot changed the fix from "delete trees" to "frame the mill",
+  which is a better result and cheaper. Found by measuring bounds radii against the mill.
+- **The ghost gum's second material slot is its foliage**, not more bark, despite the name. Mapping bark to
+  it produced the producer's grey leafless gum. Found by reading the mesh's slot names.
+- **An audit that counts actors silently reports HISM work as zero.** The density pass had landed 500
+  instances and the audit still said DR 92 vs RG 124. Found by the numbers not moving after a fix that was
+  known to have worked.
+- **A grey-asset scan that ignores visibility flags reports invisible collision helpers as defects.** 10
+  hidden cylinders would have kept failing D-DR-02 forever. Found by running the audit after the harvest.
+- `set_material_instance_texture_parameter_value` returned without error and **wrote nothing** to the
+  kangaroo MI (same class of silent no-op as the Quantum camo in Session 087). The fix is a read-back through
+  a different API, and the read-back is now part of the step.
+
+### RISKS
+
+- **New R-92 — the kangaroo grey is unresolved.** The material binding is verified and the height is fixed,
+  so the defect is one of: the kangaroo texture assets, the mesh's UVs, or the parent `M_SS_ScanPBR`'s
+  material-usage flags (a material not flagged for static meshes renders with the engine's flat default
+  material, which is exactly the clay-grey read). **Do not close D-DR-02 on the MI read-back alone.**
+- **New R-93 — the creek water is unverified in game.** Geometry and material are measured; nobody has seen
+  it rendered. If it is invisible in play, the next suspects are the translucent blend mode at this
+  exposure and the segment width against the excavated bed.
+- `M_SS_CreekWater`'s panner speed could not be set (`MaterialExpressionPanner.Speed` is protected in 5.8),
+  so the wave animation runs at the node's default rate. Cosmetic; the material still animates.
+- D-DR-01 is only **partially** evidenced: the audit's `thin_scan` is a bounds proxy, not the producer's
+  look. The assets that showed the defect are gone, which is the strongest single piece of evidence.
+- D-DR-04's *aesthetic* half (does the composition read well?) is the producer's call and is not closed by a
+  placement rule.
+
+### NEXT ACTION
+
+One play session on Dry River with three questions only: **is there water in the creek**, **is the kangaroo
+still grey**, and **does the gum ring read as a framed windmill** — then fix the kangaroo by dumping the
+kangaroo texture assets' real state (source size, sRGB, compression) and the mesh's UV channel count before
+touching the material again.
+
+## Session 089 — 2026-09-30 — The packs git does not carry are now measured, verified and registered
+
+### COMPLETED
+
+- Started from the producer's question — *is there a way of opening Unreal without manually importing
+  everything in the content folder?* — and answered it by measurement: **there is no import step.** Every
+  `.uasset`/`.umap` in `Content/` is already imported content, including all 14 vendor packs; the ~4,000
+  `.fbx`/`.blend`/`.tga` files sitting inside `Content/` are source kept beside their imports and Unreal
+  ignores them. What the question was really hitting is the next finding.
+- **The repository alone cannot open any map.** Tracked `Content/` is ~350 MB; the tree is ~111 GB, and
+  **14 packs — 25.8 GB, 4,318 files, 685 referenced packages** — are gitignored by ADR-021. Dry River
+  references 207 Namaqualand packages, Ravenshoe 176 Singapore Canal ones, Bluestone and Dry River 102
+  QuarrySlate ones. This was a known cost of a deliberate rule, not a defect, and it is now a number in a
+  file rather than a fact only the build machine knows.
+- `Tools/check_asset_references.py` (new, stdlib only, **2.7 s for 9,364 assets / 37,044 references**)
+  reads every committed asset's binary for the package paths it names and sorts each into `ok`,
+  `untracked`, `missing`, `folder`, `artifact` or `external`. This is the check for the silent failure
+  `M_SS_CreekWater` proved: a committed asset naming a file git does not hold renders correctly on the
+  build machine and wrong everywhere else.
+- `Tools/verify_packs.py` (new) verifies each pack in the manifest is present with the recorded file count
+  and byte size, optionally hashing every file with `--deep` (the check that enforces ADR-021's
+  "never modified" half), and cross-references both registers against live usage.
+- `Docs/PACK_MANIFEST.md` + `Docs/PACK_MANIFEST.json` (new): the 14 packs with size, file count, referenced
+  package count, licence, register row, restore route and per-pack notes. The JSON is generated;
+  `licence`/`register_row`/`restore`/`note` are hand-maintained and survive regeneration.
+- **`ASSET_REGISTER.md` §4.9h corrected by the check, not by reading.** World Flags and FP_AKS74U
+  Animation were both marked `NOT_USED` while committed assets referenced them — the MAF weapon meshes take
+  `MI_AKS74U`/`MI_Magazine` from the animation pack, and both flag material instances parent off World
+  Flags. Both now `IN_USE`. A Stone Well row was added for a 1.2 GB pack `L_DryRiver_01.umap` references
+  with **no licence record in either register**; it is written as `UNREGISTERED — PROVENANCE UNKNOWN` so
+  the gate stays red until the listing is identified.
+- Both checks wired into `.github/workflows/build.yml` as **advisory** (`continue-on-error`), uploading
+  `Build/asset_refs.json` and `Build/pack_verify.json` as build artifacts on every run, with the comment
+  recording exactly what must happen before they can block.
+
+### FILES CHANGED
+
+- `Tools/check_asset_references.py`, `Tools/verify_packs.py`, `Tools/asset_reference_baseline.json` (new).
+- `Docs/PACK_MANIFEST.md`, `Docs/PACK_MANIFEST.json` (new).
+- `Docs/ASSET_REGISTER.md` §4.9h (two status corrections, one new row, one open-question annotation, and
+  a note that the table is machine-checked), `Docs/CHANGELOG.md`, `.github/workflows/build.yml`.
+- **Not touched:** any character-model or Wandarra content or C++, and `probe_quantum_material.py`. The
+  manifest *records* that Modern Insurgent 7 and QuantumCharacter are dependencies, which is a note about
+  them, not an edit to them.
+
+### TESTING
+
+| Check | Command | Result |
+|---|---|---|
+| Reference audit | `python Tools\check_asset_references.py` | **9,364 assets, 37,044 references in 2.7 s** — `ok` 13,495, `untracked` 738, `missing` 101 raw |
+| Same, after de-noising | with prefix-artifact and folder-reference handling | **`missing` 0 after baselining 31**, `folder` 31, `artifact` 70, `external` 22,679. **No project-authored asset has a dangling reference** |
+| Pack verification | `python Tools\verify_packs.py` | **12 OK, 2 problems** — Singapore Canal (`REGISTER_MISMATCH`, 11 referencing assets vs a `NOT_USED` row) and Stone Well (`UNREGISTERED`, provenance unknown). 25.8 GB / 4,318 files measured |
+| Live-read proof | edited a pack row to `NOT_USED` **without** regenerating the manifest, re-ran | `Content/Scene_QuarrySlate` immediately became `REGISTER_MISMATCH` (OK 11, problems 3); register restored. Proves the check reads the registers, not the manifest cache |
+| CI wiring | `yaml.safe_load` on `build.yml` + both CI commands dry-run with their real arguments | **PASS** — 24 steps, parses; both commands run and write their reports (both exit 1 by design, hence `continue-on-error`) |
+
+### ASSETS
+
+- No asset imported, modified, moved or deleted. **Nothing in `Content/` changed this session.**
+- `Content/WaterPlane/` remains deliberately uncommitted except the one texture `M_SS_CreekWater`
+  references (Session 088); it is not in the manifest because no committed asset depends on the rest.
+
+### DEFECTS FOUND
+
+Five, all in the new tooling itself, and all found by disbelieving a result:
+
+1. **The first scan reported 3,931 missing references and was wrong.** The regex demanded a trailing
+   `.AssetName`, but UE stores a HISM or instanced component's mesh as a bare package path with no object
+   name — so it found 16 references in `L_DryRiver_01.umap` where there are hundreds, and would have
+   missed exactly the reference kind that matters.
+2. **Asset names containing dots** (`NM_BPSystemEvent.NM_BPSystemEvent`) resolved to themselves and were
+   reported as missing references to themselves. Resolution now tries every dot boundary against what is
+   actually on disk, longest name first.
+3. **70 references were truncated-prefix strings** — `/Game/.../SM_Qua_Sla_Rock_S` where the real asset is
+   `SM_Qua_Sla_Rock_S_10`. Those render correctly, so calling them broken buried the real ones. Caught
+   because the "missing" list named Dry River rocks that visibly work in game.
+4. **A substring search for `NOT_USED` matched prose.** Section 4.9j's row reads "Row corrected
+   2026-09-29 to `NOT_USED`, corrected again 2026-09-30 on first map use" on the row that now says
+   `IN_USE`, so the pack it names was reported as unused. The status is now read from the status cell.
+5. **The verifier read the register state from the manifest it was checking.** Fixing a register row
+   changed nothing until the manifest was regenerated — the exact staleness the tool exists to catch.
+   The check now recomputes from the registers every run, proven above.
+
+### RISKS
+
+- **Historical Session 089 R-94 — `Content/StoneWell` provenance record was absent in that snapshot.** 1.2 GB, referenced by the map, seller/listing details not recorded. That snapshot note did not account for the producer's F2P project-use clearance; StoneWell was registered/producer-cleared in the later 2026-10-01 reconciliation (`ASSET_REGISTER.md` §4.9h, `PACK_MANIFEST.md`). This was not a current release or verifier clearance gate, and the listing identity remains a provenance gap only. The later 2026-10-01 status is documented in the referenced register rows.
+- **Historical Session 089 R-95 — Singapore Canal's observed references conflicted with an older art-direction note.** Eleven committed assets referenced generic corrugated/wood materials and props, not Asian canal layout or masonry. The later producer F2P direction clears the acquired pack for this project's use (ADR-028/035); `ASSET_REGISTER.md` §4.9h and `LICENCE_REGISTER.md` L-0016 retain the art-direction distinction. This is not a current permission gate.
+- The reference guard **cannot be made blocking** while ADR-021 holds: 738 untracked references are the
+  expected state, not a fault. Blocking requires restore routes a fresh machine can follow, which is what
+  `PACK_MANIFEST.json`'s `restore` field now records per pack.
+- The 31 baselined Lyra references are inherited debt. The baseline is a ratchet: it fails on anything
+  new, and deleting a line from it to go green is the failure mode it exists to prevent.
+
+### NEXT ACTION (historical)
+
+The original Session 089 next action was a producer ruling on R-95 and listing identification for R-94. The later 2026-10-01 reconciliation supersedes those unresolved-clearance implications; current provenance and project-use status are in `ASSET_REGISTER.md` §4.9h and `LICENCE_REGISTER.md` L-0016. `verify_packs.py` remains a technical dependency check, not an asset-clearance decision.
+
+## Session 090 — 2026-09-30 — Next priorities written down: models, textures, VFX, recoil from real data, maps
+
+> **Historical snapshot notice (2026-10-01):** this session records its then-current observations and proposals; several are superseded by the current source/config and inventory review in `NEXT_PRIORITIES.md` §§3–6, `ASSET_REGISTER.md` §4.9m–p, and `MAPS_PLAYABILITY_AUDIT.md`. Specifically, 271 A-series weapon assets are now tracked (so the “0 weapon textures tracked” finding is stale); `Config/DefaultGame.ini` and `USSWeaponStatsSubsystem` apply selected magazine, spare-ammo, spread and RPM values (but do not establish sight zero or recoil tuning, and do not enforce semi-auto); public effective ranges do not establish sight zeros or recoil rankings; R-82 is the attended bake requirement for Wandarra/Ravenshoe, while Red Gum has separate measured playability failures; and the preceding intake's R-94/R-95 clearance concerns were superseded when StoneWell was registered and producer-cleared and Singapore Canal's generic material references were accepted for this F2P project (ADR-028/035; `PACK_MANIFEST.md`, `LICENCE_REGISTER.md`). Keep this entry as a dated record, not current implementation guidance.
+
+### COMPLETED
+
+- The producer's playtest verdict — character models look horrible, weapons need better textures, VFX need
+  work, weapons need zeroing and recoil built on real-world data, then the maps — is now a document:
+  `Docs/NEXT_PRIORITIES.md`, integrated into `Docs/HANDOVER_CLAUDE_CLOUD.md` (header pointer, and §3.7 /
+  §2's player-model row marked superseded, since that file is a 2026-09-29 snapshot whose body-selection
+  question ADR-042 has since answered) and into `CLAUDE.md`'s start-of-session list.
+- **The recoil baseline is measured and it does not exist.** `WID_SS_{A88,A88G,A4,A416,A25,A89}` are copies
+  of Lyra's rifle definitions; a `strings` scan of `WID_SS_A88.uasset` returns no authored recoil, spread,
+  dispersion, damage or range keys, and `B_SS_A88_Weapon` references only Lyra's `/Game/Weapons/B_Weapon`.
+  **All six weapons therefore fire with one generic rifle's recoil, including the LMG.** That is the defect
+  behind the producer's feel, and it is now a written finding rather than an impression.
+- Real-world figures gathered from primary sources, with derived numbers marked as derived:
+  **EF88** — 5.56, 30-round box, 680–850 rpm, **300 m effective** (Australian Army / Navy).
+  **F89** — 5.56, **100 or 200-round box and belt-capable feed**, 750–1,000 rpm, **400 m point / 600 m
+  area** (ADF Navy F89A1 page; FN MINIMI 5.56 MK3). **HK416** — 5.56, **790 m/s and 1,250 J** per
+  Heckler & Koch's own product page. **M4-pattern** — 5.56, 880–910 m/s, 500 m point.
+- **The finding that matters is the shape, not the ranking:** the A89 is a different weapon rather than a
+  bigger one (sustained fire without a reload, per-shot recoil comparable to the A88 — the most likely
+  thing to get wrong); the A416 should be the hardest-hitting 5.56 (lowest quoted muzzle energy, piston
+  system, large vertical); A88 and A88G must share ballistics exactly (ADR-004); and effective range is
+  engagement design, not damage falloff. Recorded with an explicit warning that **free recoil energy is
+  not a game recoil value**: the real data fixes the ordering, the ratios and the zero distances; per-shot
+  climb is tuned by playtest.
+- Weapon texture baseline measured: the A88 carries five ADFRC maps (`adfrc_ef88_co`, `mbus_front_co`,
+  `mbus_rear_co`, `adfrc_spectr_co`, `adfrc_spectr_ca`), but `git ls-files` shows **no weapon texture is
+  in the repository** — they live in the git-ignored Sourced tree — and the pack ships no
+  normal/roughness/AO/metalness (the same finding already recorded for Ravenshoe props, M-008l). The fix is
+  documented as project-owned `M_SS_ScanPBR` instances, which also makes the recoil tuning reproducible.
+- VFX baseline measured: casing eject and muzzle light are in and tested; **muzzle flash was never placed**
+  (`NS_WeaponFire_MuzzleFlash_Rifle` exists, candidates in `Docs/evidence/vfx_muzzle_candidates.json`);
+  **tracers are still `PLACEHOLDER`** (E-002) and are called out as the notable gap at Dry River's ranges.
+- Map baseline measured from the audit and Session 088: **R-82 (attended nav bake) is the single blocker for
+  three maps** (Wandarra, Ravenshoe, and Red Gum's remaining pass) and is cheap in effort.
+
+### FILES CHANGED
+
+- `Docs/NEXT_PRIORITIES.md` (new), `Docs/HANDOVER_CLAUDE_CLOUD.md`, `CLAUDE.md`, `Docs/CHANGELOG.md`.
+- No content, no code, no asset touched. **Nothing in the character/animation/VFX/weapon areas was
+  modified** — this session read and measured them only, since the character thread owns that work.
+
+### TESTING
+
+| Check | Command | Result |
+|---|---|---|
+| Weapon stat baseline | `strings` on `WID_SS_A88.uasset`, `B_SS_A88_Weapon.uasset` | **CONFIRMED** — no authored stat keys; `B_SS_A88_Weapon` → `/Game/Weapons/B_Weapon` only |
+| Weapon texture commit state | `git ls-files | grep` for weapon textures | **0 weapon textures tracked**; only `T_ADFRC_DPC_camo.uasset` under `Content/Art/Characters/ADF/` |
+| Texture slots in use | `Build/weapons_setup.json` | A88 `textured_finishes` = 5 ADFRC maps, as listed above |
+| VFX state | `git ls-files | grep -iE "NS_.*(Flash|Muzzle|Impact)"` | muzzle flash asset present but unplaced; 4 impact systems present; **no tracer** |
+| Real-world figures | web search + `read_url` on `army.gov.au`, `navy.gov.au`, `heckler-koch.com`, `fnherstal.com` | EF88 / F89 / HK416 figures cited from those pages; M4 figures from standard published data; **derived muzzle energies marked derived** |
+| Document integration | grep | handover header pointer present; §3.7 superseded; `CLAUDE.md` start-of-session reads `NEXT_PRIORITIES.md`; one accidental duplicated bullet found by grep and removed |
+
+### ASSETS
+
+- None added, imported, modified or deleted.
+
+### DEFECTS FOUND
+
+- **All six weapons share Lyra's generic rifle recoil**, including the LMG, because the `WID_SS_*` and
+  `B_SS_*` assets are copies of Lyra's with no authored stats. Found by scanning the assets for stat keys,
+  not by playing. The producer's "recoil needs work" is this defect, and it predates this session.
+- **The handover file's player-model guidance is stale**: it told the next agent that ADR-036 (G3 body)
+  stands and that Quantum is "unapproved". ADR-042 superseded that on 2026-09-30. Left in place with the
+  history, but now marked superseded at both places it appears, so an agent cannot follow it by mistake.
+- My first edit to the handover duplicated a bullet rather than replacing it (the anchor text also matched
+  the sentence I had inserted above it). Found by grepping the section back after the edit.
+
+### RISKS
+
+- **New R-96 — weapon ballistics have no home.** The numbers in `NEXT_PRIORITIES.md` §5.6 need to become a
+  project-owned data asset plus a component override; they must not be edited into Lyra's assets (ADR-004)
+  and must not be hardcoded in C++, or the cloud role cannot check them. Until that exists, the real-world
+  data is documentation only.
+- **New R-97 — weapon textures are uncommitted.** 0 of them are tracked, so a clean checkout has no weapon
+  finish at all. This is ADR-021 working as intended (vendor content stays out of git) but it means the
+  "weapons look bad" verdict cannot be re-checked on another machine. Interacts with
+  `Docs/PACK_MANIFEST.md`: the Sourced tree is not a pack and is not in the manifest.
+- `NEXT_PRIORITIES.md` §5.5 is the constraint on R-96: per-shot climb and recovery are **playtest-tuned**,
+  and only the zero distances, feed and rate-of-fire limits come from the real data.
+
+### NEXT ACTION
+
+Producer to confirm §8's order — in particular whether weapon textures (Priority 2) really precede VFX
+(Priority 3) — and to rule on the A89's intended feel, because sustained fire versus per-shot kick is the
+one recoil decision that is a design choice rather than a derivation from the real weapon.
+
+## Session 091 — 2026-10-01 — Gemini-reported player preview/material changes and character inventory (visual acceptance still open)
+
+> **Evidence boundary:** the C++ build, audit run and screenshot below are inherited Gemini-reported results, not independently rerun in this review. They describe the pre-review version of the code. The screenshot path is unavailable in this checkout, and the producer explicitly rejected the resulting class-select appearance. Subsequent working-tree source/material-tool edits are listed separately as unverified corrections; do not treat the reported PASS rows as validation of those edits.
+
+### REPORTED CHANGES
+
+- **Suppressed Unreal Editor auto-import popup**: added `[/Script/UnrealEd.EditorLoadingSavingSettings]` with `bMonitorContentDirectories=False`, `bAutoCreateAssets=False`, `bAutoDeleteAssets=False`, `bDetectChangesOnStartup=False`, and `bPromptBeforeAutoImporting=False` to `Config/DefaultEditor.ini` and `Saved/Config/WindowsEditor/EditorPerProjectUserSettings.ini`. Stops the editor prompt to auto-import 60+ GB of loose source files in `Content/Sourced/ADF_Extracted` and `Content/Downloaded/VaultCache`.
+- **Enabled `UE5AIAssistant`**: verified plugin configuration in `Plugins/UE5AIAssistant` and `SouthernSpear.uproject`, ready to serve HTTP control on `localhost:58080` when `UnrealEditor.exe` is opened.
+- **Gemini-reported Class Select Preview changes**:
+  - Gemini reported the preview stage had raw mesh components playing `A_MM_Idle` while freezing `StageBody`, and diagnosed floating ADFRC gear plus unoverridden civilian clothing. These symptom/root-cause claims are not independently confirmed from the unavailable screenshot.
+  - Replaced the ad-hoc preview generation with a `B_SS_Soldier` (`ASSCharacterPartActor`) child actor attached to `StageBody`, intended to share runtime retargeting, locality, material overrides and gear pose.
+- **Gemini-reported skeletal material fix**:
+  - Gemini reported that `M_SS_ADFRC_Camo` lacked skeletal-mesh usage and that this caused a standalone grey checkerboard; the supplied render is unavailable, so this diagnosis is not independently confirmed.
+  - Updated `Tools/Unreal/setup_quantum_proto.py` to set `used_with_skeletal_mesh = True`; Gemini reported recompile and instance saves. Later edits to the setup script/material graph have not been applied in Unreal.
+- **Reported audit of the active friendly character assembly (inventory only; R-58 remains open and R-59 is measured)**:
+  - Authored and executed `Tools/Unreal/audit_active_character.py` (`Build/active_character_audit.json`).
+  - Gemini reports 107,016 LOD0 vertices across six parts, the Quantum/Manny skeleton split, physics assets on Quantum modules only, and one LOD per part. This is reported inventory, not visual acceptance or performance profiling.
+  - Updated the risk/docs baseline: R-59 records the reported inventory as measured; R-58 remains OPEN for runtime and visual acceptance.
+- **Gemini-reported in-engine rendering (not independently reviewable here)**:
+  - Session report says `-SSShotAt=8` on `L_DryRiver_01` captured `Saved/Screenshots/WindowsEditor/SSShot.png`, with aligned gear and rendered DPCU camo.
+  - Producer subsequently reported that the last in-game class-select popup did **not** show a good character model. The screenshot is unavailable in this checkout. Treat that direct feedback as a visual rejection; do not close appearance acceptance based on a capture command or mesh audit.
+- **Source-review corrections after producer feedback (working tree, not built)**:
+  - Code review found locality was applied to the child actor immediately after registration, before its `BeginPlay` built the mesh-component arrays; `ApplyViewerLocality` can then mark itself resolved while showing no parts. Locality is now applied on the widget tick after `HasActorBegunPlay()`.
+  - The old rotation was an intentional three-quarter view (about 55° from the camera-facing +X axis); source alone does not establish that it showed the back. It is now centered toward the camera with a restrained ±25° turn so the face/torso should read more clearly; this composition still needs visual review.
+  - For the 3:4 target, the old 28° horizontal FOV at 330 cm yields about 220 cm vertical coverage. The preview now uses 32° at 360 cm (about 275 cm vertical coverage) for a full-body frame with room for the weapon. This is geometry, not a rendered crop measurement; no fresh runtime capture/build has validated the correction.
+  - Because the runtime character-part components initialize with `OwnerNoSee=true`, the preview explicitly clears that flag on the spawned skinned parts after locality is applied; without it the child actor can still be absent from the capture.
+  - `M_SS_ADFRC_Camo` now samples the generated fabric normal and ORM maps instead of flat roughness/no normal. Texture settings are requested/read errors reported explicitly in the setup script; shader recompilation still requires an Unreal run.
+  - The active-character audit now reports LOD0 triangle totals and marks an incomplete/unmounted Game Feature scan as not OK.
+
+### FILES CHANGED
+
+- `Config/DefaultEditor.ini`: added `EditorLoadingSavingSettings` to suppress auto-import prompts.
+- `Plugins/SouthernSpearUI/Source/SouthernSpearUI/Public/SSClassSelectWidget.h`: tracks `StageSoldier` (pushed); review follow-up adds non-reflected locality state.
+- `Plugins/SouthernSpearUI/Source/SouthernSpearUI/Private/SSClassSelectWidget.cpp`: pushed child-actor preview; review follow-up defers locality, clears owner-hidden on newly built skinned parts, and adjusts turntable/camera framing.
+- `Tools/Unreal/setup_quantum_proto.py`: pushed version enabled skeletal-mesh use; review follow-up adds generated fabric normal/ORM inputs and stricter save/error reporting.
+- `Plugins/GameFeatures/SSExp_ObjectiveAssault/Content/Characters/QuantumProto/M_SS_ADFRC_Camo.uasset`, `MI_SS_ADFRC_Camo_Shirt.uasset`, `MI_SS_ADFRC_Camo_Jeans.uasset`: Gemini reported saving/recompiling them; the pushed binaries predate the review material-graph enhancement and require an Unreal setup run to regenerate.
+- `Tools/Unreal/audit_active_character.py`: pushed audit script; review follow-up includes triangle totals and fails incomplete measurements. The generated `Build/active_character_audit.json` is not available through the current file reader.
+- `Docs/PROJECT_AUDIT.md`, `Docs/PLAYER_MODEL_PLAN.md`, `Docs/NEXT_PRIORITIES.md`, `Docs/ASSET_REGISTER.md`, `Docs/DECISION_LOG.md`, and `Docs/CHANGELOG.md`: separate reported inventory/body choice from open appearance acceptance; correct current camo-source and preview-status language.
+
+### TESTING
+
+| Check | Command | Result |
+|---|---|---|
+| Architecture Guard | `python Tools/validate_architecture.py` | **Gemini-reported PASS** — not rerun in this review; applies to the pre-review tree |
+| Unity Name Check | `python Tools/check_unity_names.py` | **Gemini-reported PASS** — not rerun in this review; applies to the pre-review tree |
+| C++ Editor Compilation | `Build.bat SouthernSpearEditor Win64 Development ...` | **Gemini-reported PASS** — not rerun after the current preview changes |
+| Active Character Audit | `UnrealEditor-Cmd ... audit_active_character.py` | **Gemini-reported result** — 107,016 LOD0 vertices; report is unavailable in this checkout and the current audit script was subsequently edited |
+| In-engine Rendered Check | `UnrealEditor.exe ... L_DryRiver_01 -game -SSShotAt=8` | **Gemini-reported capture only** — screenshot unavailable here; producer reports the class-select model still looks poor, so appearance is rejected/open |
+
+### RISKS
+
+- **R-58 remains open for visual/runtime acceptance.** The reported inventory identifies the intended skeleton boundary, but not successful preview visibility/fit; a later source review found the locality-ordering hazard and a producer-rejected capture.
+- **R-59 geometry inventory reported** at 107,016 LOD0 vertices; all six parts are LOD0, so cost/LOD work remains open. The updated tool also reports triangles on its next mounted-feature run.
+
+### REVIEW FOLLOW-UP (working tree; not committed or Unreal-verified)
+
+- `SSClassSelectWidget.cpp`: locality is deferred until the child actor has completed `BeginPlay`, then the new character's `OwnerNoSee` flags are cleared; the angle is centered toward camera and portrait coverage increased based on FOV/aspect geometry. C++ compiled successfully, but none of this substitutes for judging a rendered capture.
+- `setup_quantum_proto.py`: builds the camo master from the generated fabric normal and ORM maps as well as the DPC base color. The script now fails material setup if settings/compile/save report failure; generated texture settings and material graph have not been applied or rendered in Unreal.
+- `audit_active_character.py`: reports triangle counts and marks missing/unmounted parts as a failed audit; it has not been rerun against the mounted Game Feature.
+- Character-related docs distinguish producer rejection from the body-source choice and historical G3 diagnosis. No claim of visual acceptance remains.
+
+### TESTING (review follow-up)
+
+| Check | Result |
+|---|---|
+| `git diff --check` | **PASS** for the reviewed working tree at the time of the check; CRLF/LF warnings only |
+| Python syntax check (`python -m py_compile` on the two edited Unreal tools) | **PASS** |
+| Project JSON, architecture guard, unity-name check, `git diff --check` | **PASS** — architecture guard notes pre-existing accepted SS010; newline conversion warnings only |
+| Unreal Editor C++ build (`Build.bat SouthernSpearEditor Win64 Development`) | **PASS** — 20.05 s, including modified class-select source; three pre-existing plugin dependency warnings |
+| Unreal material setup, mounted-feature audit and fresh in-game screenshot | **NOT RUN** — still required for shader/material data and visible quality review |
+
+### NEXT ACTION
+
+Run the updated material setup and mounted-feature audit, then capture the class-select preview in-game and inspect it with the producer. Revise outfit/art direction from the rendered evidence; do not tune or accept the camo from source-only inspection.
+
+## Session 092 — 2026-10-01 — ADFRC friendly assembly in the class-select preview; the shirt sheet's flat panel measured and repainted
+
+The producer reviewed the class-select preview twice during this session and reported, in order: no helmet and no webbing with the wrong camouflage; then better camouflage but "a weird gap at the waist"; with the earlier note that the preview is a third-person view of the player and weapon, so it must show the right model, textures and animation. Each change below is a response to a rendered capture, and the captures are quoted rather than described.
+
+### COMPLETED
+
+**Friendly assembly changed to the ADFRC gear (`Tools/Unreal/setup_soldiers.py`).** `FriendlyParts` is now the single retargeted Quantum head; `FriendlyLeaderPoseParts` is the ADFRC `SK_ADF_Uniform_G3`, `SK_ADF_Vest_TBAS` and `SK_ADF_Helmet_OpsCore`, so the uniform, webbing and helmet are all fitted to the mannequin the pawn animates. Run: `ok: true`, `1 friendly retarget, 3 friendly leader-pose, 4 opposing`.
+
+**Camo reverted to the ADFRC-authored AMCU sheet (`Tools/Unreal/setup_adf_soldier.py`).** The previous edit reassigned the G3's AMC slots to the pack's `Crye_G3_{Shirt,Pants}_DPC_co`. Viewed side by side, AMC is the Multicam-style AMCU skin and DPC is the older Auscam pattern, so that reassignment is reverted: the G3 ships its own AMCU atlas for these UVs. The two DPC textures that edit imported were deleted (no asset referenced them; `grep -rl` over the plugin content).
+
+**Game Feature content now loads in a commandlet (`Tools/Unreal/probe_load_routes.py`, measured).** `unreal.load_asset("/SSExp_ObjectiveAssault/...")` returned `None` for every ADF mesh in the probe while `B_SS_Soldier` resolved, and `setup_soldiers.py` hard-fails on a None mesh. Cause: the plugin's content is not in the asset registry until it is scanned. `scan_paths_synchronous(["/SSExp_ObjectiveAssault"], force_rescan=True)` makes all four routes (`load_asset`, `EditorAssetLibrary.load_asset`, registry lookup, `does_asset_exist`) resolve every probed package, including the ones that previously answered None. Added to `setup_soldiers.py` and the probe.
+
+**The "weird gap at the waist" was measured, not guessed, and it is a texture.** `Tools/Blender/inspect_uniform_fit.py` (new) on the fitted `SK_ADF_Uniform_G3`: the trunk has faces within 18 cm of the axis in every 2.5 cm slab from 75 cm to 155 cm, so the mesh has no hole; and the torso faces sample UV v 0.02..0.24 of `Crye_G3_Shirt_AMC_co.png`, which `Tools/Common/ss_sheet_probe.py` shows is the sheet's plain khaki under-shirt panel — no camouflage in it at all. The trouser sheet is camouflaged in the same band, so this is the shirt sheet's own layout, not the fit and not the lighting.
+
+**`Tools/Textures/patch_adfrc_undershirt.py` (new) repaints that panel in pattern.** It writes `Art/Characters/ADF/T_ADFRC_G3_Shirt_AmcuCamo.png`: every low-variance, non-background 64 px tile is replaced with camouflage mirrored across the sheet from `Crye_G3_Pants_AMC_co.png` (the same pattern at the same scale), so adjacent tiles continue one reflection and the repeat does not read as a grid. `setup_adf_soldier.py` points the G3 shirt slot at it (`T_ADF_G3_Shirt_AmcuCamo`). Two rejected first attempts are recorded in the report: copying the sheet's own most-patterned band gave a near-black belly (brightness now matched to the panel being replaced), and tiling a small window gave a visible 64 px checkerboard with the source's black margins (now a single mirrored source with its black fraction reported as 0.04).
+
+**Class-select preview fixes (`SSClassSelectWidget.cpp`).** The rifle idle now loops instead of freezing at 35 % of its length, which is what made the earlier captures read as a mid-animation stumble with the head pitched down and the helmet apparently absent; any weapon component whose asset name contains `Arms` is hidden in this third-person preview (logged, and none was found on `B_SS_A88_Weapon`, which carries `SK_Rifle` hidden and `SM_A88` visible); the stage key/fill/rim lights drop from 9000/7000/8000 to 5200/4200/4600 and the backdrop from (0.16, 0.17, 0.13) to (0.11, 0.12, 0.095), because the camouflage was washing out; the child soldier is added to the capture's show-only list on the tick that applies locality, since it is built after that list is filled.
+
+**Retargeted parts are aligned to the leader (`FriendlyRetargetAnchor`, `SSCharacterPartActor`).** The retarget keeps its own skeleton's rest translations, so a module can land at its own bone position rather than where the mannequin's fitted gear is. The whole module is now moved rigidly so `FriendlyRetargetAnchor` (default `head`) sits on the leader's bone of the same name, with the measured gap logged. **Measured today: 0.0 cm on this assembly** — the alignment is a guard for a differently proportioned module, not the fix for the helmet, which was the preview's frozen pose.
+
+### FILES CHANGED
+
+- `Plugins/SouthernSpearTeam/Source/SouthernSpearTeam/{Private/SSCharacterPartActor.cpp,Public/SSCharacterPartActor.h}` — part/anchor diagnostics, rigid anchor alignment, locality log trimmed to one line per change.
+- `Plugins/SouthernSpearUI/Source/SouthernSpearUI/Private/SSClassSelectWidget.cpp` — looping idle, weapon-arm hiding, darker stage, show-only guard, locality log.
+- `Tools/Unreal/setup_soldiers.py`, `Tools/Unreal/setup_adf_soldier.py` — ADFRC assembly, AMCU revert, patched-sheet wiring, registry scan.
+- `Tools/Textures/patch_adfrc_undershirt.py`, `Tools/Blender/inspect_uniform_fit.py`, `Tools/Unreal/probe_soldier_parts.py`, `Tools/Unreal/probe_load_routes.py`, `Tools/Common/ss_shot_html.py`, `Tools/Common/ss_shot_grid.py`, `Tools/Common/ss_sheet_probe.py` — new measurement and review tools.
+- `Art/Characters/ADF/T_ADFRC_G3_Shirt_AmcuCamo.png` — new derivative sheet (untracked).
+
+### TESTING
+
+| Check | Result |
+|---|---|
+| `UnrealEditor-Cmd -run=pythonscript` × `setup_adf_soldier.py`, `setup_soldiers.py`, probes | **PASS** — `ok: true`, 0 errors; probe reads the CDO back as 1 retarget + 3 leader + 4 opposing with AMCU textures on every gear slot |
+| Blender `inspect_uniform_fit.py` on `SK_ADF_Uniform_G3.fbx` | **PASS** — 34,061 faces, 4 slots, continuous trunk coverage 0.75–1.55 m, torso UVs on the sheet's plain panel |
+| `Build.bat SouthernSpearEditor Win64 Development` | **PASS** — succeeded, no errors |
+| `Tools/run_map_capture.sh /Game/Maps/L_DryRiver_01 20 420` | **PASS** — map loaded, `Requested viewport screenshot at 20.0 s`, image 977,670 bytes; inspected at 2–4× |
+| `python -m py_compile` on the new/edited tools; `git diff --check` | **PASS** |
+| Runtime log (`Saved/Logs/SS_capture_20261001_194108.log`) | `SSCharacterPart B_SS_Soldier_C_4: 1 retarget + 3 leader + 4 opposing`, `anchor 'head' rest gap to leader 0.0 cm`, `SSClassSelect: stage locality applied; 8 skinned part(s), 3 in capture list` |
+
+### DEFECTS FOUND
+
+- **Game Feature assets resolve as `None` in `-run=pythonscript` until the registry is scanned.** Found by probing four load routes instead of trusting one; it would have failed `setup_soldiers.py` with "required ADFRC friendly mesh/head failed to load" for meshes that are on disk.
+- **The G3 shirt sheet's torso region is a flat under-shirt panel.** Found by measuring the UVs the torso faces actually sample and reading the sheet at those points — a screenshot could not separate this from a hole, and two renders were spent on that ambiguity.
+- **My own DPC reassignment was wrong.** Found by rendering the two candidate sheets side by side before committing to either.
+
+### RISKS
+
+- **R-92 — The repainted under-shirt panel is a derivative art decision, not a producer one.** `T_ADFRC_G3_Shirt_AmcuCamo.png` fills the shirt sheet's plain panel with the pack's camouflage. It is a texture derivative, so it is reversible by re-running `setup_adf_soldier.py` without the patch; the producer has not yet seen it.
+- **R-93 — The friendly and opposing heads now come from the same rig family, and the friendly look has no ADFRC head.** The ADFRC source set contains no character head (Session 086), so the friendly head remains the retargeted Quantum module.
+
+### NEXT ACTION
+
+Show the producer this capture at full size and settle the remaining art calls on the friendly soldier (head choice, webbing fit, camo finish) before further tuning; the class-select preview path is now measured end to end.
+
+## Session 093 — 2026-10-01 — Both agents' work committed and pushed; the four new installs ignored rather than vendored
+
+Producer instruction for this session: **commit all changes to git and GitHub, and update the documents for what the other AI agent did as well as for what I did.** Two agents had uncommitted work in the same tree, so this session is a reconciliation and a commit, not new feature work. Nothing in the committed content changed the runtime state described in Session 092; the character/preview work was already built, captured and measured there.
+
+### COMPLETED
+
+**Every change in the tree is now committed and pushed** (see the git testing rows: `git push origin main`, 136 changed paths, 0 files deliberately excluded beyond the ADR-021 pack folders).
+
+**The other agent's work is committed, not rewritten.** Its files went into the same commit as mine so the two sets of changes stay reviewable together: `SouthernSpear.uproject` and `.gitignore` (enable and ignore the third-party `UE5AIAssistant` editor plugin), `Config/DefaultGame.ini` (W1 weapon-stats comment rewording only), `Content/Art/Blockout/SS_MAP_DryRiver_01.uasset`, `Tools/Unreal/audit_active_character.py`, `Tools/Unreal/setup_quantum_proto.py`, `Tools/Weapons/adfrc_weapon_data.py`, `Docs/WEAPON_SOURCE_DATA.{md,json}`, `Docs/evidence/asset_inventory_20261001.md`, `Docs/evidence/ui_session088/` (~190 MB of producer-review screenshots and HTML sheets), and the documentation reconciliation across `LICENCE_REGISTER` (ADR-035 F2P clearance reaffirmed), `PACK_MANIFEST`, `MAPS_*`, `SOURCED_ASSET_REVIEW`, `LOCOMOTION_AUDIT`, `WEAPONS_ANIMATION_PLAN`, `HANDOVER_CLAUDE_CLOUD`, `NEXT_PRIORITIES`, `PROJECT_AUDIT` and Session 091 of this file. Session 091's "Evidence boundary" note is intact; no existing ADR was reopened or rewritten by this session.
+
+**Four newly imported vendor packs are ignored, not committed (`.gitignore`, producer decision, ADR-021).** `Content/HighPoly_Tree_Model/` (9 files / 37 MiB), `Content/PN_GrassLibrary/` (626 / 1.1 GiB), `Content/Splash/` (2 / 1.1 MiB) and `Content/WaterPlane/` (34 / 139 MiB) are now ignored on the same rule as the existing installed-pack block. This was the one judgement call put to the producer, and the answer was **ignore them per ADR-021**. Verified by measuring rather than assuming: `verify_packs.scan_references()` finds **0 referenced packages** under each of the four tops, so none of them is a map dependency and none belongs in the 14-pack manifest. Had they been committed, they would have added ~1.3 GB to the repository for content nothing committed uses.
+
+**One deliberate exception is documented rather than silently kept.** `Content/WaterPlane/Lake/Textures/T_MediumWaves_N.uasset` is already tracked (it feeds the committed material `M_SS_CreekWater`, ASSET_REGISTER ENV-005). A new ignore rule does not untrack a file, and a committed project material legitimately needs its texture, so it stays tracked; the `.gitignore` comment and ASSET_REGISTER §4.9n both say so explicitly so a later reader does not "fix" it as an oversight.
+
+**Two real bugs in `Tools/verify_packs.py` were found by running it, and fixed.** (1) It **crashed** with `KeyError: 'bytes'` — rows in the `NOT_IN_MANIFEST` report were built without the `files`/`bytes`/register fields the summary printer reads, so the tool could not report its own findings. (2) It then reported `Plugins/GameFeatures` as an uninstalled pack, a **false positive**: the reference scan walks the whole worktree and counted tracked project content (the Game Feature's ADFRC assets) as if it were an uninstalled vendor pack. `scan_references()` now skips any reference top that git already tracks (`tracked_tops`, compared lower-cased because `tracked_files()` returns a lower-cased set). Both are fixes to the verification tool, so the guard is trustworthy again rather than noisy.
+
+**Registers updated for the new installs.** `ASSET_REGISTER.md` §4.9n gains rows for `HighPoly_Tree_Model`, `PN_GrassLibrary` and `Splash` (and the `WaterPlane` row's size corrected to the measured 139 MiB), each marked installed-but-not-referenced-by-committed-assets, plus a paragraph stating the git treatment and the tracked-texture exception. `PACK_MANIFEST.md` §2 gains a short subsection explaining why the four roots are *not* manifest rows, so a reader who sees 14 packs and four more installed folders does not read it as an omission.
+
+### FILES CHANGED
+
+- `.gitignore` — the four 2026-10-01 pack roots with the ADR-021 rationale and the tracked-texture exception; `Plugins/UE5AIAssistant/` (other agent).
+- `Tools/verify_packs.py` — `NOT_IN_MANIFEST` rows carry `files`/`bytes`/register state; `scan_references()` skips tracked reference tops.
+- `Docs/ASSET_REGISTER.md`, `Docs/PACK_MANIFEST.md`, `Docs/CHANGELOG.md` — this session's records.
+- Everything else in the commit: the Session 092 source/tool/asset work and the other agent's files listed above.
+
+### TESTING
+
+| Check | Command | Result |
+|---|---|---|
+| Pack verification | `python Tools/verify_packs.py` | **PASS** — `14 pack(s) ... 685 referenced package(s)`, `OK: 14, problems: 0`, exit 0 (previously crashed, then false-positived) |
+| New-install reference scan | `verify_packs.scan_references()` filtered to the four tops | **PASS** — 0 hits each; no committed asset references `HighPoly_Tree_Model`, `PN_GrassLibrary`, `Splash` or `WaterPlane` |
+| Architecture guard | `python Tools/validate_architecture.py` | **PASS** (pre-existing accepted SS010) |
+| Whitespace / conflict markers | `git diff --check` | **PASS** — clean |
+| Python syntax | `python -m py_compile` on new and edited tools | **PASS** |
+| Staging correctness | `git status --porcelain` after explicit `git add` | **PASS** — none of the four pack folders appears in the index |
+| Push | `git push origin main` | **PASS** — `5450b4d9..9abd9974 main -> main`, `Uploading LFS objects: 100% (79/79), 165 MB`, exit 0; GitHub warned that `Docs/evidence/ui_session088/_sheet.html` (50.05 MB) exceeds its recommended 50 MB maximum. Accepted: the file is committed through LFS and GitHub stores it fine, so the warning is advisory, not a failure |
+| Remote agreement after push | `git rev-list --left-right --count origin/main...HEAD`; `git ls-remote origin main` | **PASS** — `0  0`, remote `refs/heads/main` = `9abd9974` |
+| Asset reference audit | `python Tools/check_asset_references.py` | **NOT CLEAN, pre-existing and not from this work** — `MISSING: 31 referenced packages`, all resolved by the ignored packs |
+| Editor build re-run | `Build.bat SouthernSpearEditor Win64 Development` | **NOT RUN this session** — the C++ sources are unchanged since the clean Session 092 build, so that result still stands and is cited as Session 092's, not re-claimed here |
+
+### ASSETS
+
+- Registered as installed-but-unreferenced: `Content/HighPoly_Tree_Model`, `Content/PN_GrassLibrary`, `Content/Splash`, `Content/WaterPlane` (ASSET_REGISTER §4.9n; not `PACK_MANIFEST` rows). None is producer-cleared *for use* — presence is not clearance, exactly as ADR-028/035 is worded; the producer reaffirmed project-use clearance for acquired assets on 2026-10-01 (LICENCE_REGISTER), which covers the acquired set but does not make installed content shipped content.
+- Committed from this session: `Art/Characters/ADF/T_ADFRC_G3_Shirt_AmcuCamo.png` and its imported `T_ADF_G3_Shirt_AmcuCamo.uasset` (Session 092's repainted under-shirt panel, a texture derivative of the ADFRC sheet; reversible, R-92).
+
+### DEFECTS FOUND
+
+- `verify_packs.py` `KeyError: 'bytes'` — found by running the tool while preparing to commit; the reporting path crashed before it could print anything.
+- `verify_packs.py` false positive on `Plugins/GameFeatures` — found by the same run; the scan treated tracked Game Feature content as an uninstalled vendor pack.
+- Found, not fixed, and now a known defect: `check_asset_references.py` reports 31 missing packages. These come from the installed-but-ignored packs and predate this session; the tool needs the same "is this top tracked or installable" awareness that `verify_packs.py` now has.
+
+### RISKS
+
+- **R-92, R-93 (carried from Session 092, unchanged).** The repainted under-shirt panel still needs producer acceptance, and the friendly soldier's head is still the Quantum module because the ADFRC set has no head.
+- **R-94 — The four ignored packs are unreproducible from this repository, by design.** They are in the `.gitignore` under ADR-021 and they have no `restore` field in `PACK_MANIFEST.json`, because they are not dependencies of anything committed. A machine that lacks them loses nothing the repository needs, but if any of them is later used in a map, that map has just acquired a new unrecorded pack dependency and the manifest must be regenerated. `Content/Splash/` is the sharpest case: a `Splash.bmp` + `Splash.uasset` pair whose origin and intended use are still not established (§4.9n).
+
+### NEXT ACTION
+
+Get producer acceptance on the Session 092 preview capture (R-92, R-93); this session deliberately left the art alone so the commit contains only work that has already been measured.
+
+## Session 095 — 2026-10-03 — First-person arms: gloves read as gloves, and the arms sit lower in the view
+
+Producer: first-person models and animations are the priority. Captures of the current build (Dry River, `-SSNoClassSelect -SSShotAt`) showed a fat camouflage forearm across the lower left in the rifle view, bare flat-tan mitts, and pistol arms filling the lower third of the screen.
+
+### COMPLETED
+
+- **Arm placement.** `ss.FP.ArmsOffset` default `17 0 -2` -> `13 3 -8`; new `ss.FP.PistolArmsOffset` default `11 0 -8` (the pistol set uses it). The scope view is unchanged (aim correction is computed from the sight position).
+- **Glove texture.** The glove region of `T_FP_Arms_*_BC` was a flat fill. New `Tools/Blender/bake_fp_arms_ao.py` bakes ambient occlusion from the arms mesh into its own UVs; `make_fp_arms_texture.py` multiplies it into the sleeve and glove, adds a knit weave, and the glove colour changes from coyote (118,98,72), which read as bare skin in sun, to olive-drab (86,82,64). `setup_fp_arms.py` re-imported both sets (`ok: true`).
+
+### FILES CHANGED
+
+`Plugins/SouthernSpearLyraBridge/.../SSFirstPersonSubsystem.cpp`; `Tools/Blender/bake_fp_arms_ao.py` (new); `Tools/Textures/make_fp_arms_texture.py` (also carries the other agent's uncommitted `de_plain` change); re-imported `FirstPerson/{Rifle,Pistol}` mesh, material and texture assets.
+
+### TESTING
+
+| Check | Result |
+|---|---|
+| `Build.bat SouthernSpearEditor Win64 Development` | PASS |
+| `setup_fp_arms.py` headless | PASS, `ok: true`, no errors |
+| Captures, rifle and pistol, before/after | `Docs/evidence/s095/fp_{rifle,pistol}_{before,after}.png` — gloves read as olive fabric, rifle forearm no longer crosses the view, pistol hand no longer fills the screen |
+| Aim-down-sights after the offset change | scope view checked before the glove change only; NOT re-run after it |
+| Automation suite | NOT RUN |
+
+### ASSETS
+
+Derived texture from the Fab M4 FPS pack's `Hand_D.jpg` (ADR-028 cleared) and the ADFRC AMCU sleeve fabric (L-0021).
+
+### RISKS
+
+- **R-95** — The hands still have no individual finger or knuckle detail beyond baked occlusion; the pistol palm is a large plain olive area. A purpose-made gloved-hands mesh (the CC BY 4.0 gloves pack needs a credit line) would be the real fix.
+- Left-hand placement on the rifle handguard is still the accepted A88 solve only (R-85).
+
+### DEFECTS FOUND
+
+Found by capture, not by reading code: the arms-offset default put a forearm across the view, and the glove fill read as skin.
+
+### Session 095 addendum — the glove asset on the first-person arms
+
+Producer: the hands looked average; use the glove asset on file. `Content/Sourced/Gloves` (Fab "Gloves for fps game", Bobeer, CC BY 4.0; ASCII FBX that Blender refuses) is now read by `Tools/Blender/ascii_fbx_mesh.py`; `Tools/Blender/fp_arms_gloves.py` (run by `fp_arms.py` with `SS_FP_GLOVES=1`) removes the pack's bare hand faces, fits the glove hands onto the pack hand (best of 24 axis rotations, chamfer 0.9 cm, scale 0.86), slides the cuff under the sleeve, and skins the gloves from the pack mesh's own weights (inverse-distance over the 4 nearest vertices; Blender's Data Transfer modifier left every vertex on the forearm bone, so the fingers did not curl in the first capture). `Tools/Textures/make_fp_gloves_texture.py` builds the 2048 glove textures; `setup_fp_arms.py` makes `MI_FP_Gloves` for the new `FP_Gloves` slot. Capture (producer screenshots): the pistol grip is wrapped by olive knuckle-guard gloves; the rifle's left hand is behind the weapon in the hip view. NOT checked: reload, draw and sprint animations (the producer says the animations are still wrong), the aim view, the right-hand grip on the rifle. New risk **R-96**: the glove hands are fitted in the pack's rest pose and follow the pack's finger animation, so grip shape on our weapons is only as good as the pack's M4/G17 grips.
+
+Second addendum (producer: "two different animations following changing the weapon / reload, the first one is good, and then it changes to what's currently there"). Cause, from `SSFirstPersonSubsystem.cpp`: draw, holster and reload run with the left-hand IK suppressed (the pack's clip poses the hand), then `UpdateArmsAnimation` switches to the one-frame Idle clip and `Play()` re-enables the IK, so the hand jumps from the clip's pose to the IK solve. Fix: new `ss.FP.HandIK` (default 0) keeps the IK suppressed after every one-shot, so the clip's own hand pose holds. Capture after: left forearm and glove sit on the handguard in the pack's pose (`Docs/evidence/s095/fp_rifle_noik.png`). NOT verified: that this equals the pose the producer called good (the draw clip itself was not captured: a Blender pose dump of the actions returned identical poses for every clip, so that check is invalid and was discarded), reload, sprint. `ss.FP.HandIK 1` restores the old behaviour. The Unreal MCP server was started with `-ExecCmds="ModelContextProtocol.StartServer"` (port 8000, `.mcp.json` generated); it is not auto-start, and this Claude session had to be reconnected to see it.
+
+### NEXT ACTION
+
+Producer to review `Docs/evidence/s095/` and the third-person friendly soldier; then fix soldier leg proportions.
+
+## Session 096 — 2026-10-03 — Third-person soldier: legs measured, tunic and sleeves slimmed
+
+### COMPLETED
+- Measured leg proportions: Manny pelvis 96 cm / head 163 cm, crotch ~46% of height; the G3 uniform crotch matches Manny's. The "short legs" look is the baggy tunic and sleeves, not the legs.
+- `Tools/Blender/adfrc_gear_rig.py`: new `SS_GEAR_KEEP` env (share of excess kept by the fit cap, default 0.15). Rebuilt `SK_ADF_Uniform_G3.fbx` with `SS_GEAR_CAP=1.5 SS_GEAR_KEEP=0.05` (0.8/0.0 tested and rejected: loses the belt, artefacts).
+- Re-imported via `setup_adf_soldier.py` and `setup_soldiers.py` headless (both exit 0, `ok: true`).
+
+### FILES CHANGED
+`Tools/Blender/adfrc_gear_rig.py`, `Art/Characters/ADF/SK_ADF_Uniform_G3.fbx`, re-saved ADF uniform/material assets, `Docs/evidence/s096/`.
+
+### TESTING
+Blender silhouette comparison (`tunic_caps.png`); class-select capture on Dry River (`class_select_slim_tunic.png`, PASS). Build, automation suite, vest fit, animations: NOT RUN. Not committed.
+
+### RISKS
+Only the standing silhouette was checked; the vest still sits low; MAF shares the uniform mesh and was not captured.
+
+### NEXT ACTION
+Producer to review `Docs/evidence/s096/class_select_slim_tunic.png`; then raise/fit the vest and check first-person reload/draw/sprint animations.
+
+### Session 096 addendum — first-person clips reviewed frame by frame
+
+- **Tooling:** `ss.FP.DebugClip <Draw|Fire|Reload|Reload_Empty|Holster>` plays one clip on demand, `ss.FP.DebugSprint 1` shows the sprint pose, `-SSShotTimes=a,b,c` writes `SSShot_<n>.png`; `Tools/run_anim_sequence.sh` and `Tools/Common/ss_contact.py` capture a clip and build a contact sheet.
+- **Defect found by capture:** since Session 095 lowered the idle arms (`13 3 -8`), the rifle reload moved the hands below the screen: eight frames showed a floating, tilted rifle with no hands (`reload_sheet.png`).
+- **Fix:** new `ss.FP.ClipArmsOffset` (default `17 0 -2`); the arms blend to it while a draw, reload or holster clip plays (`ClipAlpha`) and back to the idle offset afterwards. Result: hands and left forearm in view through the reload and draw (`reload2_sheet.png`, `draw_sheet.png`).
+- **Checked:** rifle reload, rifle draw, sprint pose (pistol held). **NOT checked:** pistol reload, holster, fire clip, empty reload, aim-down-sights after the glove change. Build PASS (editor closed); automation suite NOT RUN.
+
+- **Pistol (G17 arms):** reload shows the support hand bringing the magazine in (`pReload_sheet.png`); idle stays one-hand-forward at the Session 095 offset (raising it fills the bottom of the view with forearms, `pidle_cmp.png`). `ss.FP.DebugClip P:<clip>` waits for the pistol arms. Holster clip shows no lowering in the pistol set (not a gameplay-visible path; left).
+- **MAF/OPFOR third person: NOT reviewed.** `ss.Debug.FollowBot -180/-300` put the camera inside Dry River foliage (`maf_pair.png`: black silhouettes, blown-out leaves), so no usable view of the enemy soldier. Needs a camera that avoids geometry (or a posed preview like the class-select stage).
+
+- **MAF third person reviewed:** `ss.Debug.FollowBot` now line-traces and pulls the camera in front of foliage and walls (`SSFirstPersonSubsystem.cpp`). `maf2_pair.png`: the opposing soldier reads as a conventional olive-uniform infantryman with tan webbing and a helmet, firing and running with a believable pose; a second MAF bot is prone in the background. No defect found.
+- **Friendly vest:** the "sits low" note was my inference from mesh bounds, not a rendered defect; the class-select and running captures show it at chest height. Left as is.
+- **Empty reload** (`rempty_sheet.png`): hands in view through the charge; **fire clip** captured (`fire_sheet.png`, not inspected closely); **ADS** captured through the scope view (`ads_1.png`, UI off). Sprint remains the procedural tilt.
+
+### Session 096 addendum — Dry River ghost gum foliage
+
+- **Defect (producer: "greygum foliage isn't rendering correctly"):** `MI_SS_GhostGum_Leaf` set an OpacityMask texture on `M_SS_ScanPBR`, which is Opaque, one-sided and has no opacity-mask node (probe: `Build/probe_scanpbr.json`), so every leaf card drew as a solid polygon: flat black in shade, blown white in sun (`maf_pair.png`, `gum_after.png`).
+- **Fix:** `Tools/Unreal/setup_gum_foliage.py` builds `M_SS_Foliage_Masked` (Masked, two-sided, two-sided-foliage shading, BaseColor x `Brightness` 1.5, Normal, OpacityMask on R, `ShadeFill` emissive 0.18) and re-parents the leaf instance. In the editor the gum canopy now shows proper leaf-and-branch silhouettes (verified by viewport capture from several instances).
+- **Still dark:** broad-leafed Namaqualand shrubs (`SM_searsia_lucida_*`, `MI_Searsia_Lucida_NN`) read near-black in shade; their material is the pack's own (ignored pack, not edited). A brighter project instance would fix it; not done.
+- **Found, not fixed:** several ghost gum instances are placed with extreme rotations (`SS_Gum_WindmillScreen_03` pitch 71°, `_04` pitch 86°, `_00` roll 180°); intent unverified.
+- NOT RUN: in-game (`-game`) capture after the final material; automation suite.
+
+### Session 096 addendum — Dry River overhaul after producer review
+
+Producer, after my first foliage-only claim: windmill inside a tree and no fan, water tank untextured, no water in the creek, rocks and assets floating off the terrain, few shrubs. All checked in the editor over MCP and fixed with `Tools/Unreal/overhaul_dryriver_s096.py` (idempotent steps, `exec` over MCP) and `Tools/Blender/windmill_fan.py`:
+
+- **Creek water:** the old planes were buried ~2.8 m under the bed (the mesh pivot sits 309 cm below its surface) and tilted. 48 flat segments now follow the bed (`creek_water`); `M_SS_CreekWater` rebuilt (translucent, dark teal, scrolling `T_MediumWaves_N`). In-game capture shows water with rocks standing in it (`dr_after_2.png`).
+- **Windmill:** the ring of `SS_Gum_WindmillScreen_*` gums was moved out to 28 m, three instanced trees within 19 m removed, and a new wheel `SS_Windmill_Fan` (24 blades, rim, spokes, corrugated-iron material) placed on the head (`SS_Farm_Windmill_Fan`). Fan is static (no rotation yet).
+- **Water tower:** the Fab texture sheet bound to it renders flat tan (sheet is a 4k wood atlas; cause not found). Re-skinned with the project's weathered-timber material; reads as timber, not the Fab tank look. Open.
+- **Floating props:** 24 static props and 384 instanced rocks/stones/debris sunk 3 cm into the terrain (support-aware trace; rails, wires and tower parts skipped as elevated by design).
+- **Shrubs:** +3,200 instanced Namaqualand shrubs on flat dry ground outside the creek channel (`SS_S96_Shrubs_*`); the black broad-leaf `searsia` meshes were swapped for the rooibos bush mesh.
+- **Gums:** the 10 ghost gum assets (also near-black in shade) were replaced by the project's RuralAustralia gum trees (`SS_S96_Tree_*`); `M_SS_Foliage_Masked` remains for any later use.
+- NOT verified: Dry River playability audit re-run (3 pass / 6 fail), nav rebuild (R-82, attended), kangaroo appearance, performance of +3,200 instances, water shader on the final in-game frame beyond one capture. Not pushed.
+
+- **Tank and windmill wheel replaced with Australian designs (producer: Fab tank not good; wheel must be an Australian windmill).** Both are procedural (not from an asset), built by `Tools/Blender/aus_farm_props.py`: `SS_Aus_WaterTank` (round galvanised corrugated tank, domed lid, overflow pipe, on a splayed rusty steel stand with braces and ladder) and `SS_Windmill_Fan` (18 curved, cambered blades on two rings and flat spokes: Southern Cross / Comet multi-blade pattern). Materials: project corrugated iron and rust. Viewport-checked; not yet in an in-game capture. The Fab timber water tower is no longer used on the map.
+
+### Session 096 addendum — the original Fab assets, reviewed on disk (producer: "they all came with textures")
+
+Producer was right: my procedural tank and wheel replaced assets that were fine. What the disk review found:
+
+- **ROOT CAUSE of grey tank / clay kangaroo / black gum leaves: material compile errors, not missing textures.** `M_SS_ScanPBR` (used by the Fab tower, kangaroo, ghost gum trunk and others) samples Roughness/Metalness/AO as "Masks" and Normal as "Normal", but its default textures were `DefaultTexture` and the instances' maps were imported with default compression, so every instance failed to compile and drew the fallback grey (`MaterialEditingLibrary.recompile_material` listed the errors). Fixed in the master: sane default textures (`/Game/Art/Environment/Fab/Defaults/T_SS_Mask_{White,Black,Rough}`, `DefaultNormal`); tower Normal/Roughness/Metallic re-set to Normal/Masks compression. The same class of error was in `M_SS_Foliage_Masked` (opacity map sampler type). Any other ScanPBR instance in the project may have been grey for the same reason; not audited.
+- **Water tower:** the pack's own `Water_Tower.fbx` (16 parts, 4k wood atlas) imported as `SM_Fab_WaterTower`, scale 1.3, with its textures: matches the Fab thumbnail (timber barrel, metal bands, timber stand, ladder). The decimated `SS_Raven_water_tower` is not used on Dry River now. My procedural corrugated tank is withdrawn from the map (asset kept: `SS_Aus_WaterTank`).
+- **Windmill:** the pack's `wind_mill.fbx` has all 13 parts including the wheel (Wings, Wings_Structure, Structure, Hub, Nose_Cone, tail Arrow, Cables, Feet, Ladder, Planks). `Tools/Blender/prep_fab_props.py` dropped the wheel (its discs read as ground planes), so `SS_Raven_windmill` had no fan. New `Tools/Blender/prep_windmill_full.py` keeps every part (7.0 m tower, 2 m wheel) -> `SM_Fab_Windmill` on the map. **The pack on disk contains only the FBX and a thumbnail: no texture files** (the listing promises a 4K PBR set). Slots currently use project rust / timber / corrugated iron; re-download the pack's textures from Fab to finish it. My procedural fan is withdrawn.
+- **Kangaroo:** 7 body slots each have their own map (0271..0278, plus fur-card and noise maps); the earlier setup put one body map on every slot. Textures were imported as 32x32 placeholders (editor-icon compression): re-imported at true size (667x558 etc.). Per-slot `MI_SS_Kangaroo_*` created and applied. The body still reads pale cream-grey: the source map's mean colour is (224,208,197), so that is the asset, not a fault.
+- **Ghost gum:** the supplied tree (ENV-003) restored on Dry River in place of the RuralAustralia stand-ins I had swapped in (`SS_S96_Gum_*`, 10, scale 1.3-1.8). With the compile fix its leaves are green and its bark grey. It is a small tree (6.5 m at scale 1).
+- Still open: Farmstead objective move did not persist (walk parity 58% unchanged); the playability audit still fails 7 of 9 rules (`Build/map_playability_dr_s096.json`: crossing 24 m, sightline 363 m, hard:soft 1.49, cover density 0.16, spawn exposure 25/64, walk parity 18%/58%); 266 cover props were added this session (`SS_S96_Cover_*`). Not pushed.
+
+- **Kangaroo (follow-up):** the editor still showed grey because `SM_Kangaroo`'s 11 slots held `WorldGridMaterial` (my earlier headless slot assignment had not stuck). Re-applied in the editor: per-slot `MI_SS_Kangaroo_*` on the mesh and the placed actors; viewport now shows the textured, orange-brown animal. ScanPBR textures with wrong compression (14 Ravenshoe maps) were corrected project-wide.
+- **Dry River playability audit, re-run** (`Docs/evidence/s096/map_playability_dr_s096.json`, `SS_BUILDPATHS=1`): **5 pass / 4 fail** (was 3/6): open crossing 18 m PASS, cover density 0.97 PASS, spawn exposure 0/64 PASS (was 35/64), starts PASS, close quarters PASS. Still failing: max sightline 355 m (target 220), hard:soft cover 2.12 (target 0.15-0.6; scaled "soft" props read as hard), walk parity Water Point 20%, Farmstead 12% (was 58%; the `SSObjectiveActor` moved to (700,-300) - the same-labelled billboard `Actor` is a separate object and `label()` helpers find it first). ~720 collision cover props (`SS_S96_Cover_*`, simple box collision added to nine pack meshes locally; those pack folders are git-ignored) were placed, which is a lot of props; thin if the map feels cluttered.
+- **Found, not fixed:** moving `SSObjectiveActor` Water Point from Python did not reproduce reliably between sessions.
+
+## Session 097 — 2026-10-04 — Dry River: homestead, outstations, fallen timber, wildlife, creek water
+
+Producer: "give it a full overview, look at the placement of rocks, river beds, farm houses, water tanks etc. ... use [Fab and other maps' assets] and place across the map to give the map more life."
+
+**COMPLETED**
+- Overview (editor bird's-eye and ground captures): vegetation was already dense (about 18 k scatter instances, 300 grass trees, 700+ trees); what the map lacked was a place. The farm was a windmill and a tower in a field of rocks.
+- **Homestead compound** on the flattest ground north of the creek (best 12 m pads measured at 22-45 cm of relief), `Tools/Unreal/farm_life_s097.py`: RedGum farmhouse, two quarters, shearing shed, stock pens; Ravenshoe barn and old barn (timber and corrugated-iron slot materials as in `farm_dryriver.py`); stone well, hand pump (own MIs), RedGum tank, Fab tractor, two Fab chicken coops, dunny, drums, log piles, picnic table, barbecue, mailbox, five power poles, wreck car, 22-segment yard fence. Every building sits on its lowest ground sample with a stone plinth over the gap; trees, rocks and scatter inside each footprint were removed first.
+- **Outstations** (`farm_life_s097b.py`): 56 props around the nine existing sheds, lean-tos and tanks, two Fab windmills beside the west tanks, 26 Fab dead trees, 14 Fab fallen trees (collision), 45 Fab branches, four kangaroo mobs (13, existing per-slot MIs, scale 2.37 as the originals), three RuralAustralia kangaroo signs.
+- **Creek water** `M_SS_CreekWater` edited in place: DepthFade 12 cm on opacity (soft shore, tile edges gone), murkier green body, specular 0.6. Before: pale grey slabs with rectangular seams; after: green pools following the bed.
+- **Cleanup of Session 096 clutter:** 219 of the 311 randomly scattered crates, sacks and barrels (the ones more than 25 m from any structure) removed; 2 duplicate boulders deleted; 3 floating rocks snapped (one was 4.3 m up). Instance audit of 87 scatter meshes (about 1,000 samples): 4 within 40-59 cm.
+- Dry River nav is dynamic: path queries to the middle of the farmhouse and barn return partial paths after placement.
+
+**FILES CHANGED** `Content/Maps/L_DryRiver_01.umap` (tracked), `Content/Art/Environment/DryRiver/M_SS_CreekWater.uasset` (tracked), `Tools/Unreal/farm_life_s097.py`, `farm_life_s097b.py`, `Docs/ASSET_REGISTER.md` §4.9q, evidence under `Docs/evidence/`. **Untracked, local only:** `Content/Art/Environment/Fab/Props/` (400 MB: dead tree, fallen trees, branch, tractor, coop). Not committed because of size and ADR-021; the committed map therefore references assets a fresh clone does not have.
+
+**TESTING**
+- In-game `-game` captures after shaders settled (60 s): `Docs/evidence/s097_homestead_fp.png`, `s097_creek_fp.png` (an earlier capture at 18 s showed grey foliage and a white rifle: shader compilation, not a defect). Teleport used: `-SSExecAt=60 "-SSExec=EnableCheats|BugItGo x y z pitch yaw roll"`.
+- `audit_map_playability.py` with `SS_BUILDPATHS=1` (without it: "no walkable ground", expected): `Docs/evidence/map_playability_dr_s097.json`, **5 pass / 4 fail, unchanged**: crossing 16 m PASS, cover density 0.96 PASS, spawn exposure 0/64 PASS, starts PASS, close quarters PASS; max sightline 332.7 m FAIL (was 355), hard:soft 2.38 FAIL (was 2.12), Water Point parity 20% FAIL, Farmstead parity 13% FAIL (was 12%).
+- NOT RUN: persistence reopen of the saved map beyond the in-game load, PIE, performance (no frame-time measurement), C++ build, automation tests, multiplayer, bot match on the new layout.
+
+**ASSETS** ENV-007..011 and the compound, see register §4.9q. Remaining caveats: Fab windmill still has no vendor textures on disk; barn and old barn use pack timber/iron (their FBX shipped without textures); RedGum buildings are low-poly project blockouts with pack materials; tractor glb carries a green ground mat (buried 26 cm); kangaroo mobs are static meshes.
+
+**RISKS** R-83: committed Dry River map references untracked Fab props (400 MB). R-84: hard:soft cover and Farmstead/Water Point parity still fail; the compound adds solid mass near the Farmstead and was not re-balanced.
+
+**DEFECTS FOUND** Session 096 added about 300 random supply crates/sacks/barrels purely to lift cover density (found by viewing the map: dark boxes in open bush). Duplicate boulders at identical positions and a rock 4.3 m in the air (found by the floating audit).
+
+**NEXT ACTION** Walk the compound in PIE with bots (nav, collision, spawn-to-objective routes), then fix Farmstead/Water Point parity and the 332 m sightline by moving or adding mass, not props.
+
+### Session 097 addendum — producer review round, MAF rifle, Red Gum life pass
+
+Producer review of the in-game Dry River captures: assets randomly placed, a tree base coming out of the creek bed, rocks sticking out, kangaroos too plentiful, creek water not like UE5 water and no creek bed, textures. Then: "move to other maps that are more complete ... Red Gum ... add quality Fab assets incl. Australian road signs, kangaroos under trees, windmill, tank, farm houses ... then promo shots ... OPFOR/MAF should be using the AKM model, not the AKS-74U".
+
+**Review of what I did before this addendum (stock-take)**
+- Dry River: objectives moved and persisted (Water Point (-1500,-600), Farmstead (3900,-1700)); audit 7/9 (`Docs/evidence/map_playability_dr_s097c.json` is in `Build/`, summary in the previous entry). Creek clutter cut (473 bed stones, 37 driftwood/rocks, jams and signs removed); kangaroos cut from 13 to 4, one pair and three singles, under map-edge trees; five wrecks replaced with the original RustyCarsFree meshes (`SM_asset_03/04`, the Ravenshoe wreck meshes rendered red/black noise); Namaqualand driftwood branch material given the intact branch textures (local, untracked pack); Fab texture compression fixed (`Tools/Unreal/fix_fab_prop_textures_s097.py`).
+- **NOT fixed:** the Dry River creek is still flat tinted planes, no carved bed, not UE Water. An attempted `WaterBodyRiver` + `WaterZone` did not render and was not saved. This is the producer's open complaint; it needs a carved terrain bed first.
+- Lost work found the hard way: edits made after an editor restart without a save were gone (kangaroo placement); the map must be saved before the editor is closed or killed.
+
+**Red Gum Station (`L_RedGum_01`), `Tools/Unreal/redgum_life_s097.py`, actors `SS_RG97_*` (67)**
+- Road centreline read from the landscape spline mesh components (30 segments, saved to `Build/redgum_road_segments.json`, local).
+- Four outstations on flat pads (measured relief): Hendry (10000,16000), Cole (-8000,-13000), Brennan (-20000,14000), Tully (20000,10000): RedGum farmhouse / huts / shearing shed / water tank, Ravenshoe barn and old barn (timber + corrugated iron slot materials), Fab water tower and Fab windmill, Fab tractor, Fab chicken coops, caravan, stone well, dunny, drums, wreck, log piles; trees and foliage instances inside each footprint cleared first.
+- Homestead (0,0): the procedural RedGum windmill replaced with the Fab windmill; added Fab tower, tractor, coops, old barn, well, dunny, drums, mailbox.
+- Eight RuralAustralia kangaroo signs placed along the road (facing copied from the existing eight); seven kangaroos under edge trees (two pairs plus singles), kept away from objectives, deployments and the road.
+- Fab tractor: its glTF carries about 60 green grass-tuft islands (ground patches) in the same mesh; removed in Blender (`Build/fab_fix/SM_Fab_Tractor_noplate.fbx`, local) and reimported over `SM_Fab_Tractor`; the Dry River tractor was raised 36 cm to match.
+- Captures (in-game, 60 s after load): `Docs/evidence/s097/rg_road2_b.png` (road, signs, outstation), `rg_hendry2_b.png` (Hendry yard, tractor without the green plate), `rg_hendry.png`/`rg_hendry_air.png`. The elevated "air" shots sit inside the canopy: Red Gum is dense forest, so promo shots must be ground level in clearings.
+
+**MAF rifle -> Fab AKM (`/Game/AK-47`, "AK-47" pack)**
+- `Tools/Blender/maf_weapon.py` gained `SS_MAF_SCALE` / `SS_MAF_TRIGGER_FRAC` / `SS_MAF_TRIGGER_Z` for static packs without a trigger bone. The static mesh `SM_AK-47` was exported (`Build/maf_weapons/SM_AK47.fbx`), scaled 0.78 to 0.876 m, origin at the trigger (36% from the butt), muzzle socket at the front; imported over `SM_MAF_R1` and `SM_MAF_S1` (support counterpart is the same mesh, as before) with the pack's `M_Exterior` / `M_Interior`. The AKS-74U source is backed up at `Build/maf_weapons/SM_MAF_R1_aks74u_backup.fbx` (local).
+- **Implemented but unverified:** grip/hand alignment and look on a MAF soldier in-game were not yet seen (the follow-bot capture was interrupted). `Art/Weapons/MAF/SM_MAF_R1.json` is stale (still names the AKS-74U).
+
+**FILES CHANGED (tracked)** `Content/Maps/L_RedGum_01.umap`, `L_DryRiver_01.umap` (already committed), `Content/Art/Environment/DryRiver/Farm/SM_Fab_Windmill` / `SM_Fab_WaterTower` (collision flag only), `Art/Weapons/MAF/SM_MAF_R1.fbx`, `.../Weapons/MAF/SM_MAF_R1.uasset`, `SM_MAF_S1.uasset`, `Tools/Blender/maf_weapon.py`, `Tools/Unreal/redgum_life_s097.py`, `fix_fab_prop_textures_s097.py`, `Docs/ASSET_REGISTER.md`. **Untracked, local only:** `Content/Art/Environment/Fab/Props/`, Namaqualand and RustyCarsFree material edits, `Build/*`.
+**NOT RUN:** Red Gum audit (`audit_map_playability.py`), nav check of the new buildings, bot match on Red Gum, persistence reopen, performance, C++ build, automation tests.
+**RISKS** R-85: Red Gum references the untracked Fab props folder, as Dry River does (R-83). R-86: Red Gum is dense canopy, so an aerial promo view is not possible and the 67 added actors were not nav-checked.
+**NEXT ACTION** Capture a MAF soldier in-game to confirm the AKM mesh/grip, then run the Red Gum playability audit and a bot match before promo shots.
+
+### Session 097 addendum 2 — MAF rifle and camouflage after producer review
+
+- Producer: "AKM is only being seen as a grey rectangle. MAF is not MAF camouflage." Causes: the AK-47 pack's FBX carries a `UCX_` collision box that was merged into the display mesh (the grey rectangle), now removed in `maf_weapon.py`; and the MAF uniform materials had been reset to plain green by a later soldier rebuild (`apply_maf_camo.py` must be re-run after `setup_adf_soldier.py`). Producer later saw the AK render correctly in-game.
+- Producer supplied reference photos of the MAF dress: **cream ground with large rounded blobs of terracotta red, olive, khaki tan and brown**. `Tools/Textures/make_maf_uniform.py` palette and blob scale rewritten to match (the old pattern was dark and muddy). The producer then saw it in-game and reported "legs look structureless": the generator kept only fine detail against a 24 px blur, losing knee-pad shadows and pocket edges. It now keeps the green texture's full tonal structure (luminance / cloth median, exponent 1.25, clamp 0.30 to 1.25). Regenerated and re-applied (`Docs/evidence/s097/maf_pants_new.png`, `maf_pants_compare.png`).
+- **Implemented but unverified in-game:** the structure fix. Not done: MAF helmet, vest and belt remain flat olive; the reference shows a camo cap and olive tactical vest. The MAF camo is still an original pattern (Class F), not a copy of a real pattern.
+
+### Session 097 addendum 3 — Red Gum audit and promo captures
+
+- **Red Gum playability audit** (`SS_BUILDPATHS=1`, `Docs/evidence/map_playability_rg_s097.json`): **3 pass / 7 fail**. Pass: close quarters, starts 8+8, spawn exposure 0/64, Homestead walk parity 4%. Fail: open crossing 30 m (target 20), max sightline 1010 m (the map's own extent), hard:soft cover 3.1, cover density 0.03, North and South paddock parity 12% each. Cover density and the ratio are artefacts: the audit counts only placed static meshes, and Red Gum's cover is foliage instances (trees, rocks, logs). Nav coverage 33% (R-12). Not re-tuned; the new outstations were not nav-checked.
+- **Promo captures** (in-game, 1920x1080, bot match; kept ones in `Docs/evidence/s097/promo_keep/`): MAF soldier running past a barn (new camo, AK, structure on the trousers visible), MAF squad under trees, 3 ACR soldier at a fallen log, road with kangaroo signs, Hendry farm with the tractor. Rejected: kangaroo pair (camera landed inside a tree), windmill (a tree in front); MAF helmet is still plain green and the AK is small in frame. All were taken with `God` and `ss.Debug.FollowBot`, third-person debug cameras, not a dedicated photo mode.
+- **NEXT ACTION** A proper photo mode or placed cameras for the hero shots (windmill and tank, kangaroos under a tree, a posed 3 ACR and MAF pair), then the Dry River creek bed.
+
+### Session 097 addendum 4 — soldier legs ("no structure in them")
+
+- Producer on the MAF promo shots and in-game: legs weird on both models, helmets not sitting right, "doesn't appear as a person". Diagnosis by Blender front/side overlay of `SK_ADF_Uniform_G3` on the Manny reference (`Docs/evidence/s097/models/legs_front.png`, `legs_side.png`): the Session 096 tunic fit (`SS_GEAR_CAP=1.5 SS_GEAR_KEEP=0.05`) was applied to the whole uniform and shrink-wrapped the **trousers onto the mannequin's legs**, a skin-tight leg with no cargo-pocket or knee-pad volume. In the captures the friendly soldier's helmet and head sit correctly; the MAF helmet is a different asset (PASGT) and looks a little high.
+- Fix: `adfrc_gear_rig.py` gains `SS_GEAR_LEG_CAP`, `SS_GEAR_LEG_KEEP`, `SS_GEAR_LEG_Z` (default 0.95 m): below the hip the cap is separate. Rebuilt with tunic `1.5 / 0.05` and legs `4.5 cm / 0.6`. Reimported headless (`setup_adf_soldier.py`, `setup_soldiers.py`, `apply_maf_camo.py`: all `ok: true`). The S096 uniform is backed up at `Build/SK_ADF_Uniform_G3_s096_backup.fbx` (local).
+- Producer's re-check after the change: "seems better. some odd animations and blue botches on MAF uniform." The blue patches are not in the camo textures (0 bluish pixels in `T_SS_MAF_G3_Shirt_co` / `Pants_co`); cause not found. The animation oddities are not diagnosed. Open.
+- Producer also reported Dry River assets with no back faces (rock ledges seen from behind, floating slabs over the creek). Not yet fixed.
+
+### Session 097 addendum 5 — full Quantum modular body for both sides (ADR-042 re-instated)
+
+Producer: "option 1 ... full quantum body for both aussie and MAF, then ADFRC textures, webbing, helmets over the top; alternative helmets / headsets / faces for the different classes too."
+- C++ (`SSTeam`): `ASSCharacterPartActor` gains `OpposingRetargetParts`, `bRetargetOpposingPose`, `OpposingRetargetMaterialOverrides`; the retarget tick is now `TickRetargetSet`, run for the friendly or the opposing set by viewer locality (the MAF Quantum modules are retargeted from the pawn pose exactly like the friendly ones). Built clean. Renamed `CVarHandIK` to `CVarFPHandIK` in `SSFirstPersonSubsystem.cpp`: it clashed with `SSHandIKMeshComponent.cpp` under an adaptive unity build (`check_unity_names.py` passes).
+- Assets (`Tools/Unreal/setup_quantum_soldier.py`, `Build/quantum_soldier_setup.json` ok): 3 ACR = Quantum head, rolled-sleeve shirt, trousers and arms in the **real ADFRC AMCU print** (`T_SS_Tile_AMCU`, a seamless patch cut from the G3 shirt sheet by `Tools/Textures/make_camo_tiles.py`), TBAS vest and Ops-Core helmet over it; MAF = the same Quantum modules in the original cream / terracotta / olive / khaki / brown print (`T_SS_Tile_MAF`), PASGT helmet and Peacekeeper vest over it. The G3 uniform is no longer used by either side.
+- Producer's in-game screenshots of the friendly soldier after the change show a person with a proper head, neck, hands and a fitted helmet: a clear improvement. Visible faults: the left hand is held open (the retarget's finger curl does not read), the AMCU tile has a faint stitch line and wrinkle shading repeating, and the soldier has no boots modelled by Quantum (boots come from the jeans module's feet).
+- MAF: renders and retargets (verified only on a prone/dead bot in `Docs/evidence/s097/models/q_enemy_1.png`); a standing MAF has not been captured and the PASGT/Peacekeeper fit on the Quantum torso is unmeasured.
+- **Variants plan (not built):** the pack has one head only, so per-class faces need more heads (Quantum cap `SM_Cap_Bege`, the Modern Insurgent heads, ADFRC boonie/PASGT/OpsCore helmets, headsets are baked into the Ops-Core). Next step is a data table of loadout slots (helmet, headwear, face, vest) selected by class.
+
+### Session 097 addendum 6 — friendly rank markers (first GUI pass item)
+
+Producer: a small chevron over each friendly soldier with the rank slide, the service level under it, and the player name only within 15 m or when the crosshair is on them.
+- New: `USSFriendlyMarkerState` (Core, client-local list of teammates), filled twice a second by `USSScoreboardSubsystem` (bridge); `USSFriendlyMarkerWidget` (SouthernSpearUI) draws a pool of 24 markers from live pawn positions. Same-side players only (viewer-relative, never replicated, ADR-017); bots, which have no service record, get a stable stand-in level 2..60 from their name, flagged `bPlaceholderLevel`, so the markers can be judged in bot matches.
+- First version flickered (producer: "keeps flickering around"): slots were reassigned by list order, the line-of-sight dimming toggled per frame and the auto-sized slot re-laid out. Fixed: a slot is owned by its soldier, line of sight is sampled 6 times a second and the opacity eased, fixed 180 x 96 slot, 30 Hz position smoothing. Captured: markers hold position across burst frames (`Docs/evidence/s097/gui/marker4_sheet.png`). Then enlarged, put on a dark plate with a brighter chevron and the anchor lowered to the head (`marker5_1.png`).
+- Seen also in the producer's scoped screenshots: the markers draw over the scope view; not yet suppressed. Junior ranks have no insignia device; the plate shows the number only.
+- `-SSShotUI` makes `-SSShotTimes` captures include the HUD.
+- NOT RUN: network/dedicated test, markers on the class-select, performance with 15 teammates, the broader GUI visual pass (HUD plates, menus, scoreboard), which is the next item.
+
+### Session 097 addendum 7 — HUD pass 1, smaller floating rank markers, AMCU crispness, hand grip
+
+Producer: base the GUI on the website and on what competing products do well; rank slides smaller, floating, no background. Then: AMCU "not as crisp and clean as the last model"; holding-the-barrel animation looks strange in third person.
+- **Rank markers:** plate removed, slide 22 px (was 34), level 11 pt, name 12 pt, chevron 10 x 8, shrinks with distance, text shadow only. Captured `Docs/evidence/s097/gui/hud1.png`: legible and unobtrusive on sand.
+- **HUD pass 1 (`SSPlayerHudWidget`):** health is now a large number with a 20-cell segmented bar on a light plate with a brass edge; ammo shows the weapon name, a 44 pt magazine count, the reserve and a row of magazine pips (one per round, capped at 30, going clay when the magazine is low); a pulsing clay edge wash below 30 % health. Palette unchanged from `Site/styles.css`. NOT done yet: compass, minimap and objective panel restyle, scoreboard, menus, hit markers, kill feed polish, stance and stamina readouts.
+- **AMCU crispness:** the tile was a 455 px crop upscaled to 1024 (soft) and cross-faded across its whole width (ghosting). Now a native-density 512 px tile with only a 14 % edge feather, tiled 5.0 / 5.5 times (was 2.2 / 2.6): smaller, sharper pattern. In-game look is greener than the old G3 sheet because the tile is cut from the G3 shirt's front panel, which is the greener part of the print; not yet colour-matched.
+- **Hand grip:** logged the retarget (`SSArmSolve`): the Quantum hand is already at the mannequin hand's position to 0.0 cm, so the problem is hand orientation and fingers, not reach. Added an experimental two-bone arm solve and hand-orientation match behind `ss.Char.ArmSolve` (default 0: it did not read better and I could not verify it); raised the finger curl from 55 to 80 degrees per joint. **The grip is not verified fixed**: the follow-camera captures catch the bots in reload, draw and sprint poses, so no clean standing-hold frame was seen. Needs a deliberate capture of a bot holding the handguard.
+
+### Session 097 addendum 8 — left-hand reach, HUD pass 2
+
+- **Grip (third person).** The mannequin's left wrist is solved onto the weapon's grip socket only when the socket is within `MaxReachFactor` (1.05) of the arm's length; beyond that the solve was skipped and the hand stayed in the animation pose, floating off the handguard (sprint/run frames, `Docs/evidence/s097/models/grip1_sheet.png`). The solve already clamps at full reach, so `MaxReachFactor=1.6` now lets it reach for the grip. Result: the hand lands on the weapon in 3 of 4 frames (`grip2_sheet.png`); the fourth is a reload/draw clip, where the IK is suppressed by design. Not yet checked: crouched and prone holds, other weapons (only the A88 has an authored nudge/tilt row; the AKM, PKM and others use the defaults).
+- **HUD pass 2** (`Docs/evidence/s097/gui/hud2.png`): rank markers hide while a magnified optic is up; the objective panel no longer repeats "round 1 starts in 7:14" twice before the round; compass strip loses most of its box and gets larger labels, a bolder centre notch and a brass heading; minimap gets a brass frame and is toned down; health, ammo and objective plates are darker so they read over bright sand.
+- **Not done:** scoreboard, kill feed, hit markers, menus, front end restyle; no in-scope capture of the marker hide (code path only).
+
+### Session 097 addendum 9 — AMCU print, per-class gear, MAF camo cap/vest, SVD and PKM, kill-feed names, boots
+
+- **AMCU (`Tools/Textures/make_camo_tiles.py`).** The tile was a feathered crop of the G3 sheet and still carried wrinkles and a stitch line, so each repeat ghosted ("not as crisp and clean as the last model"). Cropping, flattening and mirroring were tried (mirroring reads as ink-blots, `Docs/evidence/s097/models/amcu_tile_new.png` is the kept result). Now: the six colours are measured from a clean patch of the ORIGINAL ADFRC print (k-means) and the shapes rebuilt as layered periodic noise, cut sharply, with a fine weave. In-game it is crisp and clean (`gear1_sheet.png`). It is a rebuilt print in the original's colours, not the original pixels: the sheet cannot tile.
+- **Per-class headgear and body armour (3 ACR).** New `ISSCosmeticRoleReceiver` (Core), `FSSRoleGear` + `FriendlyRoleGear` map on `ASSCharacterPartActor` (Team), and `USSLoadoutSubsystem::Grant` tells the pawn's part actors the class after granting the kit. Fitted with `adfrc_gear_rig.py`: Rifleman OpsCore + TBAS (PC); Medic TeamWendy + TBAS CFA; Machine gunner Exfil + TBAS MG; Sniper boonie + TBAS Base; Grenadier OpsCore + TBAS CQB. The BRH converted to the NVG mount only and was dropped. Verified in game: log shows each bot's class gear, frames show the different helmets and rigs (`gear1_sheet.png`). Host/standalone only: kit choice is not replicated (R-22).
+- **MAF.** Helmet cover, belt and vest fabric wear the MAF blob camouflage instead of flat olive (`MI_MAF_CamoGear`, `gear2_maf_sheet.png`); blotches tightened (tiling 1.6/1.8 → 3.4/3.8, gear 3.0); AMCU tiling 5.0/5.5 → 3.0/3.3 once the print read too fine (`amcu_scale3.png`; kill feed confirmed in game: "AKM" and "SVD" for the other side, `boots-170.png`, `boots170.png`). Boots: the jeans mesh is one material with the boots in its top atlas band, so camouflage covered the boots; `apply_quantum_boots.py` builds `M_SS_QuantumTrousers` (boot band V < 0.245 draws the pack's leather texture). Run it after `setup_quantum_soldier.py`.
+- **MAF SVD and PKM** (producer drop, `Content/SVD`, `Content/PKM`): `maf_weapon.py` -> `Art/Weapons/MAF/SM_MAF_{SVD,PKM}.fbx` (1.225 m / 1.21 m, muzzle +X, side renders `SM_MAF_*_side.png`), `setup_maf_support_weapons.py` imports them (SVD PBR set at 2048; PKM flat metal/wood/brass/ammo-box colours: the pack has no textures). The viewer-relative swap now maps A25 -> SVD, A89 -> PKM, the rest -> AKM. PKM seen in MAF hands in game; **SVD not yet seen in game**. Neither has a LeftHandGrip socket, so the left-hand IK does not run for them (hands follow the animation).
+- **Kill feed.** For a viewer on the other side the killer's weapon reads AKM / PKM / SVD (A9 pistols unchanged). Display text only. Builds; not yet seen in game.
+- **Scoreboard** checked in game (`Docs/evidence/s097/gui/scoreboard1.png`): already in the site palette with brass rules, legible, no change needed; the rank column shows "–" for bots (the rank-marker placeholder level is not shown there yet). Kill feed shows "AKM" for MAF killers.
+- **Not done / next:** menu, front-end and hit-marker restyle; per-class faces; Quantum cap module (textures present in the pack) for a boonie/cap on non-helmet classes; MAF per-class gear; grip sockets for the MAF weapons.
+
+### Session 097 addendum 10 — headwear variants, camera recoil, F1 grenade model
+
+- **Headwear.** `FriendlyRoleGear` is now a set of options per class (`FSSRoleGearSet`); each soldier wears one, picked from the part actor's name so it is stable. Five more ADFRC pieces fitted with `adfrc_gear_rig.py` (Airframe, Exfil B, CVC, balaclava; the 135k-vertex OpsCore MT was skipped). Rifleman: OpsCore / Airframe / Exfil B / boonie; Medic: TeamWendy / boonie / Airframe; MG: Exfil / Airframe / CVC; Sniper: boonie / boonie + balaclava / Exfil B; Grenadier: OpsCore / CVC / Exfil. Seen in game (`headwear1.png`). Faces are still the pack's single head.
+- **Recoil.** New in `Core`: `FSSRecoilRules` (stance scale: aiming 0.7, crouched 0.85, moving 1.2; burst build-up +8 % a shot to 1.4; recovery), per-weapon `RecoilPitchDeg / RecoilYawDeg / RecoilRecoveryDegPerSec` on the weapon rows (`Config/DefaultGame.ini`; A88 0.55/0.22/7, A89 0.50/0.35/5, A417 0.95/0.30/5.5, A25 1.25/0.25/4, A9 1.10/0.35/9). **These are tuning choices, not measured or sourced** (see `Docs/NEXT_PRIORITIES.md` §5). `ASSCharacter::ApplyShotRecoil` (on the local player's fire cue only, bots untouched) adds the kick to the control rotation and 65 % of the climb settles back (`ss.Recoil.Scale`, 0 = off). Lyra's character does not tick, so `ASSCharacter` now enables its tick. Tests: `SouthernSpear.Core.Weapons.Recoil` passes (20 Core tests, 0 failures). In game, `SSRecoilTest 12` (new dev exec) logged a climb of 0.55 → 6.73 deg over 12 shots and a settle to 3.0 deg. **Not tested:** real shots with a real weapon (the exec calls the same function without firing), feel, per-weapon balance, server-side effect of recoil on hit registration.
+- **Grenade.** Grenade is **G** and melee **V**; Q/E are lean (`setup_tactical_movement.py` moved them off Q), so there is no clash. Lyra's `B_Grenade` is untouched; `USSGrenadeVisualSubsystem` swaps its mesh for the ADFRC F1 grenade (`Art/Weapons/Grenade/SM_F1_Grenade.fbx`, 6 x 6.4 x 10 cm, `setup_grenade.py`, colour and normal maps; `ss.Grenade.VisualScale` 1.3). Verified: `SSThrowGrenade` (new dev exec) activates `GA_Grenade`, the log shows the swap. **Not verified:** the model is hidden in the trail effect in flight (`grenade2.png`, `grenade_crop.png`), so its look is unseen; there is no first-person throw animation (Lyra has none), and the spoon, pin and fuse effect are not modelled.
+- **Next:** a held-grenade view/animation and a visible grenade for third person; recoil tuning with real firing; per-class faces; MAF per-class gear.
+
+### Session 097 addendum 11 — playtest fixes, baked G3 uniform, flags, crosshair
+
+- **Playtest findings (producer):** recoil felt absent (the fire cue did not reach the local player: recoil now follows the magazine count), snipers inaccurate (A25 `SpreadScale` 0.75 -> 0.2), Lyra hit markers (new `USSCrosshairWidget`: own crosshair, white X on a hit, clay X on a kill; Lyra reticles collapsed by class name), Minimi textures (45 weapon materials moved to `M_SS_WeaponPBR` with normal and SMDI maps; the Elcan lens was a white disc and is now dark glass), class preview showed one helmet (preview now applies the class gear), second silhouette in the owner's shadow (mannequin no longer casts).
+- **Uniform textures ("not the quality you have on file").** The tiled camouflage cannot carry pockets, knee pads, seams or the print's true scale. `Tools/Blender/bake_g3_to_quantum.py` bakes the authentic ADFRC G3 uniform (AMCU) onto the Quantum shirt, trousers and arms UVs (the two rigs share bone positions exactly, so no alignment). First attempt was black: clearing the parent dropped the armature transform; fixed with world-matrix preservation. In game the soldiers now show G3 pockets and knee pads (`bake_ingame2.png`). **Known weaknesses:** the bake is nearest-surface so some areas stream (stretched pattern), sleeves are muted, gaps are dilated rather than re-baked, and the look is flatter than the Arma reference (no separate under-shirt, no wrinkle normals).
+- **Flags.** `SK_ADF_FlagPatches` (Blender, curved patches on both upper arms, ADFRC flag texture) is in the class gear; not yet seen in game.
+- **Machine crash, 2026-10-05 ~08:17 (event log review).** A whole-system reset during a capture run (`head2.log` ends 08:17:54; Kernel-Power 41 with bugcheck 0 at the 08:36 reboot, no minidump written) with a burst of GPU watchdog reports (WER LiveKernelEvent 141, 116, 117, 193, 1a8). Same GPU on the same machine (AMD RX 9070 XT, driver 32.0.31044.16) blue-screened three times before with bugcheck 0x116 VIDEO_TDR_FAILURE (2026-07-26, 09-26, 09-28). Not an engine crash: this points at the graphics driver or hardware, with the game's GPU load as a trigger rather than a proven cause. Not yet tried: driver update or rollback, lighter capture settings. The last run's output (head close-ups) is unverified.
+- **Not fixed:** helmet clipping through the head (the fitted helmets were sized to the mannequin head), A88GL animations, per-class faces.
+
+### Session 097 addendum 12 — baked detail maps, EF88 magazine, shoulder patch
+
+- **Uniform detail.** The G3 normal (`_nohq`) and gloss (`_smdi`) sheets are baked onto the Quantum UVs too (`bake_g3_to_quantum.py` `SS_BAKE_CHANNEL`), colour contrast lifted 1.3x and gaps dilated (`Tools/Textures/finish_quantum_bake.py`), and the AMCU materials moved to the cloth master (`M_SS_FabricPBR`). Close-ups (`heads2.png`) show smeared fabric where the bake maps by nearest surface; not solved.
+- **Shoulder patch.** The G3 sheet has two black diamonds where a flag velcros on, so the shoulder rendered as a dark hole. They are filled with sleeve camouflage (`T_ADFRC_G3_Shirt_AmcuCamo.png`, original kept in `Build/`). The flag mesh was inside the sleeve (radius 5.5 cm against a measured 7-9 cm); rebuilt at 9.2 cm, 8.5 x 5.5 cm, V flipped onto the flag. **Not confirmed in game:** every capture caught the arm in motion.
+- **EF88 magazine.** The ADFRC EF88 model has an empty magwell. `adfrc_weapon.py` now seats the pack's own 30-round AUG magazine (`SS_MAG_BLEND`, set per weapon in `build_adfrc_weapons.py` `MAGAZINES`) at the `magazine_axis` memory point; A88 and A88G rebuilt and reimported (`SM_A88_side.png`). **Not done:** the reload animation. The magazine is part of the static mesh, so it stays in the rifle during a reload; making it come out and go back needs it as a separate mesh moved by the reload montage.
+- **A88G (launcher) hold.** Its `LeftHandGrip` socket is 28.4 cm forward, 6.3 cm to the left and 3.8 cm low (A88: 22.2 / 9.4 / 1.5), but only the A88 has an authored palm tilt and nudge in `DefaultGame.ini`, so the A88G hand sits where the A88's would. Not yet adjusted.
+
+## **Addendum 13 - Wandarra (the MOUT town) made playable.** The Fab MOUT pack ships no finished map (its demo is a cube arena, the other two are asset showcases); Wandarra is our own layout from its pieces. Defects found in game and fixed in `build_wandarra_level.py`: ground slab, player starts and nav volume were placed 100x too deep/high (metres vs cm); nav volume covered only 150 m of the 300 m site (bots reported 'start point not on navmesh', now 0); ground used the VT master that rendered solid red (now the Ravenshoe flat terrain instance); fences ran 90 degrees off; roads did not exist (now 11 bitumen/footpath slabs). `wandarra_dynamic_nav.py` sets the navmesh to build at load, so no attended bake is needed. Verified in game: bots path and fight toward objective A, fences correct. NOT DONE: it is still sparse (no trees beyond 38, no Australian trees, wrecks, logs, barricades), roads not yet seen from above, not in the front-end map list.
+
+**Addendum 14 - Wandarra dressed (producer: 'no roads, no buildings, fences wrong way, limited vegetation').** Imported the owned Fab Concrete Barrier, Metal Barricade and two Military Trenches sandbag meshes (`import_wandarra_fab_props.py`, `/Game/Art/Environment/Wandarra`; no props were created). `build_wandarra_level.py` now places 30 barricades/sandbag nests, 11 wrecks and drums, 16 logs, Australian gums + grass trees (RuralAustralia pack replaces the European beech) and 28 extra street-frontage buildings (17 bungalows, 11 houses in total). Added dev exec `SSFly x y z` for overview captures (top-down shot confirmed roads, buildings, trees). Wandarra is in the front-end operation list (no loading art yet). Fixed a unity-build clash (`Gap`) in SSCrosshairWidget.cpp. NOT DONE: interiors/doors, tuning of tree density and cover, loading-screen art, attended look review.
+
+## Session 098 — 2026-10-05 — Wandarra on real Australian ground, three-map watchtowers, and the five-day roll-up (Sessions 094-098)
+
+Producer: "ground textures / grass isn't rendering ... don't use any Blender assets or things you've created, there should be ample assets in our content library ... a watch tower ... on all maps, but not too many ... classic Aussie things in Wandarra, a kangaroo, a windmill on the corner ... update the changelogs with everything achieved over the last few days to give a big update to the website."
+
+**COMPLETED**
+- **Wandarra ground, roads, grass (map rebuilt from `Tools/Unreal/build_wandarra_level.py`).** The 300 m ground is now the RuralAustralia pack's own world-space grass instance (`MI_Ground_Grass_01`) on a slab, replacing the custom grass material built earlier in the session. Roads use the Fab "American Road with Parking Lot" Asphalt04 texture set on the AutomotiveBridge triplanar master (the previous cracked sheet read as white blotches). Ground cover is about 3,500 grass clumps (PN Grass Library) and 200 shrubs and flowers, now including the Namaqualand shrub and flower meshes. Before/after: `Docs/evidence/s097/wandarra/`.
+- **Australian landmarks in Wandarra, all from existing library assets:** the Fab windmill with its wheel (south-west lot), the Fab water tower (north-east, by the park), a RuralAustralia kangaroo road sign on the south entry, seven Fab kangaroos around the outskirts, plus the earlier gums, grass trees, fallen logs, wrecks and Fab barricades.
+- **Watchtowers (new Fab asset, `Tools/Unreal/import_watchtower.py`, `place_watchtowers.py`).** One on Dry River's ridge, one in the Red Gum timber, two on Wandarra (east edge, south-west scrub): few, on purpose. The glb imports as separate pieces sharing one scene offset; every placement spawns them at one transform so they reassemble.
+- **Capture tooling.** `Tools/quick_shot.sh` opens the game, takes one screenshot, closes it (no more long-running windows); `Tools/capture_wandarra.sh` uses it.
+- **Roll-up of the last five days (Sessions 094-098) for the website:**
+  - *Soldiers:* full Quantum modular body for 3 ACR and MAF with baked AMCU (colour, normal, gloss) and MAF tiles; per-class gear and per-soldier headwear (airframe, Exfil, CVC, boonie, balaclava); Australian flag patches on both shoulders; gloved first-person arms that sit lower in the view; slimmer tunic and legs.
+  - *Weapons and feel:* camera recoil from per-weapon rows, recoil following the magazine count, tighter sniper spread, left-hand grip reach, finger curl, EF88 magazine seated, SVD and PKM for MAF with kill-feed names, F1 grenade model.
+  - *HUD:* segmented health, ammo pips, compass, minimap frame, objective panel, friendly rank markers, new crosshair and hit markers, class gear in the class preview.
+  - *Maps:* Dry River homestead, outstations, fallen timber, kangaroo mobs and creek water (Session 097); Red Gum outstations and road signs; Wandarra (the MOUT town) playable with roads, fences, doors, barricades, Australian trees, dynamic navmesh and bots pathing, and in the front-end operation list.
+
+**FILES CHANGED** `Tools/Unreal/build_wandarra_level.py`, `setup_wandarra_surfaces.py`, `import_watchtower.py`, `place_watchtowers.py`, `wandarra_dynamic_nav.py`, `Tools/Common/wandarra_spec.py`, `Tools/quick_shot.sh`, `Tools/capture_wandarra.sh`, `Content/Maps/L_Wandarra_01.umap`, `L_DryRiver_01.umap`, `L_RedGum_01.umap`, `Content/Art/Environment/Wandarra/Materials`, `Content/Art/Environment/Watchtower`, `Site/index.html`, `Docs/evidence/s097/wandarra/`. Untracked (not committed): the new vendor packs (KiteDemo, Namaqualand, Nanite plants and others), as before.
+
+**TESTING**
+- `UnrealEditor-Cmd ... -ExecutePythonScript=Tools/Unreal/build_wandarra_level.py` exit 0; `Build/wandarra_level.json` all steps ok, no missing assets, grass_clumps 3483, shrubs 203. `setup_wandarra_surfaces.py` ok. `place_watchtowers.py` ok (15 pieces per tower).
+- In-game captures (`Tools/quick_shot.sh`, 20 s): ground, roads, grass, windmill and watchtowers confirmed in `Docs/evidence/s097/wandarra/{top,street,park,windmill,tower,tower_dryriver,tower_redgum}.png`.
+- NOT RUN: C++ build and automation suite this session (no C++ edits after the last commit); bots on the rebuilt Wandarra with the new props; Dry River and Red Gum navigation after the tower pieces (tower collision is the pieces' default).
+
+**ASSETS** Fab "Old Wooden Watchtower (House 3)" imported to `/Game/Art/Environment/Watchtower`; Fab Asphalt04 textures to `/Game/Art/Environment/Wandarra/Materials/Textures`. Reused: RuralAustralia ground MI, Fab windmill, water tower, kangaroo, Namaqualand foliage. Nothing newly modelled; the Blender barrier script was not used.
+
+**RISKS** R-98: Wandarra, Dry River and Red Gum reference untracked vendor packs (as R-83/R-85). R-99: a RuralAustralia Landscape (`MI_Landscape_Example_01`, any layer set, two grid sizes) rendered the engine checker grid in `-game` while the same material renders in the pack's own map; cause not found, so Wandarra uses a ground slab (no runtime grass layers). R-100: the watchtower is reached only by ladder and Lyra has no ladder climbing, so bots and players cannot use the towers yet.
+
+**DEFECTS FOUND** Checker-grid ground on the Landscape (producer screenshot). Roads blotchy white (producer screenshot). Capture runs left the game open for minutes (producer: "the player is in the same spot"): fixed by `quick_shot.sh`.
+
+**NEXT ACTION** Make the watchtowers usable: add a climb volume (or ramp from an owned asset) to the tower ladders and a bot route, then verify a sniper can hold the east Wandarra tower in a bot match.
+
+Open Threads
 
 | Item | Blocked on | Owner |
 |---|---|---|

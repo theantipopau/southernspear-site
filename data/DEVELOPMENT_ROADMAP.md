@@ -324,6 +324,7 @@ NEXT ACTION
 | Phase 0 | **Complete** — G0.8 passed; G0.9 blocked by engine distribution (R-09); G0.10 passed |
 | Phase 1 | **Active** — G1.1, G1.2, G2.0, G2.1 passed; SouthernSpearCore, SouthernSpearTeam and SouthernSpearObjectives built and tested; VS-12/VS-13 Objective Assault running on Dry River (`CHANGELOG.md` Session 008). Session 048: Section Assault (ADR-031) and VS-03 service record + ranks (ADR-032, `SouthernSpearProgression`) **written, not yet compiled** |
 | Phase 1 at 2026-10-05 (Session 098) | Slice playable on **Dry River, Red Gum and Wandarra** (Wandarra rebuilt Australian, watchtowers on three maps); Quantum soldiers for both factions, class gear, flag patches, camera recoil from per-weapon rows, HUD (health, ammo, compass, minimap, objectives, rank markers), SVD/PKM for MAF. **Open before the slice can close:** attended R-82 nav bake (Wandarra, Ravenshoe), Red Gum nav coverage, watchtower access (R-100), weapon zero and recoil from real data, VFX (flash, tracer, impacts), character visual acceptance. New unintegrated packs: mocap and weapon animations, damage indicators, open-world foliage (`ASSET_REGISTER` 4.9r) |
+| Later (producer-noted) | True 3D scopes (lens render target + per-optic ADFRC reticle), see `NEXT_PRIORITIES.md` section 10 |
 | Phases 2–6 | Not started |
 
 **Next action:** see the single NEXT ACTION in the latest `CHANGELOG.md` session.

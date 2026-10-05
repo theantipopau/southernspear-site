@@ -1,3 +1,151 @@
 {
-  "screenshots": []
+  "screenshots": [
+    {
+      "id": "shot-redgum-hud",
+      "title": "Red Gum, the player HUD",
+      "alt": "First-person view across a red-earth clearing under gum trees with the compass, minimap, objective panel, health and ammunition on screen.",
+      "map": "Red Gum",
+      "captured": "2026-10-05",
+      "session": "099",
+      "note": "Pre-alpha HUD; values are from a live bot match.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-redgum-hud-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-redgum-hud-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-redgum-watchtower",
+      "title": "Red Gum, the sniper tower",
+      "alt": "A timber watchtower standing among gum trees on red earth, seen from the ground over the barrel and optic of an A88.",
+      "map": "Red Gum",
+      "captured": "2026-10-05",
+      "session": "099",
+      "note": "The tower is walkable by a ramp; foliage is a pre-alpha pass.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-redgum-watchtower-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-redgum-watchtower-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-dryriver-watchtower",
+      "title": "Dry River, the ridge tower",
+      "alt": "A timber watchtower on a ridge above a red-earth slope with gum trees and an outstation in the distance.",
+      "map": "Dry River",
+      "captured": "2026-10-05",
+      "session": "099",
+      "note": "Pre-alpha; lighting and dressing are a work in progress.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-dryriver-watchtower-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-dryriver-watchtower-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-3acr-patrol",
+      "title": "3 ACR rifleman patrol",
+      "alt": "Three soldiers in Australian multicam-pattern uniform, helmets, headsets and webbing, moving past a white picket fence.",
+      "map": "Wandarra",
+      "captured": "2026-10-05",
+      "session": "099",
+      "note": "Character models are in progress; the uniform texture is soft at close range.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-3acr-patrol-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-3acr-patrol-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-maf-patrol",
+      "title": "MAF section",
+      "alt": "A section of Murasian Armed Forces soldiers in red, olive and cream disruptive camouflage, helmets with goggles, carrying AK-pattern rifles.",
+      "map": "Wandarra",
+      "captured": "2026-10-05",
+      "session": "099",
+      "note": "Fictional faction; uniform and gear are in progress.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-maf-patrol-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-maf-patrol-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-3acr-portrait",
+      "title": "3 ACR portrait",
+      "alt": "Close view of a soldier in a boonie hat with a boom microphone headset, white fence behind.",
+      "map": "Wandarra",
+      "captured": "2026-10-05",
+      "session": "099",
+      "note": "Character model in progress.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-3acr-portrait-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-3acr-portrait-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-maf-portrait",
+      "title": "MAF portrait",
+      "alt": "Close view of Murasian soldiers in camouflage helmets with goggles pushed up.",
+      "map": "Wandarra",
+      "captured": "2026-10-05",
+      "session": "099",
+      "note": "Character model in progress.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-maf-portrait-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-maf-portrait-1920"
+        }
+      ]
+    }
+  ]
 }

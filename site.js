@@ -454,6 +454,13 @@
     var collecting = false;
     text.split("\n").forEach(function (line) {
       var match = line.match(/^#{1,6}\s+(.*?)\s*$/);
+      // Recent sessions label their parts in bold capitals ("**NEXT ACTION** text"), not as headings.
+      var bold = !match && line.match(/^\*\*([A-Z][A-Z &\/-]*)\*\*\s*(.*)$/);
+      if (bold) {
+        collecting = normaliseHeading(bold[1]) === wanted;
+        if (collecting && bold[2]) out.push(bold[2]);
+        return;
+      }
       if (match) {
         if (collecting) { collecting = false; }
         // Headings in these documents are numbered, e.g. "## 2. Phase Summary".
@@ -727,7 +734,9 @@
         var value = cells[1] || "";
         if (!value) return;
         if (/^Phase\s+\d/.test(label)) {
-          states[label.match(/\d+/)[0]] = value;
+          // Dated rows ("Phase 1 at 2026-10-05") follow the phase's own row; the first one is the state.
+          var key = label.match(/\d+/)[0];
+          if (states[key] === undefined) states[key] = value;
         } else {
           var range = label.match(/^Phases?\s+(\d+)\s*[\u2013\u2014-]\s*(\d+)/);
           if (range) {

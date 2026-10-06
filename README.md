@@ -55,9 +55,7 @@ CSS filter rather than a second drawing. The favicon suite is generated from the
 producer-supplied multi-size icon (`Docs/images/SouthernSpear.ico`), the same file the game
 executable installs, so the browser tab and the game show one mark.
 
-The `weapons/` derivatives come from 3D studio renders made in the private repository with
-`Tools/Blender/render_weapons.py`. They are renders of the current internal models, not captured
-gameplay, and the site says so where they appear.
+The Loadout section uses the in-engine weapon captures in `Docs/images/screenshots/weapon-*.png`, built by the `screenshots` step like every other capture; they are presentation views of the models, not gameplay, and the site says so where they appear.
 
 The project's own camouflage — used on the character in the game — is generated from noise by
 `Tools/Textures/make_character_textures.py` and is original work, not a copy of any real-world

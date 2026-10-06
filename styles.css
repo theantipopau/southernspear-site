@@ -851,10 +851,8 @@ body[data-nav-open="true"] { overflow: hidden; }
 /* --------------------------------------------------------------------------
    10. Maps
    -------------------------------------------------------------------------- */
-/* Loadout — the project's own weapon renders. The renders carry alpha and
-   drop onto the band background, so a card only needs a hairline edge and a
-   soft wash behind the weapon. The frame is a button because the lightbox
-   reuses the trigger's resolved image source, as the media gallery does. */
+/* Loadout: in-engine captures of the weapon models, edge to edge in a 16:9 frame.
+   The frame is a button because the lightbox reuses the trigger's resolved image source. */
 .loadout {
   list-style: none;
   display: grid;
@@ -866,23 +864,25 @@ body[data-nav-open="true"] { overflow: hidden; }
   flex-direction: column;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-lg);
-  background:
-    radial-gradient(120% 90% at 50% 0%, rgba(200, 171, 114, 0.07), transparent 60%),
-    var(--ink-850);
+  background: var(--ink-850);
   overflow: hidden;
+  transition: border-color var(--dur-slow) var(--ease), transform var(--dur-slow) var(--ease);
 }
+.weapon:hover { border-color: rgba(200, 171, 114, 0.45); transform: translateY(-2px); }
 .weapon__frame {
   position: relative;
   display: block;
   width: 100%;
-  padding: 22px 18px 10px;
+  padding: 0;
   border: 0;
-  background: none;
+  background: var(--ink-900);
   cursor: zoom-in;
+  overflow: hidden;
 }
-.weapon__frame img { width: 100%; height: auto; transition: transform var(--dur-slow) var(--ease); }
-.weapon__frame:hover img { transform: scale(1.02); }
+.weapon__frame img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; transition: transform var(--dur-slow) var(--ease); }
+.weapon__frame:hover img { transform: scale(1.03); }
 .weapon__frame .showcase__zoom { bottom: 10px; }
+.weapon--maf { border-color: rgba(176, 94, 72, 0.35); }
 .weapon__body { padding: 6px 22px 24px; }
 .weapon__name {
   margin: 0 0 6px;
@@ -891,6 +891,24 @@ body[data-nav-open="true"] { overflow: hidden; }
   letter-spacing: 0.04em;
 }
 .weapon__role { margin: 0; color: var(--sand-200); font-size: 0.96rem; }
+
+/* In the engine: one large capture beside the firing clip and three facts. */
+.inengine { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.inengine__main {
+  position: relative; display: block; padding: 0; border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg); overflow: hidden; background: var(--ink-900); cursor: zoom-in;
+}
+.inengine__main img { display: block; width: 100%; height: auto; transition: transform var(--dur-slow) var(--ease); }
+.inengine__main:hover img { transform: scale(1.02); }
+.inengine__main .showcase__zoom { bottom: 12px; }
+.inengine__side { display: grid; gap: 18px; }
+.inengine__clip { margin: 0; border: 1px solid var(--line-soft); border-radius: var(--radius-lg); overflow: hidden; background: var(--ink-850); }
+.inengine__clip img { display: block; width: 100%; height: auto; }
+.inengine__clip figcaption { padding: 10px 14px; color: var(--sand-200); font-size: 0.88rem; }
+.inengine__facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.inengine__facts li { padding: 10px 0 0; border-top: 1px solid var(--line-soft); color: var(--sand-100); font-size: 0.94rem; }
+.inengine__facts strong { color: var(--brass-300, var(--sand-100)); }
+@media (max-width: 900px) { .inengine { grid-template-columns: 1fr; } }
 
 .map-grid { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
 .map-card {

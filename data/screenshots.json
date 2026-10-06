@@ -1,6 +1,19 @@
 {
   "screenshots": [
     {
+      "id": "shot-gameplay-fire.webp",
+      "title": "Firing the A88, Red Gum",
+      "alt": "A short looping clip from first person: an A88 fires across a red-earth clearing, with muzzle flash and a tracer, and the ammunition count falling on the HUD.",
+      "map": "Red Gum",
+      "captured": "2026-10-05",
+      "session": "099",
+      "note": "Pre-alpha; a looping clip of about a second, no audio.",
+      "width": 800,
+      "height": 450,
+      "animated": "assets/screenshots/shot-gameplay-fire.webp",
+      "files": []
+    },
+    {
       "id": "shot-redgum-hud",
       "title": "Red Gum, the player HUD",
       "alt": "First-person view across a red-earth clearing under gum trees with the compass, minimap, objective panel, health and ammunition on screen.",

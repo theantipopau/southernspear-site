@@ -8180,3 +8180,7 @@ Producer: update the asset register, the backend documents and the changelog, th
 - **Weapon stills.** New dev command `SSShowMesh <asset> <distance> <yaw> <elevation> [fov]` floats a weapon mesh above the pawn and frames it with the orbit camera (negative distance = multiples of the bounds radius). `Tools/promo_shots.sh weapons` renders all ten weapons (A88, A88G, A89, A4, A416, A25, A9, MAF SVD, PKM, AK) against the sky; the earlier first-person weapon shots with a power pole in frame are gone.
 - **Site.** Ten weapon renders added to the in-engine gallery (17 captures total, each captioned and dated; the weapon ones are labelled "Model view", not gameplay). Checked in a local preview before publishing: all 17 images load.
 - **Not done:** the firing GIF is not on the site (the gallery takes stills only); knee rolls on the MAF trousers; EF88 reload animation; zero and recoil from real data.
+
+### Session 099 addendum 6 - firing clip on the site (2026-10-06)
+
+- The Red Gum firing GIF (18 frames, 800x450) is now an animated WebP (1.7 MB, against 4.7 MB as a GIF) and leads the in-engine gallery, labelled "In-engine clip". `Tools/build_site_assets.py` copies a `.webp` manifest entry as is and records `animated` in `Site/data/screenshots.json`; `Site/site.js` plays it in a loop with no resized derivatives. Gallery is 18 items. Checked in a local preview (all 18 images load; the clip is 800x450). The clip is about a second long and silent.

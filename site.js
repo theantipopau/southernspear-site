@@ -847,8 +847,8 @@
     shots.forEach(function (shot, index) {
       // Each file carries its real pixel width, smallest first.
       var files = (shot.files || []).slice().sort(function (a, b) { return a.width - b.width; });
-      if (!files.length) return;
-      var largest = files[files.length - 1].path;
+      if (!files.length && !shot.animated) return;
+      var largest = shot.animated ? shot.animated.replace(/\.webp$/, "") : files[files.length - 1].path;
       var srcset = function (ext) {
         return files.map(function (f) { return f.path + "." + ext + " " + f.width + "w"; }).join(", ");
       };
@@ -859,15 +859,15 @@
       var item = el("li", "gallery__item" + (index === 0 ? " gallery__item--wide" : ""));
       var button = el("button", "gallery__btn");
       button.type = "button";
-      button.setAttribute("data-lightbox-src", largest + ".jpg");
+      button.setAttribute("data-lightbox-src", largest + (shot.animated ? ".webp" : ".jpg"));
       button.setAttribute("data-lightbox-alt", shot.alt);
       button.setAttribute("data-lightbox-caption",
-        shot.title + " — in-engine capture, pre-alpha build. " + where + "." +
+        shot.title + (shot.animated ? " — in-engine clip, pre-alpha build. " : " — in-engine capture, pre-alpha build. ") + where + "." +
         (shot.note ? " " + shot.note : ""));
 
       var picture = el("picture");
       var sizes = index === 0 ? "(max-width: 1240px) 100vw, 1240px" : "(max-width: 700px) 100vw, 420px";
-      ["avif", "webp"].forEach(function (ext) {
+      (shot.animated ? [] : ["avif", "webp"]).forEach(function (ext) {
         var source = el("source");
         source.type = "image/" + ext;
         source.srcset = srcset(ext);
@@ -875,8 +875,8 @@
         picture.appendChild(source);
       });
       var img = el("img");
-      img.src = files[0].path + ".jpg";
-      img.srcset = srcset("jpg");
+      img.src = shot.animated || files[0].path + ".jpg";
+      if (!shot.animated) img.srcset = srcset("jpg");
       img.sizes = sizes;
       img.width = shot.width;
       img.height = shot.height;
@@ -887,7 +887,7 @@
       button.appendChild(picture);
 
       var meta = el("span", "gallery__meta gallery__meta--capture");
-      meta.appendChild(el("span", "badge badge--capture", "In-engine"));
+      meta.appendChild(el("span", "badge badge--capture", shot.animated ? "In-engine clip" : "In-engine"));
       var text = el("span", "gallery__meta-text");
       text.appendChild(el("span", "gallery__meta-title", shot.title));
       text.appendChild(el("span", "gallery__meta-where", where));

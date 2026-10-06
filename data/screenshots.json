@@ -1,23 +1,23 @@
 {
   "screenshots": [
     {
-      "id": "shot-dryriver-hud",
-      "title": "Dry River, the restyled HUD",
-      "alt": "First-person view across a red-earth plain with gum trees under a cloudy sky: a slate minimap top left, a compass across the top, an objectives panel top right, health and a four-soldier squad roster bottom left and the A88's silhouette with a 30 round magazine bottom right.",
-      "map": "Dry River",
+      "id": "shot-redgum-a25-hud",
+      "title": "Red Gum, the A25 and the new HUD",
+      "alt": "First-person view through gum trees and spinifex on red earth, an A25 marksman rifle in a two-handed hold at the bottom right, a teammate running ahead, with the compass, slate minimap, objectives panel, health, four-soldier squad roster and A25 ammunition on screen.",
+      "map": "Red Gum",
       "captured": "2026-10-06",
       "session": "100",
-      "note": "Pre-alpha HUD, restyled to the project's concept; the squad roster shows the four most senior friendly soldiers until squads exist.",
+      "note": "Pre-alpha, captured at 1440p by the producer; the squad roster shows the four most senior friendly soldiers until squads exist.",
       "width": 1920,
-      "height": 1080,
+      "height": 1074,
       "files": [
         {
           "width": 960,
-          "path": "assets/screenshots/shot-dryriver-hud-960"
+          "path": "assets/screenshots/shot-redgum-a25-hud-960"
         },
         {
           "width": 1920,
-          "path": "assets/screenshots/shot-dryriver-hud-1920"
+          "path": "assets/screenshots/shot-redgum-a25-hud-1920"
         }
       ]
     },

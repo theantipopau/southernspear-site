@@ -1,6 +1,69 @@
 {
   "screenshots": [
     {
+      "id": "shot-weapon-a4",
+      "title": "A4 carbine",
+      "alt": "A black AR-pattern carbine with an ACOG-style optic, rail handguard and a 30-round magazine, against a blue sky.",
+      "map": "Model view",
+      "captured": "2026-10-06",
+      "session": "100",
+      "note": "In-engine model of the carbine; a presentation view, not gameplay.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-weapon-a4-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-weapon-a4-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-weapon-a416",
+      "title": "A416 rifle",
+      "alt": "A black piston-driven rifle with an ACOG-style optic, long rail, adjustable stock and a 30-round magazine, against a blue sky.",
+      "map": "Model view",
+      "captured": "2026-10-06",
+      "session": "100",
+      "note": "In-engine model of the rifle; a presentation view, not gameplay.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-weapon-a416-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-weapon-a416-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-weapon-a25",
+      "title": "A25 marksman rifle",
+      "alt": "A tan marksman rifle with a thermal-style scope, rail handguard, fixed stock and a magazine, against a blue sky.",
+      "map": "Model view",
+      "captured": "2026-10-06",
+      "session": "100",
+      "note": "In-engine model of the designated marksman rifle; a presentation view, not gameplay.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-weapon-a25-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-weapon-a25-1920"
+        }
+      ]
+    },
+    {
       "id": "shot-gameplay-fire.webp",
       "title": "Firing the A88, Red Gum",
       "alt": "A short looping clip from first person: an A88 fires across a red-earth clearing, with muzzle flash and a tracer, and the ammunition count falling on the HUD.",
@@ -220,69 +283,6 @@
         {
           "width": 1920,
           "path": "assets/screenshots/shot-weapon-a89-1920"
-        }
-      ]
-    },
-    {
-      "id": "shot-weapon-a4",
-      "title": "A4 carbine",
-      "alt": "A black AR-pattern carbine with an ACOG-style optic and rail handguard, against a blue sky.",
-      "map": "Model view",
-      "captured": "2026-10-05",
-      "session": "099",
-      "note": "In-engine model of the carbine; a presentation view, not gameplay.",
-      "width": 1920,
-      "height": 1080,
-      "files": [
-        {
-          "width": 960,
-          "path": "assets/screenshots/shot-weapon-a4-960"
-        },
-        {
-          "width": 1920,
-          "path": "assets/screenshots/shot-weapon-a4-1920"
-        }
-      ]
-    },
-    {
-      "id": "shot-weapon-a416",
-      "title": "A416 rifle",
-      "alt": "A black piston-driven rifle with an ACOG-style optic, long rail and adjustable stock, against a blue sky.",
-      "map": "Model view",
-      "captured": "2026-10-05",
-      "session": "099",
-      "note": "In-engine model of the rifle; a presentation view, not gameplay.",
-      "width": 1920,
-      "height": 1080,
-      "files": [
-        {
-          "width": 960,
-          "path": "assets/screenshots/shot-weapon-a416-960"
-        },
-        {
-          "width": 1920,
-          "path": "assets/screenshots/shot-weapon-a416-1920"
-        }
-      ]
-    },
-    {
-      "id": "shot-weapon-a25",
-      "title": "A25 marksman rifle",
-      "alt": "A tan marksman rifle with a thermal-style scope, rail handguard and fixed stock, against a blue sky.",
-      "map": "Model view",
-      "captured": "2026-10-05",
-      "session": "099",
-      "note": "In-engine model of the designated marksman rifle; a presentation view, not gameplay.",
-      "width": 1920,
-      "height": 1080,
-      "files": [
-        {
-          "width": 960,
-          "path": "assets/screenshots/shot-weapon-a25-960"
-        },
-        {
-          "width": 1920,
-          "path": "assets/screenshots/shot-weapon-a25-1920"
         }
       ]
     },

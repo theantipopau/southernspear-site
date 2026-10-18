@@ -2,9 +2,16 @@
 
 **Document ID:** `Docs/DEVELOPMENT_ROADMAP.md`
 **Status:** Phase 1 active
-**Last updated:** 2026-10-05
+**Last updated:** 2026-10-07
+**Document origin:** Phase 0 baseline, updated through Session 100
+**Current authority:** Active sequencing (rank 6 in the source-of-truth order of `Docs/CURRENT_STATE.md`); never overrides an accepted ADR
+**Last reconciled:** 2026-10-07
+**Reconciled through ADR:** ADR-044 (proposed)
+**Historical sections retained:** Yes
 
 > **Fictional entertainment project.** Not endorsed, developed or approved by the Australian Defence Force, the Department of Defence or the Australian Army.
+
+> **Current position (2026-10-07).** This roadmap sequences work; it does not override an accepted ADR or `Docs/CURRENT_STATE.md`. Three of its Phase 1 exit tests are not met today and must not be read as passed. **VS-10** (forged client damage is rejected): not met; Lyra's server accepts client hit data unchecked (R-106, proposed ADR-044). **VS-14 and VS-15** (a server target builds; a packaged client joins a packaged dedicated server): blocked by the engine distribution (R-09). That criterion is not weakened here. The options are (1) obtain a server-capable Unreal distribution, (2) build Unreal from source, or (3) accept listen-server verification as an explicit, temporary milestone while a packaged dedicated server stays a release gate; none is chosen (`Docs/CURRENT_STATE.md` section 7). ADR-008 (placeholders only until the vertical slice) is in force on paper but the producer has directed art-first work since 2026-09-27; see the ADR index.
 
 ---
 
@@ -50,6 +57,8 @@ Networking, team presentation, authority and persistence are expensive to get wr
 5. Create the `SouthernSpear*` plugin skeleton
 
 **Exit:** a successful editor compile is recorded. If Lyra does not compile, switch to the fallback in TDD §1.1 and log it as a decision.
+
+> **Current position (2026-10-07).** The Phase-0 checklist above is the original baseline wording. The gates it describes are recorded as passed elsewhere: G0.8 in `Docs/PROJECT_AUDIT.md` section 6 (editor compile succeeded at `01c4a982`); G0.9 is blocked by the engine distribution (R-09); G0.10 and G1.1/G1.2 and G2.0/G2.1 are recorded as passed in `Docs/PROJECT_AUDIT.md` section 6. The roadmap sequences work and does not override those records; it does not repeat them here for space. Do not read the checklist above as currently outstanding.
 
 ---
 
@@ -329,3 +338,65 @@ NEXT ACTION
 | Phases 2–6 | Not started |
 
 **Next action:** see the single NEXT ACTION in the latest `CHANGELOG.md` session.
+
+---
+
+## 14. PROPOSED playable-build milestone (not a schedule; not a decision)
+
+> **Status: PROPOSED (E0).** This is a documentation aid: a single, concrete, testable milestone a future session could aim at. It is not a schedule, not a producer decision, and not a claim that any of it is implemented. Choosing the map, mode and weapon set is the producer's decision; the options below are listed only where project evidence supports them.
+
+**Purpose:** have one labelled milestone that is small enough to be real and complete enough to mean something, rather than "the vertical slice" as a vague catch-all.
+
+### 14.1 What the milestone would contain
+
+- **One map.** Candidates with evidence in the project: **Dry River** (vertical-slice test bed; dressed; baked once interactively; audit 3 pass / 6 fail), **Saltbush** (built; audit 7 pass / 3 fail; the strongest measured map), **Selat Canal** (built; audit 5 pass / 5 fail; best close-quarters geometry, worst objective placement), **Wandarra** (built and dressed; playable with bots; nav not baked — R-82), **Ravenshoe Crossing** (built and dressed; nav not baked — R-82). No map is producer-accepted. The milestone picks one; everything else is outside it unless explicitly selected.
+- **One game mode.** Candidates: **Objective Assault** (ADR-018, implemented and running on Dry River) or **Section Assault** (ADR-031, `?Rules=Section`, one life per round, attack/defend, first to five). Both run on the same director. The milestone picks one.
+- **8v8 structure.** Two squads of four per team, sixteen soldiers a match. **No squad model exists today** (`Docs/SQUAD_AND_TEAM_DESIGN.md`, E0). This milestone describes the intended structure; it does not claim a squad system exists. Until a squad model is built, the milestone would be 16 players per match with the placeholder roster, and the squad layer is explicitly DEFERRED.
+- **A small representative weapon set.** A representative set from current evidence would be one bullpup (A88), one support weapon (A89/F89 stand-in or its MAF counterpart), one carbine (A4 or A416), one marksman (A25) and one sidearm (A9), plus the MAF counterparts that share gameplay data where the rules say so (ADR-004). That is a representative set, not the full planned set; A417 has a stats row but no mesh/weapon asset and is inactive. Weapon balance is not touched by this milestone.
+- **A complete match loop.** Create/join (or quick play), deploy, play the objective, round end or match end, scoreboard, post-round summary, XP/rank/qualification record to the dev-only local profile, back to the front end. The loop is partial today (for example Objective Assault does not end a match — R-54).
+- **Functional settings appropriate to the milestone.** At minimum: team presentation resolves for both sides from each perspective; loadout select works; settings that exist persist; the HUD shows health, ammo, compass, minimap, objectives and rank markers as currently built; accessibility settings that exist are reachable. Settings that do not exist are not claimed.
+- **A packaged client.** Not an editor build, not PIE, not a listen server. A cooked and packaged `SouthernSpear Win64 Shipping` client that starts, loads the chosen map and plays the chosen mode. **No packaged build has been verified** (`Docs/RELEASE_AND_PACKAGING_PLAN.md`).
+- **Explicitly described multiplayer test coverage.** For the chosen mode and map, from both team perspectives, on a listen server in the editor and/or a packaged dedicated server once R-09 allows one: forged-hit rejection (R-106 / proposed ADR-044), replay and reconnect where implemented, information-leak checks on spectator/kill feed/post-round, and bot/human join-in-progress where implemented. Coverage is named per test; it is not implied by a successful build.
+
+### 14.2 What is explicitly outside this milestone
+
+- Any second map, second mode, vehicle mode (Convoy Interdiction is deferred — LYRA_ADOPTION D-06), the full 15-weapon set, full animation sets, full audio/VFX, full accessibility set, EOS/online services, a real persistence backend, anti-cheat, admin tooling, and the dedicated-server route until R-09 is resolved. These are real work; they are not part of this one milestone.
+
+### 14.3 Two parallel workstreams
+
+This milestone is best read as two streams that must both move. They are not the same work and should not be collapsed.
+
+**PRESENTATION stream**
+- Weapon handling and animation (A88/A88G first, then the rest; reloads, hold, ADS, fire/recoil, sprint/crouch transitions; first and third person as separate acceptance surfaces).
+- Characters and hands (Quantum body acceptance, gloves, silhouette, first-person arms, third-person presentation; ADR-042).
+- HUD and interface (restyled HUD, squad roster when the squad model exists, scoreboard, settings and accessibility UI).
+- Audio and VFX (weapon recordings in use for the A88 family; flash, tracer, impacts, mechanical sounds against the reload events, mix review).
+- Environment presentation (chosen map dressed and visually reviewed; materials, lighting, props; nothing that changes gameplay).
+
+**ENGINEERING stream**
+- Hit validation and forged-hit rejection (R-106, proposed ADR-044, network tests from both perspectives).
+- Packaging (cooked client, missing-reference scan, content validation, credits/licence report).
+- Dedicated-server route (R-09 — engine distribution, source build, or an explicit producer decision to accept listen-server verification as a labelled temporary milestone while a packaged dedicated server stays a release gate).
+- Persistence (dev-only local JSON today; a player-facing backend is undecided; save migration must be proven).
+- Performance (measured against accepted budgets on the chosen map and player/bot load; not the editor viewport).
+- Multiplayer verification (listen server and, when available, dedicated server; latency/jitter/packet-loss profiles; join-in-progress; spectator and kill-feed leakage).
+
+Both streams must be at the evidence level the milestone requires before the milestone is claimed. A strong presentation stream with no hit validation is not multiplayer-ready; a strong engineering stream with no accepted look is not visually accepted.
+
+### 14.4 Public-release blockers that stay visible
+
+Nothing in this milestone weakens the existing release criteria. The blockers that remain until a public multiplayer test may run:
+- Server-validated hits and lag compensation (R-106, proposed ADR-044).
+- A dedicated-server route, or an explicit producer decision to accept listen-server verification for now (R-09).
+- A packaged build that cooks, loads every shipped map and passes missing-reference checks (`Docs/RELEASE_AND_PACKAGING_PLAN.md`).
+- Register integrity green (`python Tools/validate_project_docs.py`).
+
+### 14.5 What choosing this milestone would require from the producer
+
+1. Which map.
+2. Which mode.
+3. Whether the 8v8/squad structure is part of the milestone or deferred.
+4. Which weapon set is representative enough.
+5. Whether the milestone target is a packaged client, and whether listen-server verification is acceptable for now.
+
+Until those are decided, this is a PROPOSED milestone, not an active target.

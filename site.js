@@ -235,16 +235,32 @@
   /* ------------------------------------------------------- scroll reveal */
 
   function initReveal() {
+    // Tag the content blocks once, here, so the markup stays plain and a no-JS visitor sees everything at once.
+    Array.prototype.forEach.call(document.querySelectorAll(
+      "main .section__head, main .pillar, main .weapon, main .map-card, main .card, main .gallery__item, main .faq__item, main .showcase, main .inengine, main .pulse, main .status-grid > *, main .session"
+    ), function (n) { if (!n.closest(".hero")) n.classList.add("reveal"); });
     var targets = document.querySelectorAll(".reveal");
     if (!("IntersectionObserver" in window)) {
       Array.prototype.forEach.call(targets, function (n) { n.classList.add("is-in"); });
       return;
     }
     var io = new IntersectionObserver(function (entries) {
+      // Items that arrive in the same pass cascade in, 70ms apart, so a row of cards settles rather than pops.
+      var n = 0;
       entries.forEach(function (entry) {
         if (entry.isIntersecting) {
-          entry.target.classList.add("is-in");
-          io.unobserve(entry.target);
+          entry.target.style.transitionDelay = Math.min(n++, 6) * 70 + "ms";
+          var t = entry.target;
+          t.classList.add("is-in");
+          io.unobserve(t);
+          // Once settled, hand the element back to its own hover transitions.
+          var done = function (e) {
+            if (e.target !== t || e.propertyName !== "opacity") return;
+            t.removeEventListener("transitionend", done);
+            t.classList.remove("reveal", "is-in");
+            t.style.transitionDelay = "";
+          };
+          t.addEventListener("transitionend", done);
         }
       });
     }, { rootMargin: "0px 0px -6% 0px", threshold: 0.06 });
@@ -1254,6 +1270,14 @@
 
       // The full log moved to changelog.html, so an old /#session-NNN link
       // forwards there instead of failing silently on the home page.
+      // Sections that moved to their own pages forward the same way.
+      var moved = { training: "how-it-plays.html", operations: "how-it-plays.html", media: "gallery.html", "capture-gallery": "gallery.html",
+        development: "roadmap.html", roadmap: "roadmap.html", latest: "roadmap.html" };
+      if (moved[id] && !document.getElementById(id)) {
+        window.location.replace(window.location.pathname.replace(/[^/]*$/, moved[id]) + "#" + id);
+        return;
+      }
+
       if (/^session-/.test(id) && !document.getElementById(id)) {
         window.location.replace(
           window.location.pathname.replace(/[^/]*$/, "changelog.html") + "#" + id);

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#07100B">
+
+<title>How a match plays — Southern Spear</title>
+<meta name="description" content="How Southern Spear plays: the training and qualification framework, and one match seen from two perspectives. Pre-alpha design, in active development.">
+<link rel="canonical" href="https://theantipopau.github.io/southernspear-site/how-it-plays.html">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Southern Spear">
+<meta property="og:locale" content="en_AU">
+<meta property="og:title" content="How a match plays — Southern Spear">
+<meta property="og:description" content="How Southern Spear plays: the training and qualification framework, and one match seen from two perspectives. Pre-alpha design, in active development.">
+<meta property="og:url" content="https://theantipopau.github.io/southernspear-site/how-it-plays.html">
+<meta property="og:image" content="https://theantipopau.github.io/southernspear-site/assets/social/social-preview-1200x630.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Southern Spear key art: a soldier overlooking a red-earth valley at sunset beneath a brass-framed emblem of Australia, the Southern Cross and a spear.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="How a match plays — Southern Spear">
+<meta name="twitter:description" content="How Southern Spear plays: the training and qualification framework, and one match seen from two perspectives. Pre-alpha design, in active development.">
+<meta name="twitter:image" content="https://theantipopau.github.io/southernspear-site/assets/social/social-preview-1200x630.jpg">
+
+<link rel="icon" href="assets/favicon.ico" sizes="16x16 24x24 32x32 48x48">
+<link rel="icon" href="assets/favicon-192.png" type="image/png" sizes="192x192">
+<link rel="icon" href="assets/favicon-512.png" type="image/png" sizes="512x512">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+
+<link rel="preload" href="fonts/fonts.css" as="style">
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header" id="site-header" data-nav-state="top">
+  <div class="site-header__inner">
+    <a class="brand" href="index.html">
+      <img class="brand__mark" src="assets/brand/southern-spear-emblem-128.png" alt="" width="128" height="94" decoding="async">
+      <span class="brand__text">
+        <span class="brand__name">Southern Spear</span>
+        <span class="brand__meta">Pre&#8209;alpha</span>
+        <span class="u-visually-hidden">&#8212; back to the home page</span>
+      </span>
+    </a>
+
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">
+      <span class="nav-toggle__bars" aria-hidden="true"><span></span><span></span><span></span></span>
+      <span class="nav-toggle__label">Menu</span>
+    </button>
+
+    <nav class="primary-nav" id="primary-nav" aria-label="Primary">
+      <ul class="primary-nav__list">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="how-it-plays.html" aria-current="page">How it plays</a></li>
+        <li><a href="gallery.html">Gallery</a></li>
+        <li><a href="roadmap.html">Roadmap</a></li>
+        <li><a href="changelog.html">Changelog</a></li>
+        <li><a href="index.html#faq">FAQ</a></li>
+      </ul>
+      <div class="primary-nav__aside">
+        <a class="btn btn--brass btn--sm" href="https://discord.gg/GHNCFQrDND" rel="noopener">Discord</a>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <div class="page-head">
+    <div class="shell">
+      <p class="eyebrow">How it plays</p>
+      <h1 class="section__title">Training, roles and one match from two sides</h1>
+      <p class="section__lede">The design in more detail: how a player qualifies for each weapon and role, and how the same match reads from either side of the line.</p>
+      <p class="page-head__meta">Southern Spear is pre&#8209;alpha. This describes the design and what is built so far; the <a href="roadmap.html">roadmap</a> shows what is proven.</p>
+    </div>
+  </div>
+
+  <!-- ========================= TRAINING ========================= -->
+  <section class="section" id="training" aria-labelledby="training-title">
+    <div class="shell">
+      <header class="section__head">
+        <p class="eyebrow">Train</p>
+        <h2 id="training-title" class="section__title">Training and qualification framework</h2>
+        <p class="section__lede">
+          Five modules, each granting specific roles. Leadership cannot be reached by skill alone in a
+          firing range, and a qualification you have earned is never invalidated by a server being down.
+        </p>
+      </header>
+
+      <ol class="module-list">
+        <li class="module">
+          <p class="module__num" aria-hidden="true">01</p>
+          <div>
+            <h3 class="module__title">Induction</h3>
+            <p class="module__grants">Grants basic rifleman access</p>
+            <p>Movement, interaction, HUD, stance, communication and rules of engagement.</p>
+          </div>
+        </li>
+        <li class="module">
+          <p class="module__num" aria-hidden="true">02</p>
+          <div>
+            <h3 class="module__title">Weapons Qualification</h3>
+            <p class="module__grants">Grants Automatic Rifleman, Marksman</p>
+            <p>Familiarisation, controlled pairs, supported firing, reloading and fire&#8209;mode selection. Scored.</p>
+          </div>
+        </li>
+        <li class="module">
+          <p class="module__num" aria-hidden="true">03</p>
+          <div>
+            <h3 class="module__title">Support Weapons Qualification</h3>
+            <p class="module__grants">Grants Section Support Gunner</p>
+            <p>Bipod handling, deployment, suppression and ammunition management. Scored.</p>
+          </div>
+        </li>
+        <li class="module">
+          <p class="module__num" aria-hidden="true">04</p>
+          <div>
+            <h3 class="module__title">Field Skills</h3>
+            <p class="module__grants">Grants Medic</p>
+            <p>Navigation, observation, friendly and opposing identification, objective interaction and basic medical treatment.</p>
+          </div>
+        </li>
+        <li class="module">
+          <p class="module__num" aria-hidden="true">05</p>
+          <div>
+            <h3 class="module__title">Leadership Qualification</h3>
+            <p class="module__grants">Grants Fireteam Leader, Section Commander</p>
+            <p>Fireteam command, waypoint and order placement, radio procedure and objective planning.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="card-grid card-grid--3">
+        <article class="card">
+          <h3 class="card__title">Role prerequisites</h3>
+          <p>Rifleman and Grenadier are open after Induction. Support Gunner, Marksman and Medic are limited to two per section. Fireteam Leaders and Section Commanders are limited to one per fireteam and section.</p>
+        </article>
+        <article class="card">
+          <h3 class="card__title">Read silhouettes, not colours</h3>
+          <p>Identification training is explicit, because contextual appearance is only safe if players are trained to read silhouettes and insignia rather than colour.</p>
+        </article>
+        <article class="card">
+          <h3 class="card__title">Stated failure conditions</h3>
+          <p>Failure conditions are stated clearly before an exercise starts, and accessibility options are available throughout.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ========================= OPERATIONS ========================= -->
+  <section class="section section--band" id="operations" aria-labelledby="operations-title">
+    <div class="shell">
+      <header class="section__head">
+        <p class="eyebrow">Operate</p>
+        <h2 id="operations-title" class="section__title">One match, two perspectives</h2>
+        <p class="section__lede">
+          Both teams are mechanically identical. Only the presentation differs, and only per viewer.
+        </p>
+      </header>
+
+      <div class="mirror" role="img"
+           aria-label="Diagram. On Team One's screen, Team One appears as 3 ACR and Team Two appears as the Murasian Armed Forces. On Team Two's screen the arrangement is exactly reversed. Both teams are mechanically identical.">
+        <div class="mirror__side">
+          <p class="mirror__who">Team One&rsquo;s screen</p>
+          <p class="chip chip--friendly"><span class="chip__key">Team One</span> 3 ACR</p>
+          <p class="chip chip--opposing"><span class="chip__key">Team Two</span> MAF</p>
+        </div>
+        <p class="mirror__axis" aria-hidden="true"><span>Same match</span></p>
+        <div class="mirror__side">
+          <p class="mirror__who">Team Two&rsquo;s screen</p>
+          <p class="chip chip--friendly"><span class="chip__key">Team Two</span> 3 ACR</p>
+          <p class="chip chip--opposing"><span class="chip__key">Team One</span> MAF</p>
+        </div>
+      </div>
+
+      <div class="faction-grid">
+        <article class="faction faction--friendly">
+          <p class="faction__label">How you see your own team</p>
+          <h3 class="faction__title">3rd Battalion, Australian Commonwealth Regiment</h3>
+          <p>Conventional infantry of the fictional Commonwealth Land Service.</p>
+          <dl class="kv">
+            <div><dt>Primary weapon</dt><dd>A88 Standard Service Rifle</dd></div>
+            <div><dt>Uniform</dt><dd>CMECU</dd></div>
+            <div><dt>Organisation</dt><dd>Commonwealth Defence Service</dd></div>
+          </dl>
+        </article>
+        <article class="faction faction--opposing">
+          <p class="faction__label">How you see the opposing team</p>
+          <h3 class="faction__title">Murasian Armed Forces</h3>
+          <p>A fictional, competent conventional army with original red&#8209;earth camouflage, insignia and equipment.</p>
+          <dl class="kv">
+            <div><dt>Balance</dt><dd>Mechanically equivalent weapons</dd></div>
+            <div><dt>Characters</dt><dd>Identical gameplay hitboxes</dd></div>
+            <div><dt>Difference</dt><dd>Cosmetic, per viewer only</dd></div>
+          </dl>
+        </article>
+      </div>
+
+      <p class="callout">
+        The swap is decided on each player&rsquo;s own machine and never touches gameplay: damage, movement
+        and hitboxes are the same for everyone. All units and forces are fictional.
+      </p>
+
+      <div class="card-grid card-grid--2">
+        <article class="card">
+          <h3 class="card__title">Objective Assault</h3>
+          <p>Sequential or parallel objectives; attackers take, defenders hold; limited respawns or round&#8209;based elimination.</p>
+        </article>
+        <article class="card">
+          <h3 class="card__title">Secure and Hold</h3>
+          <p>Capture and hold tactical locations, with ticket or round&#8209;based scoring.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="shell">
+    <div class="site-footer__top">
+      <div class="site-footer__brand">
+        <img class="site-footer__mark" src="assets/brand/southern-spear-emblem-128.png" alt="" width="128" height="94" loading="lazy" decoding="async">
+        <p class="site-footer__name">Southern Spear</p>
+        <p class="site-footer__tag">
+          An original, Australian&#8209;inspired tactical multiplayer shooter, built in the open.
+        </p>
+        <p class="site-footer__status">
+          <span class="badge badge--wip">Pre&#8209;alpha</span>
+          In active development &mdash; no playable build
+        </p>
+      </div>
+
+      <nav class="site-footer__nav" aria-label="Footer">
+        <div>
+          <h2 class="site-footer__heading">Explore</h2>
+          <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="index.html#overview">Overview</a></li>
+            <li><a href="index.html#features">Features</a></li>
+            <li><a href="index.html#loadout">Loadout</a></li>
+            <li><a href="index.html#maps">Maps</a></li>
+            <li><a href="gallery.html">Gallery</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="site-footer__heading">Development</h2>
+          <ul>
+            <li><a href="how-it-plays.html">How it plays</a></li>
+            <li><a href="roadmap.html">Roadmap and status</a></li>
+            <li><a href="changelog.html">Changelog</a></li>
+            <li><a href="data/DEVELOPMENT_ROADMAP.md">Roadmap (Markdown)</a></li>
+            <li><a href="data/CHANGELOG.md">Changelog (Markdown)</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="site-footer__heading">Project</h2>
+          <ul>
+            <li><a href="index.html#faq">FAQ</a></li>
+            <li><a href="presskit.html">Press kit</a></li>
+            <li><a href="https://github.com/theantipopau/southernspear-site" rel="noopener">GitHub</a></li>
+            <li><a href="https://discord.gg/GHNCFQrDND" rel="noopener">Discord</a></li>
+          </ul>
+        </div>
+      </nav>
+    </div>
+
+    <div class="site-footer__legal">
+      <p>
+        <strong>Southern Spear is a fictional entertainment product.</strong> It is not endorsed,
+        sponsored, developed or approved by the Australian Government, the Department of Defence, the
+        Australian Defence Force or the Australian Army. All organisations, units, forces and weapons are
+        fictional, and no map reproduces a real base, installation or operationally useful site.
+      </p>
+      <p>
+        <strong>Inspired by the classic America&rsquo;s Army games, but not affiliated with them.</strong>
+        Southern Spear takes its design philosophy from them and nothing else: no source code, map
+        layout, mission name, interface, audio, dialogue or artwork is copied or reused, and none of
+        their marks, names or insignia are used. It is not endorsed, sponsored or approved by
+        America&rsquo;s Army or the United States Army. <em>America&rsquo;s Army</em> is a trademark of
+        its respective owners, who do not endorse or sponsor this project.
+      </p>
+      <p>
+        Built on Unreal Engine and the Lyra Starter Game. Unreal, Unreal Engine and the Unreal Engine logo
+        are trademarks of Epic Games, Inc. Lyra is a sample project provided by Epic Games, Inc.
+      </p>
+    </div>
+
+    <div class="site-footer__base">
+      <p>&copy; <span id="year">2026</span> Southern Spear Project. Original work of fiction.</p>
+      <a class="to-top" href="#main">Back to top</a>
+    </div>
+  </div>
+</footer>
+
+<script src="site.js" defer></script>
+</body>
+</html>

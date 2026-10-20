@@ -23,6 +23,9 @@ present, and none is ever published.
 ```
 index.html      the site home
 changelog.html  the full development changelog (search, filters, deep links)
+how-it-plays.html  training and the match model
+gallery.html    every capture and the concept board
+roadmap.html    status, route forward, phases, latest session
 presskit.html   press kit: fact sheet, descriptions, logo and artwork downloads
 styles.css      design tokens and components
 site.js         navigation, Markdown subset renderer, status / roadmap / changelog

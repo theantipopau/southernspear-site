@@ -1,6 +1,103 @@
 {
   "screenshots": [
     {
+      "id": "shot-redgum-bushmasters-mag58",
+      "title": "Red Gum, the Bushmasters at the drop-off",
+      "alt": "First-person view across red earth towards two camouflaged Bushmaster protected mobility vehicles parked with their lights off, a timber shack beside them and gum trees behind, an MAG58 light support gun with a bipod held at the bottom right.",
+      "map": "Red Gum",
+      "captured": "2026-10-20",
+      "session": "104",
+      "note": "Pre-alpha, captured in the editor's play mode with the HUD hidden. The Mag58 hold is provisional; the vehicles are static scenery: no lights, no crew, no movement.",
+      "width": 1600,
+      "height": 682,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-redgum-bushmasters-mag58-960"
+        },
+        {
+          "width": 1600,
+          "path": "assets/screenshots/shot-redgum-bushmasters-mag58-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-redgum-approach.webp",
+      "title": "Walking up to the Bushmasters, Red Gum",
+      "alt": "A short looping clip from first person: walking across a red-earth clearing towards two Bushmaster vehicles parked with their lights off, an MAG58 held at the bottom right.",
+      "map": "Red Gum",
+      "captured": "2026-10-20",
+      "session": "104",
+      "note": "Pre-alpha; a looping clip, no audio. It is not real time: the frames were captured one at a time.",
+      "width": 800,
+      "height": 341,
+      "animated": "assets/screenshots/shot-redgum-approach.webp",
+      "files": []
+    },
+    {
+      "id": "shot-redgum-bushmasters",
+      "title": "Red Gum, Bushmaster patrol vehicles",
+      "alt": "Two camouflaged Bushmaster protected mobility vehicles parked at the Team One drop-off on red earth under gum trees, seen from the side with a timber shack behind them.",
+      "map": "Red Gum",
+      "captured": "2026-10-20",
+      "session": "104",
+      "note": "Pre-alpha; the viewer's own side sees Bushmasters here, the other side sees a GAZ Tigr. The vehicles are static scenery.",
+      "width": 1600,
+      "height": 682,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-redgum-bushmasters-960"
+        },
+        {
+          "width": 1600,
+          "path": "assets/screenshots/shot-redgum-bushmasters-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-redgum-cabin",
+      "title": "Red Gum, the old shack",
+      "alt": "A weathered timber shack with a corrugated iron roof and a stone chimney among gum trees on red earth, an MAG58 held at the bottom right.",
+      "map": "Red Gum",
+      "captured": "2026-10-20",
+      "session": "104",
+      "note": "Pre-alpha; the shack is a cleared asset-pack building.",
+      "width": 1600,
+      "height": 682,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-redgum-cabin-960"
+        },
+        {
+          "width": 1600,
+          "path": "assets/screenshots/shot-redgum-cabin-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-redgum-roadside",
+      "title": "Red Gum, the road and the wire",
+      "alt": "Barbed-wire fence posts in the foreground on red earth, a kangaroo warning sign beside a bitumen road on the right and a shack among the gum trees ahead.",
+      "map": "Red Gum",
+      "captured": "2026-10-20",
+      "session": "104",
+      "note": "Pre-alpha.",
+      "width": 1600,
+      "height": 682,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-redgum-roadside-960"
+        },
+        {
+          "width": 1600,
+          "path": "assets/screenshots/shot-redgum-roadside-1920"
+        }
+      ]
+    },
+    {
       "id": "shot-redgum-a25-hud",
       "title": "Red Gum, the A25 and the new HUD",
       "alt": "First-person view through gum trees and spinifex on red earth, an A25 marksman rifle in a two-handed hold at the bottom right, a teammate running ahead, with the compass, slate minimap, objectives panel, health, four-soldier squad roster and A25 ammunition on screen.",

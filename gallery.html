@@ -94,6 +94,12 @@
             No in&#8209;engine captures have been published yet. When they are, they appear here, captioned
             with the map, the capture date and the development session, and marked as work in progress.
           </p>
+          <noscript>
+            <p class="captures__empty">
+              The in&#8209;engine captures need JavaScript to load. With it switched off, the title-screen
+              artwork and concept art below are still all here.
+            </p>
+          </noscript>
         </div>
       </div>
 
@@ -312,6 +318,28 @@
     </div>
   </div>
 </footer>
+
+<!-- Lightbox (same viewer as the home page: gallery triggers open here) -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-labelledby="lightbox-caption" hidden>
+  <div class="lightbox__backdrop" data-lightbox-close></div>
+  <figure class="lightbox__figure">
+    <img class="lightbox__image" id="lightbox-image" src="" alt="">
+    <figcaption class="lightbox__caption">
+      <p id="lightbox-caption"></p>
+      <button class="lightbox__close" type="button" data-lightbox-close>
+        Close <span class="u-visually-hidden">image viewer</span>
+      </button>
+    </figcaption>
+  </figure>
+  <button class="lightbox__nav lightbox__nav--prev" type="button" data-lightbox-step="-1">
+    <span class="u-visually-hidden">Previous image</span>
+    <span aria-hidden="true">&#8249;</span>
+  </button>
+  <button class="lightbox__nav lightbox__nav--next" type="button" data-lightbox-step="1">
+    <span class="u-visually-hidden">Next image</span>
+    <span aria-hidden="true">&#8250;</span>
+  </button>
+</div>
 
 <script src="site.js" defer></script>
 </body>

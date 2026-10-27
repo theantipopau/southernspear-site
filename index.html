@@ -149,6 +149,13 @@
            Chromium fetch the phone crop on desktop and then discard it. -->
 
       </picture>
+      <!-- In-engine showcase (pre-alpha, Red Gum). Muted, looping, and only started by site.js on wide screens without
+           reduced motion or Save-Data; until then (and without JavaScript) the still above is the hero. -->
+      <video class="hero__video" muted loop playsinline preload="none" aria-hidden="true" tabindex="-1"
+             poster="assets/hero/showcase-poster.jpg">
+        <source data-src="assets/hero/showcase-720.webm" type="video/webm">
+        <source data-src="assets/hero/showcase-720.mp4" data-src-wide="assets/hero/showcase-1080.mp4" type="video/mp4">
+      </video>
     </div>
     <div class="hero__scrim" aria-hidden="true"></div>
     <div class="hero__grain" aria-hidden="true"></div>
@@ -176,8 +183,8 @@
           Built around teamwork, training, communication and objective&#8209;focused infantry combat.
         </p>
         <div class="hero__actions">
-          <a class="btn btn--brass btn--lg" href="roadmap.html">Explore Development</a>
-          <a class="btn btn--outline btn--lg" href="roadmap.html">View Roadmap</a>
+          <a class="btn btn--brass btn--lg" href="https://www.youtube.com/watch?v=xv6uSMxUgQM" rel="noopener">Watch the showcase <span class="u-visually-hidden">(opens YouTube)</span></a>
+          <a class="btn btn--outline btn--lg" href="roadmap.html">Explore Development</a>
           <a class="btn btn--quiet btn--lg" href="https://github.com/theantipopau/southernspear-site" rel="noopener">
             GitHub <span class="u-visually-hidden">repository for this website</span>
           </a>

@@ -9889,3 +9889,1538 @@ Producer reviews `Docs/evidence/s103/fp_a88_stock_m4_reload/contact_sheet.png` a
 - **RISKS:** **R-111 RESOLVED** (E1+E2+E5) - the west route's solid flora is off the navmesh, all eight starts reached Obj A in three runs, and the pinned-bot signature did not recur; not producer-accepted (E8). **R-112 (new, OPEN)** - the underlying mechanism is not repaired and is only partly measured: a rebuild and a dirty-tile nudge both leave nav covering dressed props, one mesh flag (`CTF_USE_COMPLEX_AS_SIMPLE`) explains the ghost gum but not `SM_Rock_M_02`, and a survey of solid props within 2.5 m of the walk tracks from four sessions found **119** that block a pawn and carry nav, of which 11 are covered. **R-110** keeps its 42 unmeasured cells and now records that its stall is fixed. Standing: R-82 (attended bake), R-107 (register drift). R-09/R-106 untouched - PIE is one process.
 - **DEFECTS FOUND:** (1) **A `BUILDPATHS` rebuild is not a repair for props standing on navmesh.** On this map it rebuilt nothing relevant (survey byte-identical, 1.13 s), and a transform nudge did not dirty the tiles either; only adding or moving a nav-relevant volume changed the result. Found by running each measurement instead of assuming the bake had failed for a load-order reason. (2) **A collision profile is not evidence of a blocker.** 95 of the 106 corridor flora actors carry `BlockAll` on the actor while grass, litter and most shrubs have no shapes that stop a pawn; the pass-1 header's "small stuff has no collision" holds for the meshes, not for the profile, so the fix list had to be measured with sweeps. (3) **Run A's one stationary bot is not the R-111 signature.** `C_2` (component-spawned at load) walked 24.5 m and sat for 132 s reporting `MOVING`, but it was on nav, had a valid 17-point path to Obj A, was **outside** every collider, and the nearest solid prop (an unblocked 2.7 x 2.8 m rock) was 2.03 m away; the same pawn reached Obj A in runs B and C. Recorded as an observation, not folded into the fix.
 - **NEXT ACTION:** test the other half of R-112 - run the same paused-fill lever on the eight `DeployB` starts (Obj B and Obj C) twice, since the 108 uncovered solid props are mostly east, and only then decide whether they need the same volumes or whether the navmesh's blindness to dressed props needs an engine-level answer.
+
+## Session 105 - A88 authored reload withdrawn: the stock clip reload is reinstated (2026-10-23)
+
+- **PRODUCER DIRECTION (2026-10-23):** "reinstate the reload animations that were there ... the ones you changed impacted it too much. The holding animations look good." The Session 105 attempt - an authored bullpup reload clip (`A_FP_Rifle_Reload_A88`) with the magazine parts riding the clip's own left hand - is withdrawn in full.
+- **WITHDRAWN (all reverted to the committed state):** (a) `Config/DefaultGame.ini` A88 first-person row back to `ReloadClip=Reload` with `ReloadRigRotation=(Pitch=-8,Yaw=14,Roll=22)` and `ReloadRigOffsetCm=(X=20,Y=2,Z=60)`; the Session 105 `GrabPhase/DropPhase/FreshPhase/SeatPhase` (0.34/0.50/0.70/0.84) and its comment block are gone. (b) `SSFirstPersonSubsystem.cpp/.h`: the `bClipReload` gate (which suppressed the row's rig cant on a clip-driven reload and made `MagInHand`/`MagDropped` follow the clip's `LeftHand` bone) and its members (`bClipReload`, `bGrabHandSet`, `GrabHandComponent`) removed, so the clip reload again cants the rig by the row's values and the magazine parts run the `LeftHandReload` path. The hold work (the `GripNudgeCm` rows, finger curl, clip arms offset) is untouched - the producer reports the hold looks good.
+- **CLEANUP:** no source or config reference to `Reload_A88` remains (grep over `Config`, `Plugins`, `Tools`). The imported asset `/SSExp_ObjectiveAssault/FirstPerson/Rifle/A_FP_Rifle_Reload_A88` is left on disk, unreferenced and uncommitted; it is not cooked by any reference. The authoring scripts and captures stay in `Build/` (ignored).
+- **TESTING:** `git checkout --` of the three files, then `Build.bat SouthernSpearEditor Win64 Development` -> `Result: Succeeded`, exit 0, 4 actions, 28.62 s, 44.22 s total (E3). `python Tools/validate_project_docs.py` -> PASS. The editor was closed first; its unsaved `L_MarringaPoint_01` (another session's work) was saved to disk before the close at the producer's instruction, and its remaining `Content/Maps/L_MarringaPoint_01.umap` diff is not this session's. **NOT RUN:** PIE re-capture of the reinstated stock clip reload after the rebuild (E5/E6), automation suite, third person, A88G.
+- **FILES CHANGED:** `Config/DefaultGame.ini`, `Plugins/SouthernSpearLyraBridge/Source/SouthernSpearLyraBridge/Private/SSFirstPersonSubsystem.cpp`, `Plugins/SouthernSpearLyraBridge/Source/SouthernSpearLyraBridge/Public/SSFirstPersonSubsystem.h` (all three == `HEAD`), `Docs/CHANGELOG.md`.
+- **RISKS:** none new. **R-101 stays OPEN** - the A88 plays Lyra's stock M4 reload, which reaches an M4 magazine well that a bullpup does not have; the reload is a stand-in, not an accepted animation. **R-104** (third person) untouched. The Session 105 finding that an authored clip must not also take the row's rig cant is not a risk, it is the reason the clip was withdrawn.
+- **DEFECTS FOUND:** the Session 105 clip reload was wrong in the game in two ways the producer saw as "the hands go all over the shop": the authored clip canted the rig about the fore-end while the row's `ReloadRigRotation`/`ReloadRigOffsetCm` canted it again (60 cm of offset), and the magazine parts were driven from the clip's left hand at the same time as the missing `LeftHandReload` hand-off. Both are spent with the revert; a future authored reload must be authored to the game pose with the row's rig values at zero, or the code must keep them out of the clip path by construction.
+- **NEXT ACTION:** re-capture the reinstated A88 reload in PIE (one controlled sequence, slow motion, same map and camera) so the state the producer asked for is evidenced at E5, then return to `Docs/NEXT_PRIORITIES.md`.
+
+### Session 105 addendum 1 - backend rules written while the editor was held: lag compensation and the squad model (2026-10-23)
+
+- **WHY THIS SHAPE.** Another session held `UnrealEditor.exe`, so the editor-target build, the automation suite, PIE and every asset write were unavailable. All three deliverables are therefore engine-free rules in `SouthernSpearCore`, each with a shared checks header that the automation test and a g++ harness both run - the pattern `SSCasualtyRules.h` established. That is the only route on this machine that lands gameplay code **and** verifies it while the editor is busy.
+- **COMPLETED - lag compensation rules (R-106 / ADR-044 section 2, `NETWORK_AUTHORITY_AND_LAG_COMPENSATION.md` section 5).** `Public/SSLagCompensation.h`: `FSSLagCompRules::RewindTime` (server now minus one-way latency minus interpolation plus an optional strictness margin, never past `CapSeconds` (0.2, the coding standard's `MaxRewindSeconds`), reports `bClamped`, and treats a negative latency, a non-positive cap or a NaN server time as bad input rather than rewinding); `FSSPoseHistory` (32-slot ring, out-of-order pushes refused, oldest/newest queries); `Sample` with linear position/body interpolation, shortest-arc rotation, and **no extrapolation** (a time past the newest snapshot returns the newest, so a cheating client cannot be handed where a target is going); a NaN-safe rewind loop proves every latency from 0 to 1 s stays between now and the cap. Checks in `Private/Tests/SSLagCompensationRuleChecks.h`, run by `SouthernSpear.Core.LagComp.Rewind` and `.History` (new automation tests) and by `Tools/Network/check_lag_comp_rules.py`.
+- **COMPLETED - squad structure rules (8v8, `SQUAD_AND_TEAM_DESIGN.md` section 8).** `Public/SSSquadRules.h`: tuning plus validation (2 x 2 x 4 = 16 seats, refused if it does not fit the fixed arrays), balancing seat assignment (first free slot of the squad with the fewest members, lowest squad number on a tie), join/set-role/leave with an explicit `ERefusal` rather than a silent no, leader succession by service level then join order with exactly one slot 0 per squad, role caps read from one table and applied per squad **and** per team, and team-index symmetry, so both teams are provably governed by the same code. `Private/Tests/SSSquadRuleChecks.h` (53 checks), `SouthernSpear.Core.Squad.Rules`, and `Tools/Common/check_squad_rules.py`. Teams are indices 0/1 here, not `ESSTeamId` (a reflected UENUM): the bridge maps them, which is what keeps the rules compilable without Unreal.
+- **COMPLETED - R-107, first slice.** R-12, R-14, R-15 and R-75 now have register rows rebuilt from their own changelog entries (Session 006 for R-12, Session 008 for R-14/R-15, Session 062 for R-75), inserted in numeric order in `Docs/PROJECT_AUDIT.md`. The validator's risk-row notes go from 4 to 0 (10 notes to 6). R-107 stays OPEN and now names the 28 ids still owed.
+- **DOCS.** `Docs/NETWORK_AUTHORITY_AND_LAG_COMPENSATION.md` section 10 and `Docs/SQUAD_AND_TEAM_DESIGN.md` section 10 now state exactly what exists (rules + checks) and what does not (recorder, rewind, component, bridge, widget, anything wired to a match); `CLAUDE.md`'s test block lists the two new harnesses.
+- **FILES CHANGED.** New: `Plugins/SouthernSpearCore/Source/SouthernSpearCore/Public/SSLagCompensation.h`, `Public/SSSquadRules.h`, `Private/Tests/SSLagCompensationRuleChecks.h`, `Private/Tests/SSLagCompensationTests.cpp`, `Private/Tests/SSSquadRuleChecks.h`, `Private/Tests/SSSquadTests.cpp`, `Tools/Network/check_lag_comp_rules.py`, `Tools/Common/check_squad_rules.py`. Edited: `Docs/PROJECT_AUDIT.md` (4 rows + R-107 text), `Docs/NETWORK_AUTHORITY_AND_LAG_COMPENSATION.md`, `Docs/SQUAD_AND_TEAM_DESIGN.md`, `CLAUDE.md`, `Docs/CHANGELOG.md`.
+- **TESTING.** `python Tools/Network/check_lag_comp_rules.py` -> **26 checks, 0 failure(s)**, exit 0 (MinGW-w64 g++ 16.1.0, `-std=c++20 -Wall -Wextra -Werror`). `python Tools/Common/check_squad_rules.py` -> **53 checks, 0 failure(s)**, exit 0, same flags. Harness negative test: a scratch copy with one expected value changed (`99.91` -> `99.92`) reports **1 failure and exit 1**, so the harness is not vacuous (the scratch copy, not the repository). `python Tools/validate_project_docs.py` -> PASS, 6 notes, exit 0. `python Tools/validate_architecture.py` -> PASS (the one accepted SS010 note, R-75), exit 0. `python Tools/check_unity_names.py` -> **FAIL, 1 shadow, not this session's** (see DEFECTS). **NOT RUN, and the reason this is E2 + E4-outside-Unreal and not more:** the editor build (E3), the automation suite (E4), and any runtime or network evidence (E5/E7). The suite count therefore stays **72**, not 75; the three new tests are written but have never been compiled. Nothing here is wired to a match, so no gameplay behaviour changed today.
+- **ASSETS.** None created, imported or edited. No content, map or config file was touched.
+- **RISKS.** No new ids. **R-106 stays OPEN** and is unchanged in severity: the rules now exist, the recorder, the rewind and the hook do not, and no forged-hit test has been run. **R-107 reduced**: 32 missing risk rows -> 28 (R-12, R-14, R-15, R-75 rebuilt); the rest still need rows from their own changelog entries, not invention. Standing: R-09 (no Server target -> E7 cannot be reached here), R-101 (A88 reload), R-82.
+- **ALSO CHECKED, because the first "after" capture was useless.** At the producer's own angle `farm.png` records the new mill backlit against the cliff, a black silhouette that proves nothing; `farm_yard.png` (28 m up, 28 m out) shows the lattice tower, the fan and the tank together. The earlier impression that the old derrick was still standing was wrong: a level query over the open editor lists **no** `SS_RedGum_Windmill` anywhere on the map, and `SM_Fab_Windmill` at (45 600, 5 400) is `SS_C21_FARMWINDMILL_windmill`.
+- **DEFECTS FOUND.** (1) **The unity-name guard is red, and not from this session.** `Plugins/SouthernSpearUI/.../SSSettingsWidget.cpp:627` declares `USSSettingsWidget* Settings = Owner.Get();`, which hides the file-scope `Settings()` at line 31 of the same file (MSVC C4459, an error under Unreal's shadow-variable policy). The file is unmodified against `HEAD` (last touched by commit `db3a6392`, Session 104 addendum 81) and the fix is a one-word rename; it was left alone because it is another session's committed UI code and that agent is live in the editor. Found by running the guard, not by reading it. (2) **My first squad checks encoded a wrong assumption** - that joining fills squad 1 before squad 2 - and the harness caught it with three failures before the code was taken as good; the checks were corrected to the balancing rule the rules actually implement. This is the harness earning its keep on its first run.
+- **NEXT ACTION.** When the editor frees: build `SouthernSpearEditor` and run the suite, expecting **75** `Result={Success}` (72 + `SouthernSpear.Core.LagComp.Rewind`, `.History`, `SouthernSpear.Core.Squad.Rules`), then move the new harnesses into the CI list - that is the E3/E4 step the engine-free work cannot take on its own.
+
+### Session 105 addendum 2 - the server architecture adopted, and the two documents it was missing (2026-10-23)
+
+- **PRODUCER DIRECTION.** "adopt the server doc and then proceed with what you can produce. ensuring you document exactly how it runs and works for other ai agents". The two gaps named by the producer were a **server browser** and the **dedicated server software and link** plus a **centralised store for accounts and ranks with a revocable token**.
+- **ADOPTED, not rewritten.** `Docs/Southern_Spear_Dedicated_Server_Architecture.md` (untracked, 27 KB, dated 18 Oct 2026, prepared for the producer) was moved to the path it proposed for itself, `Docs/DEDICATED_SERVER_ARCHITECTURE_PROPOSAL.md`, and its header was rewritten for project use: document ID, status (ADOPTED as direction, **nothing implemented or benchmarked**), its place in the authority order, the R-09 blocker first, and a section 0 saying what it does not cover and where that lives. The body is the author's work and was not silently edited; its P1-S6 references are the author's sources, not project evidence.
+- **NEW - `Docs/SERVER_AUTHORITY_AND_ACCOUNTS.md` (design + runbook).** The document that was missing: accounts and linked identities; the four revocable artefacts (single-use enrolment token, server credential, per-match ranked lease, idempotent result batch); revocation semantics (checked on every call, never inferred from expiry, and revocation does not delete history); the append-only rank ledger with the seven acceptance rules (lease, revocation, roster, idempotency, the game's own ADR-032 caps, plausibility, per-player serialisation) and the honest statement that a modified host can still lie **inside** those bounds; a PostgreSQL schema (13 tables, no update/delete path on the ledger); the v1 HTTP contract with request/response JSON and stable error codes; and **section 8, how it runs** (one service plus one database, start-up migrations with a schema version in `/healthz`, environment-only configuration, TLS, tested restores, JSON logs without secrets, local `docker compose` development). It also says what not to claim: no capacity, cost or deployment claim.
+- **NEW - `Docs/SERVER_BROWSER_AND_DISCOVERY.md`.** The browser the GDD asks for and the project never designed: registry heartbeat (15 s stale 45 s gone 120 s), the list endpoint and its JSON, the GDD's own filter set plus a ranked badge that is true only while a lease was live at heartbeat time, client-measured latency (never a host's or the registry's claim), the screen in `SouthernSpearUI` with explicit empty and failed states, join and version-mismatch behaviour, `Listen` never labelled `Dedicated` while R-09 stands, abuse controls, and a build order whose first step - engine-free filter rules in Core with a g++ harness - needs no server, no service and no editor.
+- **DECISIONS.** ADR-046 (central authority for accounts, server enrolment and the ranked ledger) and ADR-047 (registry-backed discovery; unranked hosting needs no approval) added as **proposed**, with index rows, the proposed-ADR note updated, and the producer's own words quoted as their direction.
+- **REGISTERED.** `CLAUDE.md` gains a backend paragraph next to the network rules (never claim it is built; no secret may enter the repository; ADR-007 blocked by R-09). `Docs/CURRENT_STATE.md` gains two E0 rows in the maturity table (accounts/ledger, server browser), the dedicated-server row now names the adopted direction, and section 10 links all three documents. `Docs/NEXT_PRIORITIES.md` section 10 records the workstream, its blocker and its first buildable step.
+- **FILES CHANGED.** Renamed: `Docs/Southern_Spear_Dedicated_Server_Architecture.md` -> `Docs/DEDICATED_SERVER_ARCHITECTURE_PROPOSAL.md` (header rewritten). New: `Docs/SERVER_AUTHORITY_AND_ACCOUNTS.md`, `Docs/SERVER_BROWSER_AND_DISCOVERY.md`. Edited: `Docs/DECISION_LOG.md` (2 index rows, proposed note, 2 ADR sections), `CLAUDE.md`, `Docs/CURRENT_STATE.md`, `Docs/NEXT_PRIORITIES.md`, `Docs/CHANGELOG.md`. Nothing under `Plugins/`, `Config/` or `Content/` was touched; no code, schema, migration or credential was created.
+- **TESTING.** `python Tools/validate_project_docs.py` -> **PASS, 6 notes, exit 0** (unchanged count: the two new documents and two ADRs introduce no new note and no new violation). Reviewed by reading: the ADR index rows parse, both new documents carry a status/date/related header, and no document claims an implementation. **NOT RUN:** anything executable - there is nothing to run. No database was created, no DDL executed, no service started, no build attempted. This entry is **E1** (documents and configuration inspected and written), not E2.
+- **ASSETS.** None. No licence or provenance change: the adopted document is project-authored material about our own architecture.
+- **RISKS.** No new ids. **R-09 stays OPEN** and now gates three documents instead of one: no Server target, no Linux server, so ADR-046's host half and every `Dedicated` row in ADR-047 remain unreachable here. **R-53** (dev-only profile) is the concrete gap ADR-046 closes when it lands, and it is unchanged today. ADR-007 remains **blocked**. Standing: R-101, R-102, R-106, R-107 (28 rows still owed).
+- **DEFECTS FOUND.** (1) **The architecture proposal was invisible to the project.** It existed on disk as an untracked file with a stray name, was registered nowhere, and named a different path in its own header - so an agent following `CLAUDE.md` would never find it. Found by listing `Docs/` while looking for it at the producer's prompt. Fixed by the adoption above. (2) **The server browser had no design at all** - only two GDD lines and a passing TDD mention - despite the GDD listing it in the Play menu. Found by grepping every document for `server browser`, `server list` and `matchmaking`; recorded in ADR-047's context rather than quietly written around. (3) The first attempt to append the ADRs through a shell heredoc was truncated by the command length and failed to parse; re-done from a script file, with the file verified afterwards (both headings present, validator green).
+- **NEXT ACTION.** The producer takes the three decisions ADR-046 needs before any service code is written - identity provider (platform, own accounts, or own accounts with linking), hosting and database, and enrolment policy - while the first buildable step of ADR-047, the engine-free server-browser filter rules in Core with a g++ harness, proceeds without them.
+
+### Session 105 addendum 3 - the server browser's rules, built and proven without a registry (2026-10-23)
+
+- **COMPLETED (E2 + E4 outside Unreal).** `Public/SSServerBrowserRules.h` in `SouthernSpearCore`, engine-free: `StateOf` (listed, stale at 45 s, gone at 120 s; a heartbeat stamped ahead of the registry clock is not treated as gone), `Matches` (the GDD section 281 filter set - map, mode, region, hide-full, hide-passworded, ranked-only, official-only, max ping), `SameServer` plus the duplicate rule (two heartbeats from one address and port keep the fresher one, in either arrival order), and `Precedes` (ranked first, then fuller, then closer, with an unmeasured ping sorted last rather than as 0 ms and address/port as the final tie-break so the order is total). `Build` applies all of it into a caller-provided buffer with no allocation. Two deliberate calls a check proves: an **unmeasured ping is never filtered out** (the table must not jump while pings arrive) and a **stale row is kept** (greyed by the screen, not yanked from under a clicking player).
+- **Checks.** `Private/Tests/SSServerBrowserRuleChecks.h` (38 checks), run by `SouthernSpear.Core.Browser.Rules` and by `Tools/Network/check_browser_rules.py`; `CLAUDE.md`'s test block lists the harness.
+- **FILES CHANGED.** New: `Plugins/SouthernSpearCore/Source/SouthernSpearCore/Public/SSServerBrowserRules.h`, `Private/Tests/SSServerBrowserRuleChecks.h`, `Private/Tests/SSServerBrowserTests.cpp`, `Tools/Network/check_browser_rules.py`; `CLAUDE.md` (one harness line); `Docs/CHANGELOG.md`.
+- **TESTING.** `python Tools/Network/check_browser_rules.py` -> **38 checks, 0 failure(s)**, exit 0 (`-std=c++20 -Wall -Wextra -Werror`). Re-ran the two harnesses from the previous addendum unchanged: `check_lag_comp_rules.py` 26/26 exit 0, `check_squad_rules.py` 53/53 exit 0. `python Tools/validate_project_docs.py` -> PASS, 6 notes, exit 0. `python Tools/validate_architecture.py` -> PASS (one accepted SS010 note). `python Tools/check_unity_names.py` -> still **FAIL** on the pre-existing `SSSettingsWidget.cpp:627` shadow, unmodified against `HEAD` and not this session's. **NOT RUN:** the editor build and the automation suite (the editor is held by another session), so the browser test has never been compiled; the suite expectation is now **76** (72 + LagComp.Rewind + LagComp.History + Squad.Rules + Browser.Rules).
+- **DEFECTS FOUND.** One of my own checks was wrong again, and the harness caught it: the ranked-ordering check gave both rows the same address and port, so the dedupe rule collapsed them and the assertion tested nothing about ordering. Fixed in the check, not in the rule - the rule was right. Recorded because it is the second time this session that a wrong expectation was found by executing rather than by reading.
+- **RISKS.** None new; no gameplay, config or content change. The browser rules are not wired to any widget, because there is no widget.
+- **NEXT ACTION.** ADR-046's three producer decisions (identity provider, hosting and database, enrolment policy) remain the gate on the authority service; the next buildable step without them is the registry's heartbeat and list endpoints behind a fake driver.
+
+### Session 105 addendum 4 - Marringa round 20: the ghost gums were drawing the engine grid material; rocks planted; a rural layer and 465 more trees (2026-10-23)
+
+- **COMPLETED (E1 + E2 + E6):** the producer's round-20 notes - floating rocks, incorrect trees, too few trees, no rural houses or hill windmills. (a) **The ghost gums.** `TH_Complete_Full_Ghoast_Gum` had **both** material slots on `/Engine/EngineMaterials/WorldGridMaterial`, so all **76** instances drew the engine grid (the black faceted blobs in every capture since round 13). `Docs/ASSET_REGISTER.md` ENV-003 already recorded the mapping from the Session 088 import (slot 0 trunk, slot 1 the alpha-masked leaf cards); the round-17 planter spawned the mesh without reading it. Rebound to `MI_SS_GhostGum_Trunk` / `MI_SS_GhostGum_Leaf` on the asset and saved, so every instance follows. A new project-wide scan (`Tools/Unreal/audit_worldgrid_materials.py`, 2,769 meshes) found **51** meshes with a grid-material slot; this is the only one dressed into this map. (b) **Floating rocks, measured.** A new audit (`Tools/Unreal/audit_coastal_float.py`) measures the mesh bottom against **nine landscape samples across the actor footprint** and traces the ground, instead of round 17's pivot-only 25 cm test: **134** rock actors had 20-244 cm of air under part of the footprint. `Tools/Unreal/reseat_coastal_rocks.py` dropped **117** of them by `gap_min - 10 cm` (median 39.3 cm, cap 120 cm); 21 remain, all at most 124 cm and all on ground steeper than 25 degrees, where a deeper drop would swallow a 2 m boulder. After: **1** whole-mesh floater in the map (a pre-existing grass tuft on a stone), **0** buried. (c) **Rural layer.** `Tools/Unreal/dress_marringa_r18.py`, idempotent on `SS_C18_`: **15 buildings and yard pieces** in three search-placed yards - Raven barn, RedGum hut and 18 m stock pens, caravan, outhouse and tank at the Obj A approach; Raven old barn, side shed, second hut, red tractor, chicken coop and tank between Obj B and C; windmill, tank and side shed on the eastern approach. Each sits on a searched pad (0.2-5.1 degrees), seated by mesh bottom, with a null-area nav-block volume (R-112). **Three windmills on ridge pads** (120,819 cm / 2.1 degrees; 117,351 / 1.0; 117,907 / 1.4) with tanks, so five windmills now stand on this map, three of them silhouetted above the basin. Yard dressing: log piles, crates, power poles, stumps, fallen trees; four hay bales the strict audit flagged against near-vertical landscape steps were deleted rather than left inside a cliff. (d) **Trees.** **465 more across eight species groups** in 68 groves (ghost gum 130, eucalypt 110, grass tree 60, rural medium 90, rural small 50, river red gum 1, dead tree 12, quiver tree 12) plus 40 shrubs, 10 fallen trees and 8 stumps: total cover about 838 against 373 before, with the creek corridor and the basin edge as the dense bands. (e) **Nav guard after the dressing:** 51 paths (16 starts x 3 objectives + 3 objective pairs), **0 failing, 0 partial**.
+- **TESTING:** `python Tools/Unreal/mcp_client.py runfile Tools/Unreal/audit_worldgrid_materials.py` -> scanned 2,769 meshes, 51 affected, `TH_Complete_Full_Ghoast_Gum` named; the ghost gum fix script -> `before` two WorldGrid slots, `after` the two MI paths, `saved=True`; `audit_coastal_float.py` before -> 134 rock actors 20-244 cm clear, after reseat -> 21 (all 124 cm or less); `dress_marringa_r18.py` final run -> `buildings=15 windmills=3 props=18 trees={ghost 130, eucalypt 110, grasstree 60, rural_m 90, rural_s 50, bigtree 1, dead 12, quiver 12, shrubs 40} saved=True`, one error (`no pad for pens at yard C`); `audit_coastal_float.py` after -> floaters 1, buried 0; `Build/r111_pathmatrix.py` -> `count 51, failing 0`; six editor captures reviewed (`Docs/evidence/s_CURRENT/coastal/r18/`, listed in `R18_DRESSING.md`). **NOT RUN:** PIE and a bot round on the new dressing, the nav coverage survey and a verified re-bake after the new buildings, packaged build, `-game` (still crashes before map load), dedicated server (R-09), network path (R-106), frame time or draw-call measurement with 838 separate tree actors, producer review.
+- **FILES CHANGED:** `Content/Art/Environment/Fab/TH_Complete_Full_Ghoast_Gum.uasset` (two material slots rebound), `Content/Maps/L_MarringaPoint_01.umap` (+15 buildings, 3 ridge windmills, 4 nav-block volumes, 505 plants, 117 rocks reseated, nav re-issued and saved), new tools `Tools/Unreal/audit_coastal_float.py`, `Tools/Unreal/reseat_coastal_rocks.py`, `Tools/Unreal/dress_marringa_r18.py`, `Tools/Unreal/audit_worldgrid_materials.py`; evidence `Docs/evidence/s_CURRENT/coastal/R18_DRESSING.md` and `Docs/evidence/s_CURRENT/coastal/r18/{v3_ghostgum,v9_yardB,v10_wide,v11_yardA,v12_ridge_wm,v13_rocks,v14_windmill_ridge}.png`; `Docs/CHANGELOG.md`. Build-only scripts stay in the ignored `Build/`. Untracked `Content/` packs in the tree are not this pass's and were not staged.
+- **ASSETS:** no new files imported. Placed from assets already registered: `SS_Raven_barn`, `SS_Raven_old_barn` (ASSET_REGISTER rows 360/452), `SS_RedGum_Hut_North/South`, `SS_RedGum_StockPens`, `SM_Fab_Windmill`, `SS_Aus_WaterTank`, `Caravan`, `Outhouse_House`, `Side_Shed`, `Log_Pile_1`, `Wooden_Crate`, `Power_Pole_1`, `SM_Fab_Tractor` (ENV-010), `SM_Fab_ChickenCoop`, `S_Horse_Hitching_Post_udeuahzqx_lod3`, `S_Round_Hay_Bale_rlCay_lod3`, `SM_Fab_DeadTree`, `SM_Fab_FallenTreeA/B`, `SM_quiver_tree_01/02_LP`, `Shrubs_1`, `Tree_Stump_1`. Provenance unchanged (ADR-035; all already cleared and registered).
+- **RISKS:** none new. **R-112 stays OPEN** and was worked around, not repaired: the new buildings rely on explicit nav-block volumes because a `BUILDPATHS` rebuild still does not rasterise dressed props. Standing: R-82 (attended bake), R-107 (register drift), R-09/R-106 untouched. New unmeasured exposure, recorded rather than risked: the map now carries about 838 separate tree actors and **no frame-time measurement was taken**.
+- **DEFECTS FOUND:** (1) **76 ghost gums drew the engine grid material for two review rounds** - both slots on `WorldGridMaterial`, which is why every capture since round 13 shows black faceted trees and black scorch-like patches on the hillsides. The correct slot mapping had been written into `ASSET_REGISTER` ENV-003 at import (Session 088); the planter never read it. Found by reading the mesh's `static_materials` from the producer's screenshot and confirmed project-wide by the new scan. (2) **Round 17's reseat could not see a rock hanging over a slope** - it compared the mesh bottom with the landscape at the pivot only, so 134 rocks passed a 25 cm test with up to 2.4 m of air under their downhill half. Found by changing the metric to the footprint, not by looking at another screenshot. (3) **Round 17's rim acceptance capture was taken from inside a hillside** - the camera's absolute Z put it under the landscape surface, so the image shows terrain backfaces that read as floating terrain. Found when the first round-18 capture reproduced the same effect; the new capture helper grounds the eye against the landscape and refuses a fixed Z. (4) **The strict audit flags four hay bales as buried 6-34 m** because they sit against near-vertical landscape steps; rather than reason about a metric that cannot represent a one-metre cliff step, the four were deleted. Their labels remain in the placement ledger as placed-then-culled.
+- **NEXT ACTION:** run the paused-fill PIE lever on `L_MarringaPoint_01` with the new dressing and record whether bots still leave both deployments and take objectives with the three yards and the new groves in place, since that is the one behaviour the rural layer could have broken and no round has been played since it was added.
+
+### Session 105 addendum 5 - ADR-048: the backend choices decided and the service specified to the file (2026-10-23)
+
+- **PRODUCER DIRECTION.** "Decide the three ADR-046 choices (identity provider, hosting and database, enrolment policy) so the authority service can be specified to the point of implementation." The three were the gate on the first line of backend code; the rest of ADR-046's design already existed.
+- **DECIDED (ADR-048, accepted).** (1) **Identity:** the account is ours, the proof is the platform's - `eos` (ships inside UE 5.8, no new paid dependency) plus `dev` refused outside development/test; **no passwords stored, ever**, because a two-person studio should not be the custodian of player credentials, and with no human-chosen secret there is nothing for a password KDF to protect. (2) **Database:** managed PostgreSQL 16, standard SQL only, no provider extension, no ORM-owned schema; Neon's free plan primary, with a provider swap by `DATABASE_URL` and a suite re-run as the acceptance test. (3) **Hosting:** one stateless container, always on, Go 1.27 + stdlib HTTP + `pgx`, primary Fly.io `syd`. (4) **Runtime:** Go, so `go test` runs the pure rules with no engine and no database - the same order the casualty, lag-comp and browser rules followed. (5) **Enrolment, two tiers:** being listed is self-serve with a host-generated server key and no account; only **ranked** hosts need an operator account, host terms, the producer's approval and an issued single-use enrolment token. (6) The four smaller questions: unranked results do not count; revocation does not retro-remove past results (a compensating ledger row instead); retention is 30 days of logs, sessions purged 7 days after expiry, batch payloads kept as ledger evidence; discovery is registry-only in v1. (7) SHA-256 for the 256-bit random secrets; Argon2id only if a human-chosen secret is ever introduced, which would need its own ADR.
+- **SPECIFIED.** `Docs/SERVER_AUTHORITY_AND_ACCOUNTS.md` grows **section 13**, a file-by-file build order: the `Backend/` tree; the pure `internal/rules` package with real signatures and the twelve rejection checks in order; the two migrations (`0001_init` from section 6, `0002_approval`); the admin **CLI** (no HTTP admin surface at all); `export_awards.py` generating `awards.json` from `Config/DefaultGame.ini` with a `--check` staleness guard; the run commands; eight evidence requirements for "done"; and the list of things an implementing agent must not do. It closes with the honest status: **E0/E1, nothing runs**.
+- **CONTRACT CORRECTED WHILE SPECIFYING.** Three inconsistencies were found by writing the rule table against the game's own code, and fixed in place rather than documented around: (a) the batch carried **amounts** (`"EnemyKill": 30`); it now carries **counts**, and the authority multiplies by the configured award, so a host cannot assert an XP value and `MaxPerMatch` remains an occurrence cap exactly as `FSSProgressionRules::GrantAward` applies it; (b) the document had an HTTP admin surface while the spec puts admin in a CLI - there is now one story and no `ADMIN_KEY`; (c) the first draft gave the unranked tier an issued enrolment token, which contradicted ADR-047's "listing does not require enrolment" - unranked listing now needs no account and no token, and the browser document says the same.
+- **STATUS CHANGES.** ADR-046 and ADR-047 move from **proposed** to **accepted** with metadata lines and index rows; ADR-048 added (48 ADRs, 48 index rows, no gaps). The proposed-ADR note now names only ADR-043 and ADR-044.
+- **FILES CHANGED.** `Docs/DECISION_LOG.md`, `Docs/SERVER_AUTHORITY_AND_ACCOUNTS.md` (sections 2-13), `Docs/SERVER_BROWSER_AND_DISCOVERY.md`, `Docs/CURRENT_STATE.md` (two maturity rows, one hazard bullet), `Docs/NEXT_PRIORITIES.md` (section 10), `Docs/PROJECT_AUDIT.md` (R-113), `CLAUDE.md` (backend paragraph), `Docs/CHANGELOG.md`. **No code, no `Backend/` directory, no migration, no schema, no credential and no deployment was created.**
+- **TESTING.** `python Tools/validate_project_docs.py` -> **PASS, 6 notes, exit 0** (ADR 47 -> 48, index 47 -> 48, no new note). Tooling inspected on this machine, 2026-10-23: `go version go1.27.0 windows/amd64`, Python 3.12.10, Git 2.56.0, Node 24.21.0; **`docker` and `psql` are not installed**, so `compose.yaml` is documented but cannot be run here and the first runs use a `DATABASE_URL` branch. Edits were made by guarded scripts (line and ADR counts asserted before and after; R-26 truncation guard) and each was read back. **NOT RUN:** `go test`, `go vet`, `go build` (there is no Go source), any migration, any database, any HTTP call, the editor build and the automation suite (another session holds the editor). This entry is **E1**: decisions and documents, plus tooling observed.
+- **ASSETS.** None. No licence, provenance or asset-register change.
+- **RISKS.** New **R-113 (OPEN, design)**: the authority, once built, is one container and one managed database with no monitoring, no on-call and no restore or revocation drill; the mitigations are the v1 definition of done (13.9 items 5-7), not prose. **R-09 stays OPEN** and still blocks the dedicated half of ADR-046; nothing here claims a server. Standing: R-101, R-104, R-105, R-106, R-107 (28 rows still owed), R-112.
+- **DEFECTS FOUND.** (1) **The ADR status edit script matched both ADR-046 and ADR-047** because it anchored on a shared status prefix, and produced two garbled status lines; the validator passed them (it checks prefixes, not prose) and the damage was only visible by reading the file back. Repaired, and the lesson recorded: a green validator is not a read-back. (2) **The batch contract let a host state XP values** (`Award` amounts), which would have made the cap check decorative; found by writing the rules against `FSSProgressionRules::GrantAward` rather than against the document. (3) **The enrolment draft contradicted ADR-047** on whether listing needs enrolment. (4) Two admin stories briefly existed (HTTP rows and a CLI). All three are fixed in the documents.
+- **NEXT ACTION.** Build `Backend/` per `Docs/SERVER_AUTHORITY_AND_ACCOUNTS.md` section 13, starting with `internal/rules` (twelve checks, `go test ./internal/rules`, no database) and `Tools/Backend/export_awards.py --check`, then the two migrations against a Neon branch.
+### Session 105 addendum 6 - Marringa round 19: the ghost gums thinned to the creek banks (2026-10-23)
+
+- **PRODUCER DIRECTION (2026-10-23).** "they are all over the map. it hasn't been imported and dealt with correctly." Two separate faults: the import (both material slots on the engine grid, fixed on the asset in addendum 4 and confirmed by capture here) and the placement - three earlier passes had scattered 206 ghost gums uniformly across the whole basin.
+- **MEASURED FIRST (E1).** `Build/r19_survey_trees.py` -> `r19_tree_survey.json`: 206 ghost gums, 2,769 StaticMeshActors, each tree's distance to the creek centreline `y = -20000 + 0.5455x` (cm). 15 sat **in** the creek bed (0-10 m), 41 on the immediate banks (10-30 m), 59 at 30-50 m, 69 at 50-80 m, 22 beyond 80 m. The following is measured, not assumed: the map is 4 km square (landscape bounds +/-2,016 m) and the play area is about 650 m across, so the ghosts were spread over the whole dressed basin rather than along its only landmark.
+- **THINNED (E2).** `Build/r19_thin_ghosts.py`: a ghost gum stays only on a creek **bank**, 12-30 m off the centreline and never in the bed - **36 kept**; **170 destroyed** with a full ledger (label, position, creek distance) in `r19_ghost_thin.json`; **8 feature trees** placed by rule at the three objectives and two deployments, 35-55 m out on ground under 15 degrees.
+- **COVER PUT BACK (E2).** `Build/r19_replace.py`: **25 eucalypt / rural-tree replacements** (70/30) on every fourth vacated spot within 60 m of the creek, and **8 feature eucalypts** at the same landmarks - so the corridor keeps roughly a quarter of its old density and the load moves to the other species, which is what the producer asked for. **28 trees from the grove experiment** (next bullet) are also kept: they stand on free ground in the verge, pass the float audit, and are the same other-species cover. Result: ghost gum **206 -> 44** (40 on banks 10-30 m, 4 feature at 32-36 m, **0** within 10 m of the centreline), eucalypt **234 -> 276**, rural medium/small **229 -> 248**, grass tree unchanged at 143 - 61 replacement trees against 170 ghost gums removed.
+- **TWO FAILED APPROACHES, KEPT IN THE RECORD.** (a) `Build/r19_groves.py` tried five fixed-radius groves before the replacement pass; in total it placed 29 trees where 75 were wanted, because the valley floor is only 30-80 m wide and already carries 1,405 ground-flora actors, so the 3,070 `prop` rejections were the map saying no. Its 28 surviving `SS_CoastVeg2_grove1..4` trees are kept as replacement cover (measured above) rather than thrown away, and the method is not used again. (b) Its first version had the five search bands in **metres** while every coordinate on this map is **centimetres**, so each 12 km band was searched as 120 m; found because the run placed zero trees while reporting only a handful of candidates, not by reading the code.
+- **VERIFIED (E4-analogue, outside the automation suite).** `Tools/Unreal/audit_coastal_float.py` over 2,759 StaticMeshActors -> **1 floater** (a pre-existing grass tuft resting on a stone) and **0** among the 41 trees this pass placed or kept; **0** buried. `Build/r111_pathmatrix.py` -> **51 paths, 0 failing, 0 partial** (16 starts x 3 objectives + 3 objective pairs). Trees carry no collision, so the nav result is expected - it was measured anyway because the level changed. Six editor captures reviewed from fixed cameras (E6): `Docs/evidence/s_CURRENT/coastal/r19/`.
+- **FILES CHANGED.** `Content/Maps/L_MarringaPoint_01.umap` (170 actors removed, 41 added, saved); `Docs/evidence/s_CURRENT/coastal/r19/` (7 captures, `GHOSTGUM_THINNING.md`, and the three pass ledgers with the survey and audit JSON); `Docs/CHANGELOG.md`. Build-only scripts (`Build/r19_survey_trees.py`, `r19_thin_ghosts.py`, `r19_groves.py`, `r19_replace.py`, `r19_views.json`, `r18_shot.py` reuse) stay in the ignored `Build/`, per the round-18 convention.
+- **ASSETS.** Nothing imported or deleted. Placed from meshes already registered and cleared: `TH_Complete_Full_Ghoast_Gum`, `SM_EucalyptusCinerea_A1-A5` (StylizedBridge), `SM_Tree_M_01-04` / `SM_Tree_S_01` (RuralAustralia). No licence or provenance change (ADR-035).
+- **RISKS.** No new ids. The unmeasured exposure from addendum 4 stands: ~780 separate tree actors, no frame-time or draw-call measurement. R-82, R-107, R-112 unchanged; R-09/R-106 untouched.
+- **DEFECTS FOUND.** (1) **The ghost gums were never placed against anything.** Three passes each scattered them with a uniform random rectangle and a 9 m creek exclusion, so the species ended up carpeting slopes and creek bed alike; found by measuring each instance's distance to the creek, which no earlier pass had done. (2) **My own replacement pass searched 120 m bands instead of 12 km** (metres vs centimetres) and reported almost no candidates - caught by executing it, not by reading it. (3) **The disc-grove method cannot work on this map** and the reason is data, not opinion: 3,070 prop rejections against 1,405 flora actors on an 80 m-wide floor.
+- **NEXT ACTION.** Play the round in PIE with the new tree layout and record whether bots still leave both deployments and take all three objectives with 40 % of the old tree cover (the nav matrix proves connectivity, not play), then take the frame-time measurement addendum 4 deferred.
+
+### Session 105 addendum 6 - free-tier hosting: no container, no bill, and a heartbeat budget (2026-10-23)
+
+- **PRODUCER DIRECTION.** "make hosting the sql as inexpensive as possible - possible free cloudflare?" and "i want to make the running of this game as cost effective as possible", with the plan that the game is free, the backend is free or near-free, and friends host a few servers on their own hardware. Answering that honestly meant checking the vendors instead of assuming, and two of ADR-048's choices did not survive the check.
+- **WHAT THE VENDORS SAY (read 2026-10-23, from their own pages, not measured here).** **Fly.io has no free tier** for new organisations - a trial, then per-second billing, with the smallest always-on machine priced per 30 days, so ADR-048's "one small always-on machine" was going to cost money from day one. **Render's** free web services sleep after 15 minutes of no traffic and its **free Postgres expires after 30 days**. **Koyeb's** free instance scales to zero after an hour. No container host was found that offers a genuinely free always-on service. The only free always-on HTTP surface found is **Cloudflare Workers** (100,000 requests/day, 10 ms CPU per request), with **Hyperdrive** free (100,000 queries/day) able to reach an **external Postgres**: **Neon Free** gives 1 GB, 100 CU-hours per project per month at the default 0.25 CU (about 400 wall-clock hours), auto-suspends after five minutes and wakes in a few hundred milliseconds.
+- **DECIDED (ADR-049, accepted; amends ADR-048 decisions 2-4).** Worker + Hyperdrive + Neon, all free, **PostgreSQL kept** (the section 6 schema, the standard-SQL rule and the provider-swap test are unchanged), **TypeScript instead of Go** because Workers does not run Go and no backend code existed yet, **ECDSA P-256 instead of Ed25519** because WebCrypto is what a Worker has, **no Durable Object in v1**, and **D1 as the documented escape hatch** rather than the choice (a SQLite port, no `gen_random_uuid` or advisory locks, 500 MB per database). D1 was rejected as the primary because it is a second SQL dialect under an append-only ledger, not because it is expensive.
+- **THE HEARTBEAT BECAME A BUDGET.** A heartbeat is one billed request: at 15 s a busy server costs 5,760 a day, so the free allowance carried about ten servers before player traffic; at 30 s it costs 2,880 and carries about thirty. `SSServerBrowserRules.h` now tunes **stale at 90 s, gone at 300 s** (3 and 10 missed 30 s beats), and ADR-047's 45/120 windows are superseded by those numbers. **The code changed with the decision** - the tuning constants and the two fixture ages in the checks - and the harness was re-run.
+- **WHAT THE $0 DOES NOT BUY.** Free allowances are a ceiling with a cliff: past 100,000 requests a day a Worker returns Error 1027 and a past-quota database stops answering (**R-114**, new). A Worker also has no long-lived process, so lease-expiry sweeps and session purges must be a Cron Trigger or done lazily on read. Both are recorded as prices of $0, with the trigger points and the one-paid-plan upgrade path in the ADR.
+- **FILES CHANGED.** `Docs/DECISION_LOG.md` (ADR-049 accepted, ADR-048 amended, index 48 -> 49), `Docs/SERVER_AUTHORITY_AND_ACCOUNTS.md` (section 8 hosting/config/migrations/local-dev bullets, section 12 status row, section 13 rewritten for the Worker stack: layout, TypeScript rule signatures, migrations, admin CLI, award export, run commands, implementation rules, nine evidence requirements), `Docs/SERVER_BROWSER_AND_DISCOVERY.md` (the 30/90/300 cadence and why), `Docs/NEXT_PRIORITIES.md` (the backend paragraph, and the home-hosting arithmetic under the dedicated-server bullet), `Docs/CURRENT_STATE.md` (the two rows and the R-113/R-114 hazard bullet), `Docs/PROJECT_AUDIT.md` (R-114), `CLAUDE.md` (free-tier constraints in the backend paragraph), `Plugins/SouthernSpearCore/Source/SouthernSpearCore/Public/SSServerBrowserRules.h`, `Plugins/SouthernSpearCore/Source/SouthernSpearCore/Private/Tests/SSServerBrowserRuleChecks.h`, `Docs/CHANGELOG.md`. **No `Backend/` directory, no Worker, no database, no deployment and no credential exists.**
+- **TESTING.** `python Tools/Network/check_browser_rules.py` -> **38 checks, 0 failure(s)**, exit 0 with the new 90/300 windows (the first run failed one check, because two fixture ages were written for the old windows - see defects). `python Tools/validate_project_docs.py` -> **PASS, 6 notes, exit 0** (49 ADRs, 49 index rows). Tooling checked: Node v24.21.0 present, `docker` and `psql` absent (neither is needed now). **NOT RUN:** any Worker, `wrangler dev`, `npm test`, a migration, a Neon branch, a deploy, a request count, the UE editor build and the automation suite. This entry is **E1** for the decision and **E2 + E4 outside Unreal** for the changed rules.
+- **ASSETS.** None.
+- **RISKS.** New **R-114 (OPEN, design)**: the free tier is a hard ceiling (100,000 Worker requests/day, 100,000 Hyperdrive queries/day, 1 GB, 100 CU-hours/month) and roughly 30 busy servers exhaust the request allowance before player traffic. **R-113** updated in wording to the Worker + managed-database shape. **R-09 untouched and now sharper**: the free server package the plan depends on cannot be built with this engine distribution at all, so home hosting by friends is blocked on producing a server binary first, not on cost.
+- **DEFECTS FOUND.** (1) **ADR-048's hosting choice was made on an assumption that is false** - Fly.io had no free tier when it was written, which is exactly the kind of claim the project's own rules forbid making from memory. Found by checking the vendor page rather than trusting the plan. (2) **The first run of the browser harness failed one check** (`a gone row is dropped and a stale row is kept`): the fixtures still used 60 s and 200 s ages, which are fresh and stale under the new 90/300 windows. The rule was right and the fixtures were stale; fixed in the fixtures, re-run green. (3) The document claimed a `compose.yaml` local path for a stack that now has no container - corrected to `wrangler dev`.
+- **NEXT ACTION.** Build `Backend/` per `Docs/SERVER_AUTHORITY_AND_ACCOUNTS.md` section 13.3: the pure rules module and its `node --test` checks, with no database, no network and no Worker, then `Tools/Backend/export_awards.py --check`, then `0001_init.sql` against a Neon branch.
+
+### Session 105 addendum 7 - what the database actually holds, and the password that was never there (2026-10-23)
+
+- **PRODUCER QUESTION.** "is that sql secure enough? really it needs to maintain the users player name and password - link to EOS or steam? and then their xp and rank really? maybe eventually where they're at in training? but minimal as possible. client does as much of the heavy lifting as possible."
+- **THE PREMISE, ANSWERED.** There is no password, and linking EOS or Steam is precisely what removes one: the platform holds the credential and proves who the player is, so the studio never becomes the custodian of a secret it cannot protect well (ADR-048 d1, unchanged). **XP and rank are not stored either** - `rank_ledger` rows are, and the rank is a view over them. That is a smaller surface than storing a rank column, not a larger one: there is no value to edit, no total to desync, and a correction is a compensating row.
+- **WRITTEN DOWN, SO IT CANNOT DRIFT.** New section 6.1 in `Docs/SERVER_AUTHORITY_AND_ACCOUNTS.md`: an inventory split into **stored** (display name, identity subject, ledger rows, host/lease/batch rows with hashes only), **derived, never stored** (XP, rank, service level, leaderboard position), and **never stored** (password or hash, email, real name, date of birth, country, payment data, IP in the database, hardware fingerprint, training progress). Plus the three rules a reader needs next to it: **training progress is out of v1** and moves behind the authority the moment it unlocks anything rather than being an honour badge; **the database is not internet-facing and the game never talks to it** (only the Worker holds `DATABASE_URL`, every statement parameterised, so "is the SQL secure enough" reduces to the safety of the Cloudflare and Neon accounts); and **the client-heavy/authority-heavy line** - the client computes everything invisible when it is wrong (prediction, animation, audio, UI, settings), the authority decides only what was earned and what is unlocked (ADR-004 and R-106 applied to progression).
+- **THREE DRIFTS FIXED IN THE SAME PASS.** (1) The `identities.provider` comment in the DDL still listed `'password'` as a provider, in a document whose decision 1 forbids one - a migration would have been written from that comment. (2) Section 4 and the DDL still said **Ed25519** for the host key while section 13.8 said **ECDSA P-256**; the contradiction was introduced by addendum 6 replacing the signing scheme in the implementation half only. (3) Section 3 listed "an email login" among the identity rows in the paragraph that rejects email and password.
+- **THE DESIGN WAS NOT IN GIT.** `Docs/SERVER_AUTHORITY_AND_ACCOUNTS.md`, `Docs/SERVER_BROWSER_AND_DISCOVERY.md` and `Docs/DEDICATED_SERVER_ARCHITECTURE_PROPOSAL.md` were untracked (1,113 lines) while ADR-046 to ADR-049 - tracked - cited them, so any clean checkout would have left every backend ADR pointing at files the repository did not contain. Committed as written in **b9461f3b**, three explicit paths, `--only`, 3 files and no other session's work.
+- **FILES CHANGED.** `Docs/SERVER_AUTHORITY_AND_ACCOUNTS.md` (+26 lines net: section 6.1, three corrections), `Docs/CHANGELOG.md`. Committed: the three design documents above (b9461f3b).
+- **TESTING.** `python Tools/validate_project_docs.py` -> **PASS, 6 notes, exit 0**. Section 6.1 read back after writing to confirm the table is three columns with no stray pipes (a `|` inside a cell would have silently split it). `git status` before the commit confirmed the other session's Marringa work stayed out. **NOT RUN:** any database, any DDL, any Worker, any request; no SQL in this repository has been executed against anything. This addendum is **E1** - documents and decisions, no service.
+- **ASSETS.** None.
+- **RISKS.** No new ids. R-113 and R-114 unchanged; R-09 untouched. The untracked-documents finding is fixed rather than registered, because it was a state of the checkout, not a standing hazard.
+- **DEFECTS FOUND.** (1) The DDL's provider comment invited a password column into a schema that forbids one - found by grepping the document for the word "password" after the producer asked about it. (2) A document contradicting itself on the host key algorithm (Ed25519 in two places, P-256 in a third), left by the previous addendum's partial edit - found by grepping for both names. (3) Three governing documents never added to git - found because `git diff --stat` printed nothing for a file that had just been edited.
+- **NEXT ACTION.** Build `Backend/` per `Docs/SERVER_AUTHORITY_AND_ACCOUNTS.md` section 13.3: the pure rules module and its `node --test` checks with no database, no network and no Worker, then `Tools/Backend/export_awards.py --check`, then `0001_init.sql` against a Neon branch.
+
+### Session 105 addendum 8 - backend threat model: what a stolen credential, a lying host and a leaked connection string each buy (2026-10-23)
+
+- **PRODUCER DIRECTION.** "what a stolen host credential, a lying host and a leaked database URL each get an attacker", written down so the answers are not re-derived in a panic.
+- **PRODUCED.** `Docs/BACKEND_THREAT_MODEL.md`: six assets in the order an attacker wants them, six adversaries (with the ranking that matters - the insider is strictly stronger than the host operator, who is strictly stronger than the curious player), fourteen threats, and a closing list of the six controls owed before the word "secure" is used. Every impact figure is arithmetic from the shipped configuration, not an estimate.
+- **THE NUMBERS, EXECUTED.** A batch at every cap is **2,425 XP** per player (`EnemyKill` 10x50, `ObjectiveCaptured` 100x10, `RoundWon` 50x9, `RoundWonAlive` 25x9, `MatchCompleted` 150, `MatchWon` 100). The ladder is `round(60 * (n-1)^1.9)`: **Lieutenant is 86,575 XP, the top is 371,414**. A strong genuine match is ~925 XP, so a liar reaches Lieutenant in **36** maxed batches against ~94 honest matches, and 2.6x per hour with nobody playing - indefinitely, because an idle 20-minute server can submit every 20 minutes.
+- **TWO HOLES FOUND IN THE DESIGN.** (1) **"Append-only" is a paragraph, not a permission.** The database has no role separation: whoever holds `DATABASE_URL` can `UPDATE` and `DELETE` `rank_ledger`, including the audit rows that would prove it. New section 13.8 rule 10 and section 10 rule 10 require two roles with explicit grants, the runtime role holding no `UPDATE`/`DELETE` on the ledger at all. (2) **A cap bounds a match; nothing bounds a day.** New section 13.8 rule 11 requires a per-account XP ceiling per hour and per day plus a per-server batch rate, and the handler refuses ranked batches until those values are recorded rather than running without them. Registered as **R-115**.
+- **THE SINGLE MOST DANGEROUS LINE OF CODE, NAMED.** If the identity module takes the platform `subject` from the request body instead of verifying the platform's token (signature against Epic's published keys, issuer, audience, client id), every other control in the design is irrelevant - anyone is anyone. Written up as T-06 and, as a build rule, section 13.8 rule 12. The exact endpoints and claim names are explicitly left to Epic's current documentation at implementation time, because inventing them here is how a security control becomes decorative.
+- **WHAT $0 CANNOT DO.** T-09: a request flood is an attack with no exploit - 100,000 shared requests a day means one loop stops everyone's progression and the server list until midnight, and Cloudflare's managed rate limiting is not a free-plan feature. Recorded as undefended, not as a gap to be closed later.
+- **ALSO CORRECTED.** R-113 in the register still described "one stateless container (Fly.io `syd`)", which ADR-049 replaced; the previous addendum's line claiming R-113 had been reworded was wrong about what landed in the file.
+- **FILES CHANGED.** `Docs/BACKEND_THREAT_MODEL.md` (new, 8 sections, 163 lines), `Docs/SERVER_AUTHORITY_AND_ACCOUNTS.md` (section 10 rule 10 and the pointer to the model; section 13.8 rules 10-12; section 13.9 items 10-11, so "done" now includes the grants and the ceiling), `Docs/PROJECT_AUDIT.md` (R-115 added, R-113 corrected: 665 -> 666 lines, 76 risk rows, one row per id), `CLAUDE.md` (the threat model and the two new controls in the backend paragraph), `Docs/CHANGELOG.md`.
+- **TESTING.** `python Tools/validate_project_docs.py` -> **PASS, 6 notes, exit 0**. The XP ladder arithmetic was executed in Python against `XpForLevel(n) = round(60 * (n-1)^1.9)` read from `Plugins/SouthernSpearCore/Source/SouthernSpearCore/Public/SSServiceRanks.h`; the per-batch cap sum was taken from `Config/DefaultGame.ini`. Risk-row counts checked before and after the edit. **NOT RUN:** any exploit, scan, penetration test or load test - there is no service to attack; no database, no Worker, no request. This addendum is **E1** (source and configuration read, arithmetic executed) and **E0** for every claim about a running system.
+- **ASSETS.** None.
+- **RISKS.** New **R-115** (OPEN, design): a lying ranked host farms the ladder because only a match is bounded, not a day. R-113 reworded to the Worker stack; R-114 unchanged; R-09 and R-106 untouched.
+- **DEFECTS FOUND.** (1) The ledger's append-only guarantee was enforced by application policy with no database `GRANT` behind it - found by asking what a leaked connection string buys, which nobody had asked. (2) No rate ceiling existed anywhere in the design despite sections 5 and 6 being about abuse - found by converting "what does one batch pay" into "what does a day pay". (3) A changelog line from addendum 6 asserted R-113 had been reworded and the register still said Fly.io - found by reading the row while adding R-115.
+- **NEXT ACTION.** Build `Backend/` per `Docs/SERVER_AUTHORITY_AND_ACCOUNTS.md` section 13.3: the pure rules module and its `node --test` checks with no database, no network and no Worker - including the XP ceiling, the batch rate and the "subject from verified claims only" checks that T-06, T-02 and R-115 depend on - then `0001_init.sql` and `0002_roles.sql` against a Neon branch.
+
+### Session 105 addendum 9 - the EOS token check, specified (2026-10-23)
+
+- **PRODUCER DIRECTION.** "Specify the EOS identity verification path against Epic's current documentation, so the token check is written down rather than guessed" - turning T-06 from a warning into an executable specification.
+- **PRODUCED.** `Docs/EOS_IDENTITY_VERIFICATION.md` (new, 11 sections, 182 lines): which token, the client sequence, the ten server-side checks, key caching and rotation, replay, a two-stage test plan, and the decisions the document deliberately does not make.
+- **VERIFIED BY FETCHING, NOT BY REMEMBERING.** Both key sets were pulled over HTTPS on 2026-10-23 and their material recorded: **`https://api.epicgames.dev/auth/v1/oauth/jwks`** (the *Connect* set) returns two RSA keys with timestamp `kid`s and **no `alg` field**; **`https://api.epicgames.dev/epic/oauth/v2/.well-known/jwks.json`** (the *Auth* set) returns two RSA keys with `alg: RS256` and opaque `kid`s. The endpoint-to-token mapping is Epic's own page text as indexed, because **Epic's documentation is client-rendered and neither the researcher agent nor this session could extract a page body** ("No readable text found"); both URLs answer 200, which corroborates the mapping but is not the same as reading the page, and the document says so in its own section 1.
+- **DECIDED IN THE SPEC: Connect, not Epic Account Services.** The Connect subject means "the same player as last time"; the Auth token means "this person's Epic account", with consent, scopes and a linking screen this game does not need. The rule that protects the ledger is that a subject is opaque **and its token type is pinned**: `provider = 'eos'` accepts Connect only, forever, or the same human produces two `sub` values and gets two ranks.
+- **THE CHECK THAT ACTUALLY MATTERS.** Signature plus issuer proves only that *Epic* minted the token - a token from any other EOS product would pass. So `aud` must equal our client id, and `product_id`/`sandbox_id`/`deployment_id` (if present) must equal the configured values. The spec also forbids `alg: none` and `HS*` explicitly, because the Connect key set states no algorithm and copying one from the key set is exactly how a token ends up signing itself.
+- **THE PREREQUISITE THAT DOES NOT EXIST.** ADR-048's "`eos` ships inside UE 5.8, so it adds no paid dependency" is true of the engine and false of this project: `SouthernSpear.uproject` enables **no** EOS plugin, `Config/*.ini` holds **no** EOS keys, the engine plugin is `EnabledByDefault: false`, and **there is no `Source/ThirdParty/EOSSDK` in this install** - which is not registered with the Epic Games Launcher (R-03) where that SDK is normally fetched. A real login needs an Epic Games developer account and an EOS product (product, sandbox, deployment, client id). New **R-116**: free, but an external dependency and a producer task, and until it exists no account can be created and section 13.9 item 3 is unreachable end to end.
+- **TWO SMALLER FACTS WORTH HAVING.** The EOS `ClientSecret` lives in the game's config by design (the engine's own `EOSSettings.h` lists `Artifacts.ClientSecret`), so it is in the shipped build and **must never be treated as a secret**: verification needs only the client id and the public keys, so nothing in the backend depends on it. And the claim set of a real token is treated as **discovered, not assumed**: step 3 requires decoding one real token and recording its claims in `Docs/evidence/`, because the API reference page could not be read and a guessed claim list is a security control that does not exist.
+- **FILES CHANGED.** `Docs/EOS_IDENTITY_VERIFICATION.md` (new), `Docs/SERVER_AUTHORITY_AND_ACCOUNTS.md` (13.8 rule 12 points at the spec; 13.10 gains two prohibitions), `Docs/PROJECT_AUDIT.md` (R-116 added: 666 -> 667 lines, 77 risk rows, rows re-sorted to id order after an insert landed out of sequence), `Docs/CHANGELOG.md`. Committed: the new document only.
+- **TESTING.** `python Tools/validate_project_docs.py` -> **PASS, 6 notes, exit 0**. Both JWKS endpoints fetched (HTTP 200) and their key material read. Table column consistency checked on the new document. **NOT RUN:** no token of any kind has been verified, no EOS product exists, the plugin is not enabled, there is no `Backend/`, and the ten-step check has never executed. Stage 1 of the test plan (a test key set, ten `node --test` cases) is possible today; stage 2 needs the EOS product. This addendum is **E1**.
+- **ASSETS.** None.
+- **RISKS.** New **R-116** (OPEN, blocked on a producer action): the identity path depends on an EOS product this project does not have. R-115, R-114, R-113 unchanged; R-09 and R-106 untouched.
+- **DEFECTS FOUND.** (1) **ADR-048's "no paid dependency" reasoning understated the work by an entire account setup**, and nobody had checked whether the project enables EOS - found by grepping `.uproject` and `Config/*.ini` instead of trusting the ADR. (2) **My own first draft attributed the `kid` schemes the wrong way round** in the rotation section (timestamps belong to the Connect set, opaque hashes to Auth); caught by re-reading the fetch output against the text, fixed, and the corrected version adds that neither scheme may be parsed. (3) Epic's documentation could not be read by either research route, so three of the questions the spec depends on (claim names, `sub` meaning, whether a PUID needs an Epic account) are recorded as open rather than answered from memory.
+- **NEXT ACTION.** Answer the producer question the spec cannot: whether players must have an Epic Games account to play ranked (section 10, item 1). If they must not, the EOS product and its login method become a concrete task; if they may, the login screen design follows from the same product.
+
+### Session 105 addendum 10 - Marringa Point round 20: two bot rounds with the stall rule, and six more places on the map (2026-10-23)
+
+> Numbering note: addenda 1-9 above include two separate entries both labelled "addendum 6" (a Marringa ghost-gum entry and a hosting entry). This entry takes the next free number and does not renumber the existing ones.
+
+- **COMPLETED (E5 two PIE runs + E2 map change + E1 measured + E6 captures reviewed):** the producer's question — "run a PIE bot round on Marringa Point with the new yards and groves and report whether bots still leave both deployments and take all three objectives, with the stall rule applied" — plus the dressing request that came with it.
+- **(a) The bot round, run twice.** Same paused one-at-a-time fill and the addendum-143 stall rule (under 20 cm/s for 30 s or more) as the earlier rounds. **Run A** on the map as round 19 left it (62 samples, 54 AI bots): **8/8 west starts filled, 8/8 filled bots left their start and reached Obj A at 59.4-94.2 s**, 7/7 east filled bots left, **0 AI stalls**. **Run B** on the map after this pass's dressing (70 samples, 59 AI bots): **8/8 west starts filled, 8/8 left and reached Obj A at 62.5-67.6 s** (travel 210.1-359.4 m), **7/7 east left** (travel 225.2-239.3 m), **0 AI stalls**. The only stationary pawn in either raw file is the undriven local player (`LyraPlayerController`) at the west deployment; the analyser's stalls list is empty in both.
+- **(b) All three objectives, both runs.** Run A: PreRound -> InProgress 00:37:30; **Boat Shed TeamOne +68 s**; Headland Lookout TeamTwo +25 s later; **Dune Camp TeamTwo +48 s later**; InProgress -> PostRound, **TeamTwoWon**, T1=1 T2=2. Run B: InProgress 01:09:25; **Boat Shed TeamOne +65 s**; **Headland Lookout TeamTwo +23 s later**; **Dune Camp TeamTwo +62 s later**; **TeamTwoWon**. No `Failed to find path`, `no navmesh` or `LogPathFollowing: Warning` lines in either slice.
+- **(c) What the stall rule did not settle.** `Build/marringa_run_r19.json` (09:58, before this pass) had three bots stationary ~31 m from Obj A at (13,835, -7,019) against the solid tree `SS_C18_rural_m_0312`. It did not recur in either run, but nothing in this pass changed that tree's nav, so R-112 remains open and this is an observation, not a fix.
+- **(d) Six places added (46 pieces, 32 solid), each a composition anchored on one measured pad.** WASHOUT (5,650, -13,438): bogged ute, planks, limb, broken fence. CAMP (17,704, -5,610): caravan donga, power pole, log stack, table, sofa, fridge, rubbish. CONVOY (13,003, -7,917): two broken cars and spilled kit. GATE (41,933, -3,308): tractor at a farm gate, dead tree, mailbox. DEFENCE (33,482, -694): concrete blocks, sandbags, wire, tyres covering the southern approach to Dune Camp. SIGNALS (23,910, -3,743): antenna, two sandbag bays, radio set. Every solid piece carries `SS_NavBlock_SS_C20_*`; after the bake **0 of 32** solid footprints answer a nav projection and **24/25** lane samples still do.
+- **(e) Why the first draft failed, measured.** The planned centres were guesses: **66-80 of 80 placement samples per piece failed on slope** at WASHOUT. `Build/r20_find_sites.py` then scanned each neighbourhood for the flattest legal 10 m pocket; the sites moved onto measured ground. Two further drafts were needed because per-piece disc search scattered pieces up to 22 m apart ("litter, not a place"), and because the random hero search moved the anchors between runs (46, then 31, then 46 pieces placed). Anchors are now pinned.
+- **(f) The map does not lack cover.** `Build/r20_lane_gaps.py` walked all five lanes at 10 m steps against 2,432 colliding props: no lane has a 30 m stretch clear of solids within 22 m, and the median lane point is **inside** a collider (-0.8 to -2.7 m). What was missing is readable cover and landmarks, which is what the six sites provide, none of them plugging a sightline (4.6-54.3 m from the nearest lane, 1.7-4.2 degrees).
+- **FILES CHANGED.** `Content/Maps/L_MarringaPoint_01.umap` (**273,777,017 -> 274,103,640** bytes in this pass: 46 pieces, 32 nav volumes, two `BUILDPATHS`; the round-19 dressing had already taken it from 271,025,317 to 273,777,017), `Tools/Unreal/dress_marringa_r20.py` (new), `Docs/evidence/s_CURRENT/coastal/r20/` (new: `MARRINGA_R20.md`, two run files, dress/site/bounds/lane-gap/nav-probe JSON, six site captures and three close-ups), `Docs/CHANGELOG.md`. Harness-only helpers stayed in `Build/` (git-ignored).
+- **TESTING.** `python Build/pie_run.py r20a 62 2.5` -> PIE ready, 8/8 west starts filled, run saved, exit 0. `python Build/pie_run.py r20b 70 2.5` -> same, exit 0. `python Tools/Unreal/analyse_marringa_pie_bots.py Build/marringa_run_r20{b}.json` -> 0 stalls, 8/8 coverage, per-start arrivals as above. `BUILDPATHS` in the attended editor twice (1.4 s and 1.5 s command round trips), `save_current_level` True, map saved 274,103,640 bytes. `Build/r20_navprobe2.py` -> 0/32 solid footprints on nav, 24/25 lanes on nav. Editor captures reviewed (E6). `python Tools/validate_project_docs.py` -> see the validation line in the session report. **NOT RUN:** no packaged build, no `-game`, no network path (R-09, R-106), no dedicated server, no canopy thinning at the new sites, no frame-time measurement with the 46 new meshes, no producer review.
+- **ASSETS.** No new assets. Used from the cleared library: Modular Rural Cabin (caravan, outhouse attempt, power pole, fence runs, log stacks, planks, pallet, barrels, table, sofa, fridge, bin, mailbox, bucket), Fab rural props (tractor, dead tree, fallen tree, chicken coop attempt, sandbag barrier, barbed wire, concrete block, tyre), RustyCarsFree wrecks, Southern Spear vehicle kit (ammo box, jerrycan, spare wheel, shovel, pack), Military Radio sets.
+- **RISKS.** No new ids. R-112 unchanged and now demonstrated to matter: the stall at `SS_C18_rural_m_0312` is still unexplained and uncovered. R-110 unchanged (the unmeasured 42 cells). R-09, R-106 untouched.
+- **DEFECTS FOUND.** (1) First draft sited three places on raw hillside - 66-80 of 80 samples refused per piece on slope; found by reading the skip reasons. (2) First clustered draft scattered pieces up to 22 m apart - found by measuring each piece's distance from its anchor. (3) The hero search was random, so anchors moved between runs and the site contents changed - fixed by pinning. (4) The planned CAMP centre sat 2.95 m from the A->B lane, inside the 4 m rule, so no pad was legal there (161 of 240 samples refused on lane) - moved 16.9 m off. (5) A 13 m rural tree's bounds contain the caravan and the tractor, so both read from the ground but vanish from the air; recorded, not thinned. (6) The changelog above carries two different "addendum 6" entries; recorded, not renumbered.
+- **NEXT ACTION.** Thin the canopy over the six new sites' pads (the same controlled removal round 19 used for the ghost gums), then re-capture CAMP/GATE/CONVOY and re-run the stall-rule PIE round, so the E6 read and the E5 result describe the same final map.
+
+### Session 105 addendum 11 - the login story: no Epic account, and a code instead (2026-10-23)
+
+- **PRODUCER DIRECTION.** "Work out the login story: whether players need an Epic account to play ranked, and what the sign-in screen does if they don't." The question was answered from documentation, then decided.
+- **THE ANSWER: no Epic Games account is required.** EOS Connect is not EOS Auth: Connect issues the Product User ID and accepts an external identity (a Steam session ticket) **or a device id**, neither of which is an Epic account. Developer documentation states the split directly - *"There are two login interfaces: Auth Login for authorizing an Epic Account and related services; Connect Login for connecting the User for one ProductID (Game)"* - and Epic's own sentence, reproduced in a public issue, is *"Creating a user will generate a new Product User ID for the user given the external credentials used during login."* **Grade:** developer documentation and reproduced Epic text; Epic's pages are client-rendered and could not be read by either research route, so this is corroborated, not quoted from a page read here.
+- **THE GAP THAT MATTERED MORE.** The game has **no storefront**, so nothing hands the client a platform identity on a bare download: "sign in with Steam" waits for a Steam page, and the silent EOS device route gives a rank **bound to that machine's device file** - a wipe or a new PC starts over. Neither is a service record. That reframed the question from "Epic account or not" to "what can a player on a bare download prove, and what happens when their hard drive dies".
+- **DECIDED (ADR-050, accepted): a recovery code the authority issues.** Playing never requires an account (unchanged). Ranked requires one portable identity, and v1 issues it: **20 characters from `crypto.getRandomValues`, shown once, stored as SHA-256 only**, no KDF because there is no human-chosen secret. `identities.provider = 'code'`, and the provider list becomes `code | steam | eos | dev` - with `eos` and `steam` demoted to linkable later, which is what an account that outlives a platform always implied. **No email, no reset, no recovery by the studio**: a lost code is a lost rank, said plainly once.
+- **THE SCREEN, SPECIFIED RATHER THAN DESCRIBED.** First launch is *Play* and nothing else - no modal, no email field. The pause menu carries `SERVICE RECORD - Unranked` with one button. The ask comes **after the first match**: *"That match counted for nothing. Keep the next one?"* The irreversible consequence is stated at the one moment it can be acted on: *"This is the only way back to your record. We cannot recover it for you."* Offline shows `SERVICE RECORD - Offline` and the game plays; ranked results queue in the local profile and are never silently dropped.
+- **THE COST, ACCEPTED IN WRITING.** A recovery code is a long-lived secret on the player's disk, which is a deliberate exception to ADR-048 d1's "nothing long-lived is written to disk" - recorded in the ADR rather than quietly absorbed. Session tokens still live in memory; the code is readable back by the player, copyable, and revocable from a signed-in session.
+- **R-116 DOWNGRADED.** The missing EOS product no longer blocks v1: ranked play, the ledger and the whole end-to-end curl walk can now be built and tested without Epic. R-116 still blocks the `eos` provider and any EOS link.
+- **FILES CHANGED.** `Docs/DECISION_LOG.md` (ADR-050 accepted, index row, ADR-048 decision 1 marked amended: 1,839 -> 1,885 lines, 50 ADRs), `Docs/SERVER_AUTHORITY_AND_ACCOUNTS.md` (new section 3.1 with the evidence, the four candidate identities and the screen states; section 3's opening and its two rationale rows corrected; the `identities.provider` comment now lists `code`; section 13.2 gains `src/rules/code.ts`; section 13.8 gains rule 13; section 13.9 gains item 12 and the closing line now says 1 to 12), `Docs/EOS_IDENTITY_VERIFICATION.md` (status: not v1's identity, the `eos` link's spec), `Docs/PROJECT_AUDIT.md` (R-116 status), `Docs/CHANGELOG.md`.
+- **TESTING.** `python Tools/validate_project_docs.py` -> **PASS, 6 notes, exit 0** after each edit (ADR index and definitions agree at 50). Section 3.1's two tables checked for column consistency; the ADR index row and the ADR's metadata checked against each other. Risk rows still 77; project audit 667 lines. **NOT RUN:** no code, no database, no screen, no code has ever been generated or hashed by this project. The EOS-account question itself rests on developer documentation, not on a token this project has seen. This addendum is **E1**.
+- **ASSETS.** None.
+- **RISKS.** No new ids. **R-116** narrowed to the `eos` provider. R-115, R-114, R-113 unchanged; R-09 and R-106 untouched.
+- **DEFECTS FOUND.** (1) Section 3's own rationale table said *"nothing long-lived is written to disk"* and *"EOS first because it ships inside the engine"*, both of which the new decision contradicts - found by re-reading the section immediately after deciding, and corrected in place rather than left as a contradiction two paragraphs apart. (2) My edit first appended a second "no passwords" sentence that duplicated the existing one; caught in the same read-back and removed.
+- **NEXT ACTION.** Build `Backend/` per `Docs/SERVER_AUTHORITY_AND_ACCOUNTS.md` section 13.3: the pure rules module and its `node --test` checks with no database, no network and no Worker - now including `src/rules/code.ts` (generate, normalise, reject malformed) and the `code` provider's ten cases, then `0001_init.sql` and `0002_roles.sql` against a Neon branch.
+### Session 105 addendum 12 - Marringa Point round 21: the west spawn re-laid, a bore in the middle, cover on the hills, and the farm's windmill replaced (2026-10-23)
+
+- **PRODUCER DIRECTION, four lines and one question.** *"this spaawn point needs work - bit all over the shop. the middle of the map needs a bit more there - no flag placements? the hills need some more props / trees, could be used for flanking / snipers? windmill here looks horrible."* Answered on `L_MarringaPoint_01` with `Tools/Unreal/dress_marringa_r21.py` (idempotent on the `SS_C21_` prefix), then a `BUILDPATHS`, a save, the three audits, and a PIE session for the flag.
+- **THE WEST SPAWN (`DepA`), re-laid rather than nudged.** Eight starts in two ranks of four (x = -300 / +300, files y = -20 900 .. -19 100) on ground measured flat, and one compact kit point, one pallet/tyre park and two sandbags **per deployment**, instead of props scattered over 30 m. `DepB` got the same treatment on the farm pad: 8 of its 12 planned props placed, and the sandbag and concrete planned for its east side **skipped** rather than forced - that side is `SS_CoastMil_depline_*` and the farm fence, and the 6.5 m search found no free spot.
+- **THE MIDDLE, a stock bore.** Windmill, pump tank, two barrels, spill sheet, tyre, fence stub, log pile and a dead tree at (19 800, -8 600) - **11 m off the A-to-B lane**, between ObjA and ObjB, so the middle of the map is a place to fight over instead of a walk.
+- **THE HILLS, cover for flanking and sniping.** 90 pieces on the flanks - 46 trees, 30 rocks, 14 grass trees, in eight clusters - plus six measured perches (`PERCH 0-5`, 35 pieces) that overlook a lane from 25-49 m up, each with boulders, a dead tree, a log and grass trees. A seventh candidate, `PERCH6` at (7 432, -5 452), was accepted on clearance and then **placed nothing**: every piece's offset landed on existing rock. Six perches with 4-6 pieces each, one empty - the search checks the pivot's clearance, not the footprint each piece is dropped into.
+- **THE FLAGS: already built, and invisible in the viewport for a reason.** `USSObjectiveFlagSubsystem` spawns `SM_Flag_Holder_00` + `SM_Flag` at Objective + 180 cm with `MI_SS_Flag_Friendly` / `MI_SS_Flag_MAF`, and it deliberately only runs in `EWorldType::Game` / `PIE`. Nothing shows in the editor, which is what the producer saw. **No static mast was added**: a second pole beside the real one would read as two flags. Verified instead - PIE at ObjA listed `Actor0` at (13 180, -10 000), the objective plus the subsystem's own offset, with a `StaticMeshComponent` and a `SkeletalMeshComponent` on it. The cloth colour is not captureable this way (it is shown per viewer/ownership), and that is stated as a gap, not claimed.
+- **THE FARM WINDMILL, replaced.** `SS_RedGum_Windmill` - a bare timber derrick with planks nailed to it - is gone from (45 600, 5 400) and `SM_Fab_Windmill` stands on the old pad; the pump tank beside it is unchanged. The four `CMP_*` comparison masts from the earlier windmill search and every `SS_FLAGTEST_*` probe were deleted: 232 actors removed in total, 158 placed, 13 skipped, 0 errors.
+- **MEASURED.** Nav probe: 86 colliding new pieces, **2** still answer a nav projection inside their own footprint (`SS_C21_DepA_concrete_11`, `SS_C21_DepB_tire_06`), **44 of 45** lane samples carry navmesh. Ground audit over the whole map (2 946 `StaticMeshActor`s): **1 floater** (a pre-existing grass tuft on a stone, unchanged) and **0 buried**; of the 158 new pieces **0 floaters, 0 buried, 56 "edge"** - every one a tree whose canopy overhangs a slope while its trunk sits 10-117 cm *into* the ground. Path matrix: **51 queries, 4 partial**, all DeployA -> ObjC - see R-117 below.
+- **FILES CHANGED.** `Tools/Unreal/dress_marringa_r21.py` (new), `Content/Maps/L_MarringaPoint_01.umap` (saved: 158 placed, 232 removed), `Docs/evidence/s_CURRENT/coastal/r21/` (report, eight captures, `MARRINGA_R21.md`), `Docs/PROJECT_AUDIT.md` (R-117), `Docs/CHANGELOG.md`.
+- **TESTING.** Headless `UnrealEditor-Cmd.exe "E:/SouthernSpear/SouthernSpear.uproject" /Game/Maps/L_MarringaPoint_01 -nullrhi -unattended -nosplash -nosound -stdout "-ExecutePythonScript=..."` for the dressing pass, the `BUILDPATHS` bake, the nav probe, the ground audit and every capture (the camera scripts read `Build/look.json`); PIE over MCP for the flag and the viewport captures - `-game` is still the launch crash, so PIE remains the only runtime route. `python Tools/validate_project_docs.py` -> **PASS, 78 risk rows, exit 0**. **NOT RUN:** a bot round on the round-21 layout (the last measured one is round 20's, addendum 10: 0 AI stalls, all three objectives taken - nothing here re-measures it); frame time or draw calls, now ~2 950 `StaticMeshActor`s on one map, still unmeasured and still without a risk id; and a visual check of the flag cloth. Levels: **E6** for the dressing, **E5** for the flag (PIE world observed), **E4** for the audits, E1/E2 for the survey and placement.
+- **ASSETS.** No new assets. `SM_Fab_Windmill` (Fab, already registered) reused in place of the project's own windmill mesh. `Content/Art/Environment/Fab/` in `Art/` is untracked working material, not committed.
+- **RISKS.** **R-117 raised** (78 rows): four DeployA -> ObjC paths that used to arrive now stop short - three on the objective, `DeployA_Extra03` 4.4 m short - after a pass that placed nothing within 45 m of ObjC, and identically across two matrix runs and a full rebake. Unexplained, and its play impact unmeasured. R-82 (attended nav bake) unchanged; R-106, R-09 untouched.
+- **DEFECTS FOUND.** (1) R-117's path regression, found by the path matrix run as a post-check rather than assumed absent - the round-20 baseline was 0 partial. (2) The perch placer accepts a site on the *pivot's* clearance but drops pieces by offset, so `PERCH6` selected cleanly and placed nothing - found by reading the per-site report, not by eye; two perches also produce footprints that still answer a nav projection. (3) The evidence document first attributed the path regression to **R-116**, an id that already existed (the EOS account risk), caught while writing this entry and corrected to R-117 - a reminder that a risk id is not a free number to pick while writing an evidence file.
+- **NEXT ACTION.** Run the instrumented PIE bot round (the round-20 tooling, all eight starts, the stall rule) on the round-21 layout: confirm 0 AI stalls and all three objectives taken, and use the same session to trace the four partial DeployA -> ObjC paths behind R-117.
+### Session 105 addendum 13 - the round reset's Blueprint errors: ours, not Lyra's, and not fixed (2026-10-23)
+
+- **WHAT THE PRODUCER REPORTED.** The editor's Message Log, after a PIE round: `B_WeaponInstance_Base` Blueprint runtime errors - `Attempted to access B_Hero_ShooterMannequin_C_20 ... not valid (pending kill or garbage)` on `IsDeadOrDying`, `Accessed None` on the same node, then `LinkAnimClassLayers` and `Play Montage` inside `ActivateAnimLayerAndPlayPairedAnim`. Nineteen pawns named in one paste.
+- **WHAT IT IS.** Lyra's asset, not ours: `Plugins/GameFeatures/ShooterCore/Content/Weapons/B_WeaponInstance_Base.uasset`, unmodified. Its graph calls `GetTypedPawn` from tick and from the anim-layer activation **without a validity guard**, so any frame in which the weapon instance ticks after its pawn is gone raises this.
+- **THE TRIGGER IS OURS.** Analysed `Saved/Logs/SouthernSpear.log` (287 MB, five PIE sessions): three sessions ran a round reset, and in each the first error is **one log line after** `LogSSObjectives: Round reset: sending N player(s) back to deployment.` - **372 lines for 36 pawns** (23:57), **95 for 19** (00:40), **95 for 19** (01:12). The two sessions with no reset produced **zero** such lines. Per pawn it is exactly five lines in the 19-pawn sessions: `IsDeadOrDying` invalid + `Accessed None`, `LinkAnimClassLayers` invalid + `Accessed None`, one `Play Montage`; the 36-pawn session averaged 10.3 because the kit grants two weapons and some pawns ran the equip path twice.
+- **WHY THE RESET, AND WHY BOT DEATHS ARE SILENT.** `ASSObjectiveAssaultDirector::RespawnAllPlayers()` calls `Controller->GetPawn()->Destroy()` on every living possessed pawn from inside the director's tick. The weapon instance (a `UObject` outered to the pawn's equipment manager) outlives the pawn by a tick and then reads it. A normal Lyra death leaves a **valid corpse**, so `IsDeadOrDying` answers true and the graph exits quietly - which is why no bot death anywhere else in those sessions logged this.
+- **WHAT I RULED OUT.** Destroying the local player's pawn from editor Python at 02:37:36 produced **0** errors and a clean restart with `Kit 0` re-granted. That call runs *outside* the world tick, so it does not exercise the ordering that fires the burst - which is also why I will not call the mechanism proven. A four-pawn "mass destroy" at 02:38:54 printed `PAWNS 4` and then failed before `DESTROYED_ALL`; it is void and counted as nothing.
+- **IMPACT, STATED AS OBSERVED.** No crash, no gameplay effect, no visual defect seen. It is ~95 log lines that arrive exactly when a test round begins - the worst place for noise that can hide a real error - and they name Lyra's code, which makes the cause look like someone else's.
+- **FILES CHANGED.** `Docs/evidence/s_CURRENT/runtime/BP_WEAPON_INSTANCE_ERRORS.md` (new; the counts, the negative tests, the reading, the proposed fix), `Docs/CHANGELOG.md`. **No source change**: the fix is a hypothesis until a PIE round can show it, and a hypothesis is not a build.
+- **TESTING.** Read-only analysis of the log (`PYTHONIOENCODING=utf-8 python` over `Saved/Logs/SouthernSpear.log`: split at `PIE: Play in editor total start time`, locate `Round reset: sending`, count `B_WeaponInstance_Base` lines and distinct pawn ids; then `Node:` tally). One live PIE session (02:37-02:38, `L_MarringaPoint_01`) for the two negative tests, ended with `editor_request_end_play()`. `python Tools/validate_project_docs.py` -> PASS, 6 notes, exit 0. **NOT RUN:** a controlled reproduction; the proposed life-span teardown; any build. This entry is **E1** - log and source inspected, one behaviour executed, mechanism not proven.
+- **ASSETS.** None.
+- **RISKS.** No new ids. R-117 unchanged; R-106, R-09 untouched.
+- **DEFECTS FOUND.** (1) The round reset destroys living possessed pawns inline, and vendored Lyra code logs five runtime errors per pawn as a result - found by correlating five PIE sessions, not by reading the paste. (2) The first explanation I formed - "a bare `Destroy()` does this" - was **wrong**, and the single-pawn test is what disproved it; the entry keeps that negative result rather than the tidier story. (3) The mass-destroy test failed silently: `mcp_client.py` prints only `output`, so a call that raises shows nothing and looks like a clean zero. That is a tooling trap worth knowing before the next experiment.
+- **NEXT ACTION.** Apply the proposed teardown in `ASSObjectiveAssaultDirector::RespawnAllPlayers()` - unpossess and give the pawn a 1-frame life span instead of destroying it inline - rebuild, and verify in one PIE round with a reset: 0 `B_WeaponInstance_Base` lines where this baseline has 95.
+### Session 105 addendum 14 - Marringa round 22: the canopy thinned over CAMP, GATE and CONVOY, the pads re-shot, and the stall-rule round on the final map (2026-10-23)
+
+- **PRODUCER DIRECTION.** *"Thin the canopy over the CAMP, GATE and CONVOY pads on Marringa Point, then re-capture those sites and re-run the stall-rule PIE round so the bot evidence matches the final map."* All three parts done on `L_MarringaPoint_01`; the map is saved with 12 fewer tree actors (the float audit reads 2 934 static meshes).
+- **MEASURED FIRST, THEN CUT.** Pad radius 9 m (the composition's own 18 m footprint); a tree goes if its trunk stands inside the pad **or** its canopy overlaps the pad by **5 m or more**; edge trees that merely clip the pad stay, so a site still reads as a place in the bush. Canopy means a tree with a 4 m+ bound radius - grass clumps, scrub and two 0.3 m eucalyptus saplings standing inside pads are left alone, because they are not the producer's canopy.
+- **THE CUT: 12 trees.** CAMP 6 (`SS_C18_rural_m_0367`, `SS_CoastVeg2_ruraltree_0265`, `SS_C18_rural_m_0313`, `SS_C18_rural_m_0376`, `SS_CoastVeg2_ruraltree_0307`, `SS_CoastVeg2_ruraltree_0299`), CONVOY 3 (`SS_C18_rural_m_0381`, `SS_C18_rural_m_0312`, `SS_C18_rural_s_0421`), GATE 3 (`SS_C18_rural_m_0384`, `SS_C18_rural_m_0308`, `SS_C18_rural_m_0341`). Nine were `SM_Tree_M_01` at 12-18 m bound radius. None had a `SS_NavBlock_*` companion, so the actor was the whole job. Afterwards **0 trees shade any pad centre**; CAMP keeps one edge tree (3.3 m clip) and GATE one (4.6 m clip).
+- **THE MAP, AFTER.** `BUILDPATHS` inside the script and the level saved (`saved: true`). Nav probe: 32 solid round-20 pieces, **0** on nav; 25 lane samples, **24** on nav - identical to round 20. Float audit over 2 934 static meshes: **1 floater** (the same pre-existing grass tuft), **0 buried**. Path matrix: 51 queries, **3 partial, not 4** - R-117 updated in place, still open.
+- **THE PADS, RE-SHOT (E6).** Six frames at 1600x682 computed from the anchors: 20 m out along each site's facing at 5.2 m for the eye-level pair, 28 m out at 45 m up for the aerial pair. CAMP reads: caravan, sofa, log stack and power pole in the open, sky above. GATE reads: the red tractor and fence under open sky. CONVOY reads - see the defect below.
+- **THE BOT ROUND ON THE FINAL MAP (E5).** `python Build/pie_run.py r22a 62 2.5` -> 2 454 rows, **77 AI pawns**, 62 samples, 162 s, one PIE session. Stall rule unchanged (under 20 cm/s for 30 s or more): **0 stalls**. 16 bots were attributed exactly to DeployA starts, **7 of the 8** starts covered (`Extra03` was never drawn this run), **16 / 16 left the deployment and 16 / 16 reached Obj A** (57.9-124.1 s). 16 DeployB-attributed: 16 left, 11 reached B, 10 reached C. A taken by TeamOne at +67 s, B by TeamTwo 23 s later, C by TeamTwo 59 s later; PostRound, **TeamTwoWon**, T1=1 T2=2. No `Failed to find path`, no `no navmesh`, and **no `B_WeaponInstance_Base` errors** - this run stopped at PostRound and never reached the round reset that produces them, which matches addendum 13 rather than contradicting it.
+- **FILES CHANGED.** `Tools/Unreal/thin_marringa_canopy.py` (new, idempotent, dry-run by `Build/r22_canopy_dry.txt`), `Content/Maps/L_MarringaPoint_01.umap` (saved), `Docs/evidence/s_CURRENT/coastal/r22/` (report, six captures, four audit JSONs, the bot summary and track plot, `CANOPY_THINNING.md`), `Docs/PROJECT_AUDIT.md` (R-117 status), `Docs/CHANGELOG.md`.
+- **TESTING.** Editor Python over MCP: `thin_marringa_canopy.py` (dry run first: plan only, 0 removed; then the real pass: 12 removed, `saved: true`), `Build/r20_navprobe2.py`, `Build/r22_float_audit.py` (a copy of `audit_coastal_float.py` writing `r22_float_audit.json`, so the round-18 audit is not overwritten), `Build/r111_pathmatrix.py`; captures via `Build/r22_shot.py` + `mcp_client.py cap`; bot round via `Build/pie_run.py`; analysis via `python Tools/Unreal/analyse_marringa_pie_bots.py Build/marringa_run_r22a.json Build/r22a_summary.json Build/r22a_track.png`. `python Tools/validate_project_docs.py` -> PASS, 6 notes, exit 0. **NOT RUN:** a second PIE repetition, frame time or draw calls (12 meshes lighter, unmeasured), any network path, a packaged build, and any "before" capture - none is valid, see defect 2.
+- **ASSETS.** Nothing added. Twelve existing tree instances removed from the map; the meshes stay in the project.
+- **RISKS.** No new ids. **R-117 narrowed**: the round-22 rebake reports 3 partial paths, not 4, and one stall-rule round on the final layout took all three objectives with 0 stalls - but the cause is still unexplained. **R-112** (the unexplained three-bot stall cluster against `SS_C18_rural_m_0312` at (13 835, -7 019)) touched a tree that is now one of the twelve removed; the r22a round had 0 stalls, but one run does not close it and R-112 stays open.
+- **DEFECTS FOUND.** (1) **CONVOY has no cars, and WASHOUT's ute is a crate.** The hero pieces are `SM_asset_01` (43x38x36 cm), `SM_asset_02` (38x38x27 cm) and `SM_asset_00` (72x95x45 cm) - sub-metre props, measured from actor bounds and visible in `convoy_site.png`. Round 20's *"the two cars are very dark"* was wrong. Found by framing the pad properly. (2) **The round-20 site cameras do not frame the sites**: `Build/r20_viewposes.json` holds poses from the first, non-deterministic site draft (its CAMP eye is 2.7 km from the built CAMP), and the round-20 jpgs were taken with them - found when the first r22 capture showed a hillside instead of the caravan, and fixed by computing poses from the anchors. (3) **The fill missed a start**: `DeployA_Extra03` was never drawn (7 of 8), so this run's "every start" claim is 7 of 8, and it is a sampling gap in the harness, not a bot failure.
+- **NEXT ACTION.** Give CONVOY and WASHOUT actual vehicle meshes at the same pinned anchors (the cleared Fab vehicle set, `SM_Fab_*` families), nav-block them as the sub-metre props were, and re-shoot those two pads with `Build/r22_shot.py`.
+
+### Session 105 addendum 15 - review pass: Marringa bot round and the A88 reload checked in PIE; the debug reload was testing a path the game does not play (2026-10-24)
+
+- **PRODUCER DIRECTION.** "review and then look at next steps. ensure the new map and animation is working."
+- **REVIEWED (E1).** Session 105 entry and addenda 1-14, the backend documents and ADR-046 to ADR-050, the `CURRENT_STATE`/`NEXT_PRIORITIES` diffs. Harnesses re-run: `check_lag_comp_rules.py` 26/26, `check_squad_rules.py` 53/53, `check_browser_rules.py` 38/38, all exit 0; `validate_project_docs.py` PASS (6 notes); `validate_architecture.py` PASS (accepted SS010 note).
+- **FIXED - the unity-name guard (E3, built below).** `check_unity_names.py` was red on `SSSettingsWidget.cpp` `USSKeyBindRow::OnKeySelected`: the local `Settings` hid the file-scope `Settings()` (MSVC C4459). The local is now `OwnerWidget`; the guard reads PASS, 9 modules.
+- **MARRINGA POINT, one more stall-rule round on the saved map (E5).** `python Build/pie_run.py s106a 62 2.5`, exit 0: 2,439 rows, 74 pawns, 161 s. The analyser lists **0 stalls**. DeployA: 35 bots, 32 left, 21 reached an objective. 7 of 8 west starts covered exactly (`Extra03` not drawn, the same harness sampling gap as round 22), and all 7 left and reached Obj A. DeployB: 39 bots, 37 left, 27 reached. Director: InProgress 03:53:15, **Boat Shed TeamOne at +69 s**, **Headland Lookout TeamTwo at +20 s**, **Dune Camp TeamTwo at +50 s**, PostRound TeamTwoWon, T1=1 T2=2. No `Failed to find path` or `no navmesh` lines. PIE ended 0.7 s after the round reset, so the 0 `B_WeaponInstance_Base` lines here say nothing about addendum 13. Summary and track plot: `Docs/evidence/s_CURRENT/fp_reload_s106/s106a_summary.json`, `s106a_track.png`.
+- **THE A88 RELOAD, the NEXT ACTION of the Session 105 entry (E5 + E6, agent-reviewed).**
+  - (a) **First attempt, invalid.** `ss.FP.DebugClip Reload` at `slomo 0.25` sent the arms and rifle off the top and left of the screen for most of the reload (`fp_reload_s106/sheet.jpg`). Source shows why. The debug branch forces `bPathReload` for any weapon with a path row. The game, though, sends a row with `ReloadClip` set (A88) to the clip override, where the path never runs. So the capture showed the procedural path with the row's 60 cm `ReloadRigOffsetCm`, a reload the game does not play.
+  - (b) **The real reload.** 10 rounds were removed from the held magazine's `Lyra.ShooterGame.Weapon.MagazineAmmo` stat (30 -> 20), then Lyra's own `GA_Weapon_Reload_Rifle` was activated through `TryActivateAbilityByClass` (returned True). The log reads `Reload clip override A_FP_Rifle_Reload (3.63 s) scaled to montage 2.20 s.` 14 frames were captured at `slomo 0.25` (`fp_reload_s106/real/r01-r14.png`, `sheet_real.jpg`). The arms stay in frame throughout: the rifle cants up and right, the left forearm comes in under it and goes off-screen low-left, and the rifle settles back to the idle hold. This is the stock clip reload the producer asked to have back. **R-101 stays OPEN**: it is the M4 clip, and it reaches for a magazine well a bullpup does not have.
+  - (c) **Fix (E3, built below; not re-checked in PIE).** `SSFirstPersonSubsystem.cpp`: the debug reload takes the path only when the row has no `ReloadClip`. Otherwise it falls through to the named clip, which is the stock `Reload` for the A88, so future review captures test what the game plays.
+- **FILES CHANGED.** `Plugins/SouthernSpearUI/Source/SouthernSpearUI/Private/SSSettingsWidget.cpp`, `Plugins/SouthernSpearLyraBridge/Source/SouthernSpearLyraBridge/Private/SSFirstPersonSubsystem.cpp`, `Plugins/SouthernSpearCore/Source/SouthernSpearCore/Private/Tests/SSLagCompensationTests.cpp` (threshold), `Docs/evidence/s_CURRENT/fp_reload_s106/` (new), `Docs/CHANGELOG.md`. Scratch drivers: `Build/s106_reload.py`, `Build/s106_realreload.py`, `Build/s106_abil.py` (ignored). No map, asset or config was changed or saved.
+- **BUILD AND SUITE (E3 + E4), after the producer closed the editor.** `Build.bat SouthernSpearEditor Win64 Development` -> `Result: Succeeded`, exit 0, 14 actions. The new `SSSquadTests.cpp`, `SSLagCompensationTests.cpp` and `SSServerBrowserTests.cpp` compiled for the first time, along with both edits above. Suite (`Automation RunTests SouthernSpear`, `-TestExit`): first run **87 Success, 1 Fail**. `SouthernSpear.Core.LagComp.Rewind` asserted `Report.Checks >= 10`, but `Rewind` makes exactly **9** checks, none of which failed. The g++ harness never asserts a count, so it could not see this. Threshold corrected to 9 in `SSLagCompensationTests.cpp`, rebuilt, re-run: **88 `Result={Success}`, 0 other results, exit 0** (`Build/s106_tests2.log`). The suite holds 88 tests, not the 76 addendum 3 expected; `CLAUDE.md`'s count of 72 is stale.
+- **NOT RUN.** A88G (it has no `ReloadClip`, so it still takes the path reload, with `ReloadRigOffsetCm` Z=10, unchecked here), third person (R-104), a reload from an empty magazine, a PIE round long enough to cross a round reset, and a PIE re-check of the debug reload after the rebuild.
+- **RISKS.** No new ids. R-101, R-104, R-112, R-117 unchanged.
+- **DEFECTS FOUND.** `ss.FP.DebugClip Reload` showed a reload the game never plays for any weapon with a `ReloadClip` row. Found when the capture disagreed with the code path the log named. Any earlier A88 review capture taken with that cvar after `ReloadClip=Reload` went in (Session 103) shows the path, not the game.
+- **NEXT ACTION.** Apply the addendum-13 teardown in `ASSObjectiveAssaultDirector::RespawnAllPlayers()` (unpossess, 1-frame life span), rebuild, and verify one PIE round that crosses a round reset: 0 `B_WeaponInstance_Base` lines where the baseline has 95.
+
+### Session 105 addendum 16 - the A88G reload moved onto the stock clip; Marringa round 23: goat trails, terracettes and six sniper nests (2026-10-24)
+
+- **PRODUCER DIRECTION.** "ensure that reload is fixed or improved. the map could use a visual pass, particularly around the hills for goat trails and sniper sets."
+- **RELOAD (E5 + E6, agent-reviewed; E2 config).**
+  - (a) **The A/B.** Lyra's own `GA_Weapon_Reload_Rifle` was triggered in PIE (10 rounds taken from the magazine stat first) and 14 frames captured at `slomo 0.25`, with the A88 row set in memory only through `SSObjectivesEditorLibrary.set_property_from_text`. Compared: the stock clip (`real/`), the bullpup path at the A88G's Z=10 (`path_z10/`), and three other rig poses (`pa`, `pb`, `pc`). On the path, the cant either puts the rifle's butt plate into the camera, hiding both hands and the magazine (`path_z10/r04.png`), or pushes the rifle small and away from the hands (`compare_ab.jpg`). The stock clip is the only one that reads as a reload, so the A88 keeps it.
+  - (b) **The A88G was the broken one.** It has no `ReloadClip`, so it takes exactly the `path_z10` reload. Captured with the Rifleman kit given the A88G in memory: butt plate in the face (`a88g_None/`). With `ReloadClip=Reload` it plays the stock clip like the A88 (`a88g_Reload/`, log `Reload clip override A_FP_Rifle_Reload (3.63 s) scaled to montage 2.20 s.`; `compare_a88g.jpg`).
+  - (c) **Change:** `Config/DefaultGame.ini`, A88G first-person row gains `ReloadClip=Reload`, plus a two-line comment on why. In-memory settings were restored to match the file afterwards; nothing else was saved.
+  - **R-101 stays OPEN:** both rifles now play the M4 clip, which reaches for a magazine well a bullpup does not have.
+- **MARRINGA ROUND 23 (E2 map + E6 captures reviewed + E4 audits + E5 PIE).** New tool `Tools/Unreal/dress_marringa_r23.py`, staged through `Build/r23_stage.txt`.
+  - **Sniper nests (`SS_C23_NEST0-5`, 54 pieces, 18 null-area nav volumes).** One on each round-21 perch: a 65 cm `SM_SandbagBarrier` parapet, two `SM_SandbagPile` end pieces, two `SM_Fab_OldBranch` laid over the flanks, ammo boxes, a jerrycan and a radio.
+    - The first draft buried the wall 61-127 cm: it seated on the lowest footprint sample.
+    - A level-pad search then found nothing: every 5 m footprint within 30 m rises 2-6 m (probe: 194-629 cm at perch 0).
+    - So each nest is now a forward-slope position: the pad must rise 3 m or less and fall toward the lane, preferring terrain line of sight and height. The parapet runs along the contour, seated on its uphill edge so its downhill face is dug in; small kit is tilted to the ground under it.
+    - **5 of 6 nests have terrain line of sight to their lane** (NEST0 does not). They sit 2-28 m from the round-21 perch and 31-64 m above the lane. Captures: `nests_v2_sheet.jpg`, `nest1_v2.png`.
+  - **Goat trails, painted as weights.** A* over a 150 cm grid from the lane side up to each nest, with the move's own grade costed to the fourth power above 13 %, so the climb switchbacks. Six trails: 162-308 m long, rising 31-63 m.
+    - Painting `Soil2` barely read. Weights showed why: the hills are already a Soil1/Soil2/BaseGrass1 blend, and `TreeGround` is not weight-blended (it stays at 1.0 over anything painted under it).
+    - Pure-layer test strips settled the look (`strips_view.png`): Soil1 is pale hoof-printed dust, Soil2 red rubble, Sand1 pale gravel, Sand2 pebbles. The strips were then rebuilt by interpolation from the untouched columns between them (`strips_restored.png`).
+    - Each track is written through `set_weights_in_region`: under a soft mask every layer is scaled by (1 - m) and Soil1 takes m. Trail 5 used peak 0.9 with a 60/150 cm core/edge; the rest used peak 0.8, 45/130 cm.
+    - The pre-change weights of every revealed region are kept in `Build/r23_weights_backup/` (ignored) so a line can be put back. Trail 5 and the two early test strokes have no backup.
+  - **Terracettes:** 24 parallel contour tracks in 8 patches on 20-32 degree grass, 25/105 cm mask, peak 0.7. Nest scrapes: a 2.6 m disc at 0.6.
+  - **After:** `BUILDPATHS`, level saved (`L_MarringaPoint_01.umap` 275,418,401 bytes), editor restarted and the map reloaded. The tracks persist (`after_trails_sheet.jpg`: six ribbons switchbacking up to the nests).
+- **MEASURED.**
+  - Path matrix (`r23_pathmatrix.json`): **51 queries, 0 failing, 4 partial**, all DeployA -> ObjC (R-117, 3 in round 22, 4 in round 21). The nearest new piece is over 100 m from ObjC.
+  - PIE round `r23a` (62 samples, 77 AI pawns): **0 stalls**; DeployA 35 bots, 31 left, 18 reached; DeployB 42 bots, 40 left, 36 reached; 7 of 8 west starts covered exactly (the known draw gap). Boat Shed TeamOne, Headland Lookout TeamTwo +24 s, Dune Camp TeamTwo +50 s, TeamTwoWon. No `Failed to find path` or `no navmesh` (`r23a_summary.json`, `r23a_track.png`).
+- **TESTING.** `python Build/s106_reload_ab.py <label> ...` (A/B driver, PIE over MCP) x7, all `reload_activated True`. Stages `nests`, `trails 0-5`, `terraces`, `trailpts`, `restore`, `reveal trail0-5|terraces|nests`, `bake` via `mcp_client.py runfile Tools/Unreal/dress_marringa_r23.py`, each returning its report (`Build/r23_report.json`). `Build/r111_pathmatrix.py`. `python Build/pie_run.py r23a 62 2.5` exit 0 plus `analyse_marringa_pie_bots.py`. `python Tools/validate_project_docs.py` -> see below.
+- **NOT RUN.** No float audit over the whole map (the nest pieces were checked by eye and by footprint seating, not by `audit_coastal_float.py`). No frame-time measurement. Not checked: walking a trail in PIE as a player, third-person reload (R-104), an empty-magazine reload, network, packaged build.
+- **FILES CHANGED.** `Config/DefaultGame.ini`, `Content/Maps/L_MarringaPoint_01.umap`, `Tools/Unreal/dress_marringa_r23.py` (new), `Docs/evidence/s_CURRENT/fp_reload_s106/{path_z10,pa,pb,pc,a88g_None,a88g_Reload,compare_ab.jpg,compare_a88g.jpg}`, `Docs/evidence/s_CURRENT/coastal/r23/` (new), `Docs/PROJECT_AUDIT.md` (R-117 note, R-118), `Docs/CHANGELOG.md`.
+- **ASSETS.** None imported. Placed from tracked assets: `SM_SandbagBarrier`, `SM_SandbagPile` (Wandarra), `SM_Fab_OldBranch`, `SM_SS_AmmoBox`, `SM_SS_Jerrycan`. Placed from a git-ignored pack: `Military_Radio/SM_Radio`, as round 20's SIGNALS site already does.
+- **RISKS.** **R-118 raised:** Marringa's landscape material and all eight layer infos live in `Content/FC_Coastal_Landscape/`, which is neither tracked nor ignored, so a fresh clone draws the terrain, and these tracks, without them. R-117 note updated (3-4 partial, play unaffected). R-101 open. The editor reported **video memory exhausted, about 15 GB over budget**, after many landscape weight writes; it cleared on restart. Recorded, not given an id.
+- **DEFECTS FOUND.**
+  - (1) The A88G reload put the butt plate in the camera: it has no `ReloadClip`. Found by the A/B, not by a report.
+  - (2) Nest pieces seated on the lowest footprint sample were buried up to 1.3 m. Found by measuring bounds against the ground after the first capture showed only a jerrycan.
+  - (3) Painted `Soil2` was invisible because `TreeGround` is not weight-blended. Found by reading the weights where the paint went.
+  - (4) The pure-layer test strips overwrote the original weights, and were rebuilt by interpolation rather than restored exactly.
+- **NEXT ACTION.** Decide R-118 (commit `FC_Coastal_Landscape`'s material, textures and layer infos, or move them into a project folder), so the committed map renders its terrain on a fresh clone.
+
+### Session 105 addendum 17 - Blueprint Reader skill; a real first-person sprint clip; the ADFRC ASLAV as a static prop; reload sounds and Marringa ambience; the MAF uniform recoloured (2026-10-24)
+
+- **PRODUCER DIRECTION.** "lets get that skill, then animations, then importing those extras from adfrc (maybe only aslav as a static prop); sounds would be good. need to fix and improve player models and textures, including maf ones."
+- **SKILL (E4 outside the project).** `ibrews/ue5-mcp` cloned to `E:/ExternalTools/ue5-mcp` (outside the repo). Its installer was read first: it only links a junction. `npm ci --ignore-scripts`, then `node scripts/install-skill.mjs claude` linked `~/.claude/skills/blueprint-reader`. Its own tests: 40, 38 pass, 1 fail (the in-browser bundle worker test, not the CLI reader). The field-manual half of the repo was already installed as the `ue5-mcp` skill. Nothing project-side changed.
+- **FIRST-PERSON SPRINT (E2 asset + E3 + E5/E6 agent-reviewed).** Before this the sprint was procedural only: the Idle pose tilted, offset and bobbed.
+  - (a) `Tools/Unreal/retarget_fp_sprint.py` builds `IK_UE5ArmsSrc` and `RTG_UE5Arms_to_FPRifle` against the existing `IK_FPRifleArms`, then batch-retargets the AKS-74U pack's `A_FP_AKS74U_Run_Loop` into `A_FP_Rifle_Sprint` (0.67 s).
+  - (b) **Why the first result showed nothing.** Measured with `AnimPoseExtensions`: the reference poses of the two rigs are unrelated, and translation is not carried by a retarget pose.
+  - (c) **Fixes, each measured.**
+    - Retarget poses equal to each pack's idle (`delta = ref_local^-1 * idle_local`, 53 source bones, 7 target bones).
+    - The Pelvis Motion and Root Motion ops off, and no Spine chain.
+    - A post-pass re-keys `Main_j` to ride `RightHand` with the idle's own hand-to-weapon offset (it had stayed 35 cm below the hold).
+    - The shoulders keep their idle translation.
+    - After the fixes the weapon sits within about 20 cm of the idle hold, yawed 32 degrees across the body.
+  - (d) **Wiring:** `SSFirstPersonSubsystem.cpp` loops the set's `Sprint` clip while `SprintAlpha > 0.5`, with the procedural bob off while it plays. New cvars `ss.FP.SprintClip` (1) and `ss.FP.SprintClipRate` (1.0).
+    - Defaults retuned for the clip from PIE A/B captures (`fp_sprint_s106/sprint_on_*`): `ss.FP.SprintTilt` `10 -12 14` (was `-6 -32 12`), `ss.FP.SprintOffset` `2 -2 16` (was `-1 -3 1`).
+    - With the old tilt the clip's own carry stacked into a broadside rifle (`sprint_game_on`). At zero tilt the clip's low ready sat below the frame (`sprint_on_tilt0`).
+    - Final, after the full build: the left hand grips the fore-end in view and works through the stride (`sprint_final/sheet.jpg`).
+    - The old look is `ss.FP.SprintClip 0` plus the old tilt and offset, recorded in the cvar help.
+  - **Not producer-accepted. Third person untouched.**
+- **ASLAV (E2 + E6).** `Tools/Blender/aslav_static.py` reuses `spawn_vehicles.py`'s helpers, which now sit behind a `__main__` guard so importing them no longer rebuilds the Bushmaster.
+  - The build keeps LOD0 of `adfrc_aslav_25`, drops 297 proxy triangles, the interior and crew-view slots, and the untextured and camo-net slots, and merges 19 slots by texture: 147,092 triangles, 6.93 x 2.68 x 3.12 m.
+  - `Tools/Unreal/import_aslav.py` reuses `import_spawn_vehicles.py`'s helpers: 19 materials from the ASLAV, MAG 58 and shackle maps, `SM_SS_ASLAV` with Nanite on, 0 errors.
+  - Placed by a new `aslav` stage in `dress_marringa_r23.py` on the CONVOY pad (round 22 found its "cars" were sub-metre props): 10.5 m from the anchor on an 11 cm-level pad, with a nav-block volume, level saved.
+  - Captures `aslav_s106/aslav_{front,side,rear}.png`: desert camo, eight wheels, turret, markings, seated.
+- **SOUND (E2 + E3; NOT HEARD by the agent).**
+  - New row field `FSSFirstPersonWeapon::ReloadSound` and member `HeldRow`. When a reload starts, the row's sound plays in 2D, pitched to Lyra's reload montage within 0.9-1.3.
+  - `Config/DefaultGame.ini`: `F88_Reload` on the A88/A88G, `M4_Reload` on the A4/A416, `MAG58_reload` on the A89/MAG58. The recordings are 3.7 s, 2.94 s and 3.85 s against a 2.2 s montage, so the F88 one still runs about 0.6 s past the reload.
+  - A live PIE reload ran (`Reload clip override ...`) with no `LogAudio` warning, and the three assets load as `SoundWave`.
+  - **Marringa now has ambience:** `+Maps=(MapName="L_MarringaPoint_01",Profile="Woodland")`. PIE log: `Map L_MarringaPoint_01 plays profile Woodland: 3 beds, 9 birds, 4 radio, 3 shots`. The project holds no surf or ocean recording.
+- **MAF UNIFORM (E2 + E6).** PIE follow-camera captures (`soldier_friendly`, `soldier_maf`) showed MAF as white and red blobs.
+  - Measured cause: the original print's cream (220,206,178) and terracotta (159,72,58) are far brighter and more saturated than its olive. `tone_maf.py` had only dimmed everything (in-engine tile mean 111/97/82), which kept the contrast.
+  - New `Tools/Textures/remap_maf_palette.py` works from the `_orig` sheets. It k-means the five colours and maps them, in cluster order, to olive (65,69,46), muted brown-red (79,55,42), tan (88,77,58), light tan (104,93,70) and khaki grey (120,111,88). Shading is kept per pixel and the colour edges are soft-blended.
+  - A first pass mapped olive to dark brown and was redone; a second pass was still pale in sun and was darkened 0.88x.
+  - Reimported with `reimport_maf_tone.py`. The vest and helmet camo share the tile.
+  - Same-spot before/after: `fp_sprint_s106/maf_before_after.jpg`.
+  - The MAF R1's red is the AK pack's laminated wood (its material has no team parameter), so it was left alone. The friendly kit was not changed this pass.
+- **TESTING.**
+  - `Build.bat SouthernSpearEditor Win64 Development` -> Succeeded, exit 0. Suite -> **88 `Result={Success}`, 0 others**, exit 0 (`Build/s106_tests3.log`).
+  - `check_unity_names.py` PASS. `validate_architecture.py` exit 0. `validate_project_docs.py` PASS.
+  - Live Coding was used for the first sprint iteration, then superseded by the full build.
+  - Blender `aslav_static.py` REPORT as above.
+- **NOT RUN.**
+  - Hearing any sound, so the reload timing is unjudged.
+  - Sprint while actually running (captured standing with `ss.FP.DebugSprint 1`), third-person sprint, an empty-magazine reload, a dry-fire sound (not implemented).
+  - Friendly uniform or face work, LODs on the soldier (R-58/R-59 unchanged), frame time with the 147k-triangle ASLAV (Nanite on, unmeasured), a PIE bot round after the ASLAV went in.
+- **FILES CHANGED.**
+  - Code: `Plugins/SouthernSpearLyraBridge/Source/SouthernSpearLyraBridge/Private/SSFirstPersonSubsystem.cpp`, `Public/SSFirstPersonSubsystem.h`; `Config/DefaultGame.ini`.
+  - Content: `Plugins/GameFeatures/SSExp_ObjectiveAssault/Content/FirstPerson/Rifle/A_FP_Rifle_Sprint.uasset` (new); `Content/Art/Vehicles/ASLAV/` (new); `Art/Vehicles/ASLAV/SS_ASLAV.fbx` (new); `Content/Maps/L_MarringaPoint_01.umap`; MAF textures (`T_SS_Tile_MAF`, `T_SS_QB_Shirt_MAF_co`, `T_SS_QB_Jeans_MAF_co` .uasset and `Art/Characters/Textures` .png).
+  - Tools: `Tools/Unreal/retarget_fp_sprint.py`, `import_aslav.py`, `dress_marringa_r23.py`; `Tools/Blender/aslav_static.py`, `spawn_vehicles.py`; `Tools/Textures/remap_maf_palette.py`.
+  - Docs: `Docs/ASSET_REGISTER.md` (VEH-005, ANIM-003); evidence `Docs/evidence/s_CURRENT/fp_sprint_s106/`, `aslav_s106/`; `Docs/CHANGELOG.md`.
+  - The retarget rigs live in the untracked `Content/Animations/Retarget`, like the existing AUG ones.
+- **RISKS.** No new ids. R-101 (stand-in reload clip), R-104 (third person), R-58/R-59 (soldier skeleton, no LODs), R-118 (untracked landscape pack) open. The retarget can only be rerun on a machine holding the untracked `Content/Animations/Retarget` rigs and the Fab AKS-74U pack; the clip itself is committed.
+- **DEFECTS FOUND.**
+  - (1) The batch retarget left a stale `A_FP_AKS74U_Run_Loop_FPRifle` duplicate after reruns. Found by the dirty-package list; deleted after a referencer check found none.
+  - (2) The first palette remap took the clusters in luminance order and turned MAF olive into dark brown. Found by viewing the tile, and redone by cluster.
+  - (3) The two idle clips are one frame (0.033 s), so sampling at 0.1 s returned an invalid pose that read as all zeros. Found by `is_valid` on the pose.
+- **NEXT ACTION.** The producer plays a round on Marringa and judges three things by eye and ear: the sprint carry, the reload sounds' timing, and the MAF uniform. Each is one cvar or one config line to roll back.
+
+### Session 105 addendum 18 - per-soldier skin tones; the soldier LOD claim corrected (2026-10-24)
+
+- **PRODUCER DIRECTION** (addendum 17 continued): "need to fix and improve player models and textures, including maf ones."
+- **SOLDIER LODS (E1, a correction, not new work).** Addendum 17 said the soldier "is still about 90k vertices with none". That was wrong. A probe of the eight parts in use found 4 LODs on every one (Session 104 addendum 76, `Tools/Unreal/build_soldier_lods.py`):
+  - Head 13,288 -> 2,179 vertices; vest TBAS 43,130 -> 7,644; helmet OpsCore 24,677 -> 4,023; vest Peacekeeper 25,688 -> 4,300; helmet PASGT 5,910 -> 1,087.
+  - The R-59 row is updated to say so.
+- **CONTROLLED LOOK (E6, agent-reviewed).** New `Build/s107_lineup.py` spawns both looks' parts as reference-pose skeletal-mesh actors, with `B_SS_Soldier`'s overrides, on the Marringa convoy pad, captured from the sun side (`soldier_s107/lineup_before.png`, `faces_before.png`).
+  - Uniforms, vests and helmets render as intended in sun; the recoloured MAF reads olive and brown, not white and red.
+  - The defect seen: every soldier, on both sides, wore the Quantum pack's one head with one skin. The pack ships no other head, and its `M_Head` / `M_Arms` have no parameters.
+- **SKIN TONES (E2 + E3 + E4 + E5/E6 agent-reviewed).**
+  - New `Tools/Unreal/setup_skin_tones.py` copies the pack's three-texture `M_Head` and `M_Arms` into `/SSExp_ObjectiveAssault/Characters/Materials/M_SS_Skin_{Head,Arms}` and multiplies base colour by a `SkinTint` vector (default white, so the pack's look). The vendor masters are untouched.
+  - It points the head slot of both looks, and the MAF bare forearms (rolled sleeves), at the copies, and sets six `SkinTones` on `B_SS_Soldier`, light to dark.
+  - `ASSCharacterPartActor` gains `SkinTones` and `SkinToneParameter`. `BuildSet` gives each soldier one tone, chosen from its actor name (salted, so it is not tied to the role-gear pick), on every slot whose material has the parameter. Cosmetic only (ADR-004).
+  - PIE probe (`Build/s107_skinpie.py`): five part actors held four different tones (1.00, 0.93, 0.64, 0.47), the same on head and arms. Follow-camera stills with motion blur off: `soldier_s107/pie_friendly.png`, `pie_maf.png` (the MAF bot at tone 0.47 reads as natural skin in sun).
+- **TESTING.**
+  - `Build.bat SouthernSpearEditor Win64 Development`: the first build failed with C4458 (the local `Current` hid a member). Renamed it to `Existing`; the rebuild Succeeded, exit 0 (`Build/s107_build.log`).
+  - Suite: **88 `Result={Success}`, 0 others**, exit 0 (`Build/s107_tests.log`). `check_unity_names.py` PASS, `validate_architecture.py` exit 0.
+- **NOT RUN.**
+  - A bot round after the change.
+  - Clients agreeing on a soldier's tone: the pick uses the actor name, as the role-gear pick already does. Not checked over a network.
+  - Any new head mesh: none exists in the project.
+  - Producer acceptance.
+- **FILES CHANGED.**
+  - `Plugins/SouthernSpearTeam/Source/SouthernSpearTeam/Public/SSCharacterPartActor.h`, `Private/SSCharacterPartActor.cpp`.
+  - `Plugins/GameFeatures/SSExp_ObjectiveAssault/Content/Characters/B_SS_Soldier.uasset`, `Characters/Materials/M_SS_Skin_Head.uasset` and `M_SS_Skin_Arms.uasset` (new).
+  - `Tools/Unreal/setup_skin_tones.py` (new).
+  - `Docs/PROJECT_AUDIT.md` (R-59), `Docs/ASSET_REGISTER.md` (C-003), evidence `Docs/evidence/s_CURRENT/soldier_s107/`, `Docs/CHANGELOG.md`.
+- **RISKS.** No new ids. R-58 (visual acceptance) open. R-59 restated: LODs exist; gear physics is still open.
+- **DEFECTS FOUND.**
+  - (1) Addendum 17's "no LODs" claim, found by the LOD probe.
+  - (2) One skin on every soldier, found by the controlled lineup.
+  - (3) C4458 shadowed name, found by the build.
+- **NEXT ACTION.** The producer plays a round on Marringa and judges the sprint carry, the reload sounds' timing, the MAF uniform and the skin tones.
+
+### Session 105 addendum 19 - MAF in "Musorian" red DPCU; the BMP-3 as MAF's look of the convoy vehicle (2026-10-24)
+
+- **PRODUCER DIRECTION.**
+  - "these are pics for inspiration for MAF camo", with a post showing the ADF's own OPFOR training uniform, red DPCU "Musorian": Auscam shapes in cream, tan, rust and brown.
+  - "also added bmp3 model in content folder to be the opfor model if aslav is on adf side."
+- **REFERENCE (E1).** The Instagram post was read in the built-in browser, which needed no sign-in: caption and four photos, viewed only. Firecrawl does not support Instagram. Nothing was downloaded.
+- **MUSORIAN DPCU (E2 + E6, agent-reviewed).**
+  - New `Tools/Textures/make_musorian_dpcu.py` recolours ADFRC's real DPCU G3 sheets (L-0021) rather than inventing a pattern.
+    - The five DPCU colours are found by k-means on a blurred clean window of each source, so weave and shading do not decide the class, and labelled by role: base, light green, brown (the reddest), green and black.
+    - Each pixel is soft-assigned and mapped: base to cream, light green to sand, brown to tan, green to rust, black to brown. Each pixel keeps its shading relative to its colour.
+  - The G3 shirt's plain belly panel (only below v 0.42) is filled per pixel from a seamless window of the ADFRC base DPCU uniform (x 1000-1520, y 260-760), recoloured with its own clusters and carrying the panel's folds.
+  - Then the existing MAF bake: `SS_BAKE_FACTION=MAF` `bake_g3_to_quantum.py` (exit 0), `finish_quantum_maf.py`, `reimport_maf_tone.py`. The gear tile `T_SS_Tile_MAF` is the recoloured window, so the PASGT cover and Peacekeeper camo match.
+  - Same-spot lineup capture: `soldier_s107/lineup_musorian.png`, `close_musorian.png` against `lineup_before.png`. Cream, tan, rust and brown Auscam blobs on shirt, trousers and helmet, and friend and foe now separate at a glance.
+  - Not producer-accepted. The shirt's upper chest keeps the bake's smeared bands, which the AMCU shirt also has.
+- **BMP-3 (E2 + E5 + E6, agent-reviewed).**
+  - New `Tools/Unreal/import_bmp3.py` imports the producer's Sketchfab BMP-3 (`Content/bmp3/`, extracted to the git-ignored `Art/Vehicles/BMP3/src/`).
+    - 202,264 triangles, Nanite on, two PBR slots, normal map green flipped.
+    - Turned -90 degrees in yaw at import so it faces +X like the ASLAV; the barrel points down the source's -Y. `import_spawn_vehicles.import_mesh` gains an optional `yaw`.
+  - Because each viewer sees their own side as 3 ACR, a fixed ASLAV is "ours" to one team and "theirs" to the other. The `aslav` stage of `dress_marringa_r23.py` now places the existing `ASSSpawnVehicleActor` instead of a static mesh:
+    - `SpawnTeam` TeamOne (the pad is on DeployA's side, tag TeamOne), own look ASLAV, opposing look BMP-3.
+    - A shared 7.0 x 2.8 x 2.4 m box, which now blocks players; the static ASLAV had no collision.
+    - Same ground fit and spot (13971, -8319, yaw 75), nav-block volume kept, level saved.
+  - Same-camera captures of both looks at the actor's transform: `vehicles_s107/aslav_front.png`, `bmp3_front.png` (same forward, both seated).
+  - PIE probe (`Build/s107_vehpie.py`): the TeamOne player's view resolved to `SM_SS_ASLAV`, visible.
+- **TESTING.**
+  - Two PIE bot rounds on Marringa:
+    - `s107a`: 2 stalls, 125 m and 127 m from the vehicle, near objective B and DeployA.
+    - `s107b`: **0 stalls**, all three objectives captured (`Build/marringa_run_s107{a,b}.json`). So `s107a`'s stalls were not reproduced.
+  - `validate_project_docs.py` PASS. No C++ changed this addendum.
+- **NOT RUN.**
+  - A TeamTwo viewer (seeing the BMP-3 in game). The editor player is TeamOne; the Red Gum vehicles have the same gap.
+  - Two clients. Frame time with the 202k-triangle BMP-3. A nav rebuild after the box.
+  - Producer acceptance of the camo or the vehicle.
+- **FILES CHANGED.**
+  - Tools: `Tools/Textures/make_musorian_dpcu.py` (new), `Tools/Textures/finish_quantum_maf.py`, `Tools/Unreal/import_bmp3.py` (new), `Tools/Unreal/import_spawn_vehicles.py`, `Tools/Unreal/dress_marringa_r23.py`, `.gitignore`.
+  - Textures and content: `Art/Characters/Textures/T_SS_MAF_G3_{Shirt,Pants}_co.png`, `T_SS_QB_{Shirt,Jeans,Arms}_MAF_co.png` (+ `_nohq`, `_smdi`, `Shirt_MAF_co_prefix`), `T_SS_Tile_MAF.png`; their three `.uasset` imports; `Content/Art/Vehicles/BMP3/` (new); `Content/Maps/L_MarringaPoint_01.umap`.
+  - Docs: `Docs/ASSET_REGISTER.md` (CH-TEX-006, VEH-005 note, VEH-006), `Docs/LICENCE_REGISTER.md` (L-0030), evidence `soldier_s107/`, `vehicles_s107/`, `Docs/CHANGELOG.md`.
+- **RISKS.** No new ids. L-0030's author and URL are unknown (provenance incomplete, recorded there). R-58 visual acceptance open.
+  - *Later the same day:* the producer named the author, Karosio on SketchLab, free to use; L-0030 and VEH-006 updated, credit line "BMP-3 model by Karosio (SketchLab)".
+- **DEFECTS FOUND.**
+  - (1) `fix_quantum_shoulders.py` reads the unfixed colour from a stale `*_co_prefix.png`, so the fresh Musorian shirt bake came out in the old print. Found by viewing the sheet. `finish_quantum_maf.py` now refreshes the prefix from the new bake.
+  - (2) The first recolour used one classifier for two sources, and shading drove the clusters (shirt 30 % rust). Found on the sheet; now per-source k-means on a blurred clean window.
+  - (3) The DPCU belly patch's tile test left plain tan blocks, and the mirrored leg window carried pocket seams (kaleidoscope). Found on the sheet; replaced by a per-pixel mask and a seam-free source.
+  - (4) Python `rerun_construction_scripts` does not exist on the actor, which left a half-placed unlabelled actor. Found by the stage error; removed, and `set_editor_property` already reruns construction.
+- **NEXT ACTION.** The producer plays Marringa on both teams: TeamOne should see the ASLAV at the Boat Shed and TeamTwo the BMP-3, and both judge the Musorian uniform, skin tones, sprint and reload sounds.
+
+### Session 105 addendum 20 - Claude Code tooling: five skills, a staging guard hook, tracked capture harnesses, clangd (2026-10-25)
+
+- **PRODUCER DIRECTION.** An audit of Claude Code's tooling, then "do all of that". No game code, asset or map changed.
+- **AUDIT (E1).**
+  - Unreal coverage is broad: Epic MCP plus VibeUE, about 60 toolsets.
+  - No Blender MCP was configured anywhere. Live Blender is the Flue bridge: after the producer enabled its add-on, `flue test blender` returned `ok` (Blender 5.2.2 LTS).
+  - Context7 is authorised and answering.
+  - `uv` 0.13.5 and FFmpeg 9.0.2 installed by the producer (winget).
+- **SKILLS (E2).** `.claude/skills/`: `ue-performance-profiling` (VibeUE PerformanceService, Insights headless CSV export), `ue-replication-debugging` (multi-client PIE through `SSObjectivesEditorLibrary`, NetEmulation, Networking Insights), `ss-blender-unreal-pipeline`, `ss-visual-validation`, `ue-cpp-static-analysis`. UBT flags were checked against the engine source (`GenerateClangDatabase.cs` `-OutputDir`, `TargetRules.cs` `StaticAnalyzer`).
+- **GUARD HOOK (E5).** `.claude/settings.json` PreToolUse runs `.claude/hooks/block_git_add_all.py`, which refuses the stage-everything forms of `git add` (`-A`, `--all`, `.`, and `-u` with no path), as CLAUDE.md requires.
+  - It matches only command segments that start with `git add`. Its first version scanned the whole command, and blocked this addendum's own commit because the changelog text in a heredoc mentioned the forms.
+  - Pipe tests: 5 forms blocked (including after `&&` and with an env prefix), 5 allowed (explicit paths, `-u <path>`, a commit message, a heredoc mention, `ls`).
+  - It blocked a live dry-run in session.
+- **HARNESSES MOVED INTO GIT (E5).** From the ignored `Build/` to `Tools/Unreal/`:
+  - `pie_bot_round.py` (was `pie_run.py`) and `pie_clipshot.py` (was `s106_clipshot.py`). The clip shots' output is now `$SS_CAPTURE_DIR/<label>`, default `Docs/evidence/s_CURRENT/captures/<label>`.
+  - `viewport_shot.sh` + `viewport_look.py` (were `s106_shot.sh` / `s106_look.py`).
+  - `soldier_lineup.py` (was `s107_lineup.py`) and `vehicle_lookshot.py` (was `s107_vehshot.py`).
+  - All compile. `viewport_shot.sh` ran live and captured the convoy ASLAV. Parameter files and outputs stay in `Build/`.
+- **CLANGD (E5).**
+  - `UnrealBuildTool -mode=GenerateClangDatabase ... -OutputDir=E:/SouthernSpear` succeeded in 4.6 s: 626 entries, 334 SS-plugin files. The output `compile_commands.json` and `.cache/` are git-ignored.
+  - The VS 2022 LLVM `bin` (clangd, clang-tidy, clang-format) was appended to the end of the producer's user PATH.
+  - The project enables `clangd-lsp@claude-plugins-official` (its marketplace declared in `.claude/settings.json`); it loads from the next session.
+  - `clangd --check` on `SSSpawnVehicleActor.cpp` parsed the UE headers in about 7 s.
+- **TESTING.** `validate_project_docs.py` PASS. No build or suite: no C++ changed.
+- **NOT RUN.** The `clangd-lsp` plugin inside a Claude session (needs a new session). A non-unity build.
+- **DEFECTS FOUND.**
+  - (1) `SSSpawnVehicleActor.cpp:41` uses `UWorld` without including `Engine/World.h`, so it compiles only through unity merging. Found by `clangd --check`. Not fixed (tooling pass); recorded in the static-analysis skill.
+  - (2) The Flue skill's `py -m flue.cli` resolves to Python 3.14, which lacks Flue; `flue` / `python` work. Found by running it.
+  - (3) The guard hook's first version false-positived on text that only mentioned the forms. Found when it blocked this commit; fixed as above.
+- **FILES CHANGED.**
+  - `.claude/settings.json`, `.claude/hooks/block_git_add_all.py`, the five `.claude/skills/*/SKILL.md`.
+  - `Tools/Unreal/{pie_bot_round.py, pie_clipshot.py, viewport_shot.sh, viewport_look.py, soldier_lineup.py, vehicle_lookshot.py}`.
+  - `.gitignore`, `Docs/CHANGELOG.md`.
+- **RISKS.** No new ids.
+- **NEXT ACTION.** Unchanged from addendum 19: the producer plays Marringa on both teams and judges the BMP-3 / ASLAV swap, the Musorian uniform, skin tones, sprint and reload sounds.
+
+### Session 105 addendum 21 - ADF soldier and weapon pass: stretch-free uniforms, rolled kit, Mag58 polymer stock, AK colour space (2026-10-25)
+
+- **PRODUCER DIRECTION.**
+  - "we need to improve the models and textures of the adf soldiers, their equipment and weapons."
+  - On the plan: "lets do it. i like the idea of differences too, which just random too, not picked."
+- **REVIEW (E1 + E6).** `Docs/evidence/s_CURRENT/adf_review_s108/`: all 16 friendly kits front and back (`kits_*`), all 8 ADF weapons side-on in a sky booth (`weapons_booth.png`, `w_*`), and a texture audit (`Build/s108_texaudit.txt`, 133 textures).
+  - Every model is an ADFRC or Fab mesh at 2K-4K and nothing is capped low, so resolution was not the problem.
+  - Defects found:
+    - the uniform camo was stretched into bands;
+    - the CVC vehicle-crew helmet was in the machine gunner and grenadier kits;
+    - the Mag58 had wooden furniture;
+    - the AK-47's mask maps were sRGB;
+    - about 100 textures are never-stream (Session 051's deliberate workaround for missing streaming data, so left alone).
+- **UNIFORMS (E2 + E6).**
+  - New `Tools/Blender/bake_boxcamo_to_quantum.py` box-projects the seamless camo tile in object space (metres) onto the Quantum shirt, jeans and arms and bakes to their UVs: AMCU tile 0.45 m, Musorian 0.25 m (a first MAF bake at 0.45 m had oversized blobs).
+  - New `Tools/Textures/compose_box_camo.py` multiplies in the old G3 transfer's broad shading (48 px masked blur, ratio clamped 0.45-1.6; the old sheet is kept as `*_co_g3.png`), and `Tools/Unreal/reimport_quantum_uniforms.py` reimports the five used sheets.
+  - Same-camera before/after: `uniform_before_after.jpg`, `fr_front_after.png`. PIE: `after_pie_friendly.png`, `after_pie_maf.png`.
+  - A directional-texture detector was tried first and rejected: AMCU's own blobs are elongated, so it flagged half the sheet.
+- **ROLLED KIT (E2 + E3 + E4 + E5).**
+  - `FSSRoleGearSlots`, the pure `FSSGearRoll::Collect`, and `ASSCharacterPartActor::FriendlyRoleGearSlots` / `FriendlySharedGearSlots`: each soldier rolls one option per slot, salted per slot, from the actor-name seed (stable, like the skin tone). `FriendlyRoleGear` stays as the fallback.
+  - `Tools/Unreal/setup_random_kit.py` fills the pools:
+    - rifleman: rig TBAS / CQB / Base, plus a pack (none / BP1-4 / 117G);
+    - medic: CFA + Bullock;
+    - gunner: MG rig + pack;
+    - sniper: Base + ASIP;
+    - grenadier: CQB / TBAS + pack;
+    - shared: headwear (OpsCore, Airframe, Exfil, ExfilB, TeamWendy, boonie + ComTac) and patches.
+  - The CVC crew helmet is in no pool.
+  - New test `SouthernSpear.Presentation.GearRoll` (determinism, one option per slot, empty options, every option reached across 64 seeds).
+  - PIE probe (`Build/s108_kitpie.py`): two friendly bots rolled different rigs and packs (Base + BP2, CQB + 117G).
+- **FACE GEAR (E6, a defect, not shipped).** A lineup of new helmet x face pairs (`combos_faces.png`) showed no balaclava, shemagh or Kondor at all. Their bounds: half-width 10 cm (Manny fit) against the Quantum head's 14 cm, so they sit inside the head. The same was true of Kondor in the old hand-made kits. They are excluded from the pools until refitted.
+- **MAG58 (E2 + E6).** `Tools/Textures/mag58_polymer_stock.py` recolours the wood-hue pixels of `mag58_01_co` (12.9 %: the stock and the carry-handle grip) to the sheet's dark polymer tone, shading kept. `Tools/Unreal/reimport_mag58_polymer.py` reimports it. Capture: `w_mag58_maf_after.png`.
+- **BIPOD FOLD (attempted, reverted).**
+  - `SS_FOLD` in `adfrc_weapon.py` turned the bipod about the pack's own memory axis (`bipod_fold_axis` / `bipod_pivot_axis`).
+  - The converted MLODs keep selection names with no members (0 vertices), and the geometric fallbacks failed: per-face picking stretched the legs into sheets, and whole pieces left the splayed far leg down.
+  - All of it was reverted with `git checkout`, and the A89 / Mag58 FBX are byte-identical to before. A fold needs a hand-made leg selection in Blender.
+- **AK-47 (E2, compile verified).** `Tools/Unreal/fix_ak47_linear_masks.py` sets the Fab AK-47's metallic, roughness and AO textures linear and their samplers to Linear Color. `M_Exterior` compiles (`is_compiled_ok: True`). This is a local-only change to the untracked pack: rerun it after a fresh import.
+- **TESTING.**
+  - `Build.bat SouthernSpearEditor Win64 Development`: Succeeded, exit 0.
+  - Suite: **89 `Result={Success}`, 0 others** (`Build/s108_tests.log`).
+  - `check_unity_names.py` PASS, `validate_architecture.py` exit 0, `validate_project_docs.py` PASS.
+- **NOT RUN.**
+  - A bot round with the new kit.
+  - Two clients agreeing on a rolled kit (same seed rule as the skin tone, not checked over a network).
+  - Kit roll spread beyond the two live bots (the test covers the rule).
+  - First-person view of the new sleeves.
+  - Producer acceptance.
+- **FILES CHANGED.**
+  - Code: `Plugins/SouthernSpearTeam/Source/SouthernSpearTeam/Public/SSCharacterPartActor.h`, `Private/SSCharacterPartActor.cpp`, `Private/Tests/SSGearRollTests.cpp` (new).
+  - Content: `B_SS_Soldier.uasset`; `T_SS_QB_{Shirt,Jeans,Arms}_AMCU_co`, `T_SS_QB_{Shirt,Jeans}_MAF_co`, `T_MAG58_mag58_01_co` (.uasset).
+  - Textures: `Art/Characters/Textures/T_SS_QB_*_{AMCU,MAF}_co.png` and `*_co_g3.png`; `Art/Weapons/MAG58/Textures/mag58_01_polymer_co.png`.
+  - Tools: `Tools/Blender/bake_boxcamo_to_quantum.py`, `Tools/Textures/compose_box_camo.py`, `mag58_polymer_stock.py`; `Tools/Unreal/reimport_quantum_uniforms.py`, `reimport_mag58_polymer.py`, `fix_ak47_linear_masks.py`, `setup_random_kit.py`.
+  - `.gitignore` (`*_box.png`), `Docs/ASSET_REGISTER.md` (CH-TEX-007, WPN-MAG58, C-SOL-01), evidence, `Docs/CHANGELOG.md`.
+- **RISKS.** No new ids. Rerunning the weapon import chain restores the Mag58 wood sheet; the tool docstrings say to rerun.
+- **DEFECTS FOUND.**
+  - (1) Stretched uniform camo, found by close captures.
+  - (2) The CVC helmet in infantry kits, found by the kit review.
+  - (3) Wooden Mag58 furniture, found by the weapon booth.
+  - (4) AK-47 masks sRGB, found by the texture audit.
+  - (5) ADFRC face gear buried inside the Quantum head, found by the combo lineup; it affected the old Kondor kits too.
+  - (6) Bipod selections empty after the MLOD conversion, found by the fold attempt.
+- **NEXT ACTION.** The producer plays a round on Marringa and judges the new uniforms, the rolled kit and the Mag58.
+
+### Session 105 addendum 22 - face gear refitted over the Quantum head; machine-gun bipods folded for carry (2026-10-25)
+
+- **PRODUCER DIRECTION.** "lets give it a crack" (addendum 21's next steps: refit the face gear, fold the bipods by hand).
+- **FACE GEAR (E2 + E6).**
+  - New `Tools/Blender/refit_facewear_quantum.py` places the Quantum head the way the game does (its `head` bone on the mannequin's) and pushes every face-gear vertex inside it outward to 4 mm above its surface.
+    - Pushes are radial: from mid-cranium for the head, and horizontal from the neck axis below it, so rays do not hit the shoulder slope.
+    - Each push is capped at 4 cm and spread to neighbours (12 rings, 0.85 decay, never below what a vertex needs).
+  - Three earlier tries were rejected on previews:
+    - a nearest-surface shrinkwrap tore the cloth around the nose;
+    - pure spherical rays flared the neck hem up to 20 cm;
+    - the first preview camera faced away from the head.
+  - Results: balaclava + glasses 10,552 of 13,290 vertices moved (mean 8 mm); shemagh + glasses 8,098 of 9,532 (mean 8 mm); Kondor 1,700 of 1,782 (mean 13 mm). Previews are in `adf_review_s108/facewear/`.
+  - `Tools/Unreal/reimport_facewear.py` reimports mesh-only, keeping every material slot (5/5, 5/5, 2/2 restored), and `build_soldier_lods.py` rebuilt their LODs (ok, 3).
+  - Editor lineup, same camera as addendum 21's buried capture: `combos_faces_after.png`, `combo_balaclava_close.png`. All six combos now show the gear.
+  - `setup_random_kit.py` puts the face slot back: half the soldiers get none, the rest Kondor, shemagh or balaclava.
+- **BIPODS (E2 + E6).** `adfrc_weapon.py` `SS_FOLD=<memory axis>:<deg>`, set from `build_adfrc_weapons.py` FOLDS (A89 `bipod_fold_axis`, MAG58 `bipod_pivot_axis`).
+  - The bipod is found by position: connected pieces within 3.5 cm of the axis along the barrel, 2 cm above to 26 cm below, within 21 cm either side.
+    - The coloured piece renders `Build/bip_*.png` confirmed exactly the legs, feet and head.
+    - Addendum 21's 15 cm limit had cut through the feet, which sit 16-20 cm out.
+  - Each leg swings in about the barrel axis to hang from its hinge, then the whole bipod turns 90 degrees toward the muzzle.
+  - Result: the A89 is 109 x 14.5 x 29.7 cm (was 32 cm wide), the MAG58 127.5 x 17.6 x 31.2 cm.
+  - `Tools/Unreal/reimport_mg_meshes.py` reimports `SM_A89`, `SM_A89_NoMag`, `SM_MAG58` and `SM_MAG58_NoMag` mesh-only with snapshotted sockets (8/7/7/7, none lost) and materials, so the MAG58 polymer stock stays.
+  - Capture: `w_mg_folded.png`.
+- **TESTING.**
+  - `validate_project_docs.py` PASS.
+  - No C++ changed, so no build or suite run.
+  - The PIE kit probe ran; both live bots rolled no face gear (50 % each, and the actor names repeat between runs).
+- **NOT RUN.**
+  - Face gear on a live bot in PIE (the rendering is shown on reference-pose actors).
+  - Face gear in motion (rigid on `head`, so it should follow).
+  - First person with the folded bipod.
+  - A bot round. Producer acceptance.
+- **FILES CHANGED.**
+  - Tools: `Tools/Blender/refit_facewear_quantum.py` (new), `Tools/Blender/adfrc_weapon.py`, `Tools/build_adfrc_weapons.py`, `Tools/Unreal/reimport_facewear.py` (new), `Tools/Unreal/reimport_mg_meshes.py` (new), `Tools/Unreal/setup_random_kit.py`.
+  - FBX: `Art/Characters/ADF/SK_ADF_Face_{BalaclavaEyepro,ShemaghEyepro,Kondor}.fbx`; `Art/Weapons/{A89,MAG58}/ADFRC/*.fbx` + `manifest.json`.
+  - Content: the three face `.uasset`s, `SM_A89`, `SM_A89_NoMag`, `SM_MAG58`, `SM_MAG58_NoMag`, `B_SS_Soldier`.
+  - Docs: `Docs/ASSET_REGISTER.md`, evidence, `Docs/CHANGELOG.md`.
+- **RISKS.** No new ids. Rebuilding the face FBX through `adfrc_gear_rig.py` drops the refit: rerun the refit and its reimport after.
+- **DEFECTS FOUND.** None new; addendum 21's defects (5) and (6) are fixed.
+- **NEXT ACTION.** The producer plays a round on Marringa and judges the uniforms, the rolled kit with face gear, the Mag58 and the folded bipods.
+
+### Session 105 addendum 23 - Quantum uniforms re-textured: camouflage laid in the garments' own UVs, the pack's own normal / gloss / fold shading, real boots and gloves (2026-10-25)
+
+- **PRODUCER DIRECTION.** "the textures on the adf troops still doesnt look amazing, stretched, a bit sloppy, etc. can we fix it?"
+- **CAUSES FOUND (E1 + E6).** Close captures and the sheets themselves (`Docs/evidence/s_CURRENT/adf_uniform_s109/close_before.png`):
+  - Addendum 21's box projection blurred and doubled the camouflage wherever its three axes blended.
+  - Its fold shading came from the old G3 ray transfer off a different garment, which left soft dark blotches, light halos round every UV island and black cracks.
+  - The normal and gloss maps (`*_nohq`, `*_smdi`) were the same ray transfer: swirled, streaked wrinkles that do not belong to the Quantum meshes.
+  - The boots (part of the jeans mesh) and the hands (part of the arms mesh) were printed in camouflage.
+  - Measured in Blender, the shirt and jeans UVs are sewing-pattern panels: median anisotropy 1.08-1.09, density 0.70-0.78 UV/m (arms 1.14). The Quantum pack ships its own normal, ORM and fold-shaded base colour for exactly these UVs.
+- **FIX (E2 + E6).**
+  - New `Tools/Blender/export_quantum_uv_tris.py` dumps each garment's UV triangles with rest-pose positions.
+  - New `Tools/Textures/uv_camo_quantum.py` builds the sheets:
+    - Camouflage is laid straight into UV space, scaled per island to the same real-world size as before: AMCU 0.45 m, Musorian 0.25 m. It does not stretch, and the pattern breaks only at the garment seams, as cut fabric does.
+    - Folds, seams, stitching and pockets come from a band-pass of the pack's base colour, with the denim wash divided out, times the pack's AO. The result is normalised to the tile's own brightness.
+    - Boots are tan suede (ADF) or black (MAF), with plain soles. Gloves are coyote. Each keeps the pack's detail.
+    - Normal map is the pack's own. SMDI gloss and specular come from the pack's ORM.
+    - MAF is darkened 12 %; the cream base read near-white in sun.
+    - `--test` is a self-check of the island, raster and wrap maths.
+  - `Tools/Unreal/reimport_quantum_uniforms.py` now also reimports the `nohq` / `smdi` sheets. Asset settings are kept (TC_NORMALMAP, linear, never-stream checked after).
+  - Pack textures were exported to `Build/quantum_tex/` (git-ignored, regenerable from `/Game/QuantumCharacter/Textures`).
+- **TESTING.**
+  - `python Tools/Textures/uv_camo_quantum.py --test`: exit 0, "self-check ok".
+  - Build log: 12 / 21 / 6 islands; jeans 6 boot + 2 sole islands; arms 4 glove islands.
+  - Editor lineup on Marringa, same cameras before and after (E6): `front_before_after.jpg`, `close_before_after.jpg`, `maf_before_after.jpg`, `back_after.png`.
+    - Crisp camouflage with folds and seams.
+    - Shirt buttons readable.
+    - Tan boots, coyote gloves; MAF black boots.
+  - PIE follow-cam (E6, MAF): `after_pie_maf.png`, readable with folds.
+  - The friendly PIE still (`after_pie_friendly.png`) is in deep shade and shows little.
+  - No C++ changed; `validate_project_docs.py` run before commit.
+- **NOT RUN.**
+  - A friendly bot in sunlight in PIE.
+  - First-person sleeves and gloves.
+  - A bot round.
+  - Producer acceptance.
+- **FILES CHANGED.**
+  - Tools: `Tools/Textures/uv_camo_quantum.py` (new), `Tools/Blender/export_quantum_uv_tris.py` (new), `Tools/Unreal/reimport_quantum_uniforms.py`.
+  - Textures: `Art/Characters/Textures/T_SS_QB_{Shirt,Jeans,Arms}_AMCU_{co,nohq,smdi}.png`, `T_SS_QB_{Shirt,Jeans}_MAF_co.png`, and their `.uasset`s.
+  - Docs: `Docs/ASSET_REGISTER.md` (CH-TEX-008; CH-TEX-007 superseded), evidence `Docs/evidence/s_CURRENT/adf_uniform_s109/`, `Docs/CHANGELOG.md`.
+- **ASSETS.** CH-TEX-008 (new). The box-projection tools stay in the tree as history.
+- **RISKS.** No new ids. Rerunning `bake_boxcamo_to_quantum.py` / `compose_box_camo.py`, or the G3 bake, overwrites these sheets: rerun `uv_camo_quantum.py` and the reimport.
+- **DEFECTS FOUND.**
+  - (1) Ray-transferred normal and gloss maps, found by inspecting the sheets.
+  - (2) Camouflage-printed boots and gloves, found the same way.
+  - (3) Box-blend smear and G3 shading blotches, halos and cracks, found by close capture.
+  - All three are fixed.
+- **NEXT ACTION.** The producer plays a round on Marringa and judges the re-textured uniforms, boots and gloves.
+
+### Session 105 addendum 24 - ADF helmets refitted to the Quantum head; plate carriers, belts and packs pushed out over the Quantum uniform (2026-10-25)
+
+- **PRODUCER DIRECTION.** "can we improve the chest rig and the helmet just appears too small or squished on the head too much. the maf one looks more natural"
+- **CAUSES FOUND (E1 + E6).** Measured in Blender against the Quantum body, before captures in `Docs/evidence/s_CURRENT/adf_gear_s110/*_before.png`.
+  - **Helmets.** The Quantum cranium is 1.2 cm taller than Manny's, and the ADFRC helmets are fitted to Manny. The OpsCore's crown sat 3 mm below the scalp: a skull cap pulled down on the brow.
+    - MAF's PASGT clears the head by about 2 cm, which is why it looked natural.
+    - Clearance check at +11 cm above the head bone, scale needed with no lift: OpsCore 1.24, Airframe 1.15, TeamWendy 1.04, Exfil 1.01, ExfilB 1.00, boonie 1.38.
+  - **Rigs.** The Quantum shirt is up to 2.6 cm deeper than Manny at the chest and hangs 5 cm proud at the belt line. The TBAS front plate, cummerbund, shoulder pads and belt were inside the shirt; only the pouches showed.
+- **FIX (E2 + E6).** New `Tools/Blender/refit_gear_quantum.py`, run in place on the FBX by `Tools/refit_gear_quantum.sh`.
+  - **Helmet mode.** The least lift up to 2 cm that clears the head by 2 cm, then the least scale (cap 1.15).
+    - The effect fades to nothing below +2 cm, so the mic, chin strap and ear cups stay put.
+    - A uniform 1.2 scale was tried first and swung the mic 3 cm off the mouth.
+    - Results: OpsCore x1.05 + 2.0 cm; Airframe +1.8 cm; TeamWendy +0.6 cm; Exfil +0.2 cm; boonie x1.15 + 2.0 cm (still short of full clearance); ExfilB unchanged.
+  - **Torso mode.** Each gear vertex inside, or within 8 mm of, the Quantum shirt and jeans gets a push, cast from the body axis (from 28 cm below the head bone for the shoulders).
+    - Every vertex then takes the strongest nearby push vector: full within 4 cm, fading out by 10 cm. Pouches ride with their panel.
+    - The first try pushed each vertex along its own ray, which lifted the shoulder straps 4-6 cm off the shoulders.
+    - Caps: 4.5 cm on the chest, 7.5 cm at the belt. A 4.5 cm cap left the belt in patches under the untucked shirt.
+    - Applied to TBAS, TBAS_CQB, TBAS_Base, TBAS_CFA and TBAS_MG.
+  - **Packs.** These clear the refitted TBAS as well (`SS_REFIT_OVER`). BP2, BP3, BP4, Bullock and 117G moved; BP1, ASIP and the flag patches needed nothing.
+  - **Reimport.** `Tools/Unreal/reimport_facewear.py` now takes `SS_REIMPORT_NAMES`. 15 meshes were reimported with every slot restored, and `build_soldier_lods.py` rebuilt their LODs (`ok: true, n: 15`).
+- **TESTING.**
+  - Controlled editor lineup on Marringa, same cameras before and after (E6): `head_front_before_after.jpg`, `head_side_before_after.jpg`, `chest_front_before_after.jpg`, `chest_34_before_after.jpg`.
+    - The helmet rim now sits at mid-forehead with the mic at the mouth.
+    - The full plate carrier shows: front plate, shoulder pads, cummerbund, belt with buckle and holster.
+  - All kits front and back (`kits_0_6_front_after.png`, `kits_7_15_front_after.png`, `kits_7_15_back_after.png`): rigs and packs sit on the uniform, with no visible clipping at lineup distance.
+  - Blender previews are in the session scratchpad only.
+  - No C++ changed; `validate_project_docs.py` run before commit.
+- **NOT RUN.**
+  - PIE or a bot round with the refitted gear.
+  - Deformation in motion: the pushes keep the weights, but how the shoulders behave in animation is unchecked.
+  - First person.
+  - Producer acceptance.
+- **FILES CHANGED.**
+  - Tools: `Tools/Blender/refit_gear_quantum.py` (new), `Tools/refit_gear_quantum.sh` (new), `Tools/Unreal/reimport_facewear.py`.
+  - FBX: `Art/Characters/ADF/SK_ADF_Helmet_{OpsCore,Airframe,Exfil,TeamWendy,BoonieHat}.fbx`, `SK_ADF_Vest_TBAS{,_CQB,_Base,_CFA,_MG}.fbx`, `SK_ADF_Pack_{BP2,BP3,BP4,Bullock,117G}.fbx`.
+  - Content: the matching `SK_*` and `LODS_SK_*` `.uasset`s.
+  - Docs: `Docs/ASSET_REGISTER.md` (C-SOL-01), evidence, `Docs/CHANGELOG.md`.
+- **RISKS.** No new ids. `adfrc_gear_rig.py` rebuilds these FBX Manny-fitted. After any rebuild, rerun `Tools/refit_gear_quantum.sh`, then the reimport and the LODs.
+- **DEFECTS FOUND.**
+  - (1) ADF helmets sat too low and too small on the Quantum head, found by measurement after the producer's report.
+  - (2) Plate carriers and belts buried in the Quantum shirt, found by the 3/4 capture.
+  - Both are fixed in the editor; runtime is not checked.
+- **NEXT ACTION.** The producer plays a round on Marringa and judges helmets, rigs and packs in motion.
+
+### Session 105 addendum 25 - "Aussies" Reforger mod (Tonnie) surveyed; textures decoded, meshes need sources (2026-10-25)
+
+- **PRODUCER DIRECTION.** Use Tonnie's "Aussies" Arma Reforger mod, unpacked in `Content/Sourced/Aussies/data`. "tonnie is an old army mate and is happy for me to use them in this free to play game"
+- **COMPLETED (E1 + E2).**
+  - Survey: 467 files, 653 MB.
+    - 103 `.xob` meshes and 177 `.edds` textures (BC7 sRGB 101, BC7 32, BC5 38, BC4 6).
+    - 108 `.emat` (text, `MatPBRBasic` with BCR / NMO maps), 69 prefab `.et`.
+  - New `Tools/Textures/edds_to_png.py` (pure Python, `--test` self-check) decodes the largest mip of each texture. 177 of 177 converted to `Build/aussies_tex/`; the TBAS colour and normal maps were checked by eye.
+  - Meshes: `.xob` (`FORM`/`XOB9`, chunks `HEAD` / `VOLM` / `LODS`, LZ4-packed geometry) has no public converter. They are rigged to the Reforger character skeleton (`Hips`, `Spine1-5`, facial bones), not Manny. Reverse-engineering was not attempted.
+  - Asking Tonnie for the source FBX / .blend (and source textures) is the reliable route. Those would go through the existing Manny re-rig (`adfrc_gear_rig.py`) and the Quantum refit (`refit_gear_quantum.py`).
+  - Vanilla Reforger content the mod references but does not contain is listed and excluded in L-0031.
+- **TESTING.** `python Tools/Textures/edds_to_png.py --test`: exit 0. Batch: 177 ok, 0 FAIL (`Build/aussies_tex_log.txt`). `validate_project_docs.py` run before commit.
+- **NOT RUN.** Any import into Unreal; no mesh is usable yet.
+- **FILES CHANGED.** `Tools/Textures/edds_to_png.py` (new), `Docs/LICENCE_REGISTER.md` (L-0031), `Docs/CHANGELOG.md`.
+- **RISKS.** No new ids. The permission was given verbally to the producer; a written note from Tonnie would make it firmer.
+- **DEFECTS FOUND.** None.
+- **NEXT ACTION.** The producer asks Tonnie for the mod's source FBX / .blend files and source textures, and confirms the credit line.
+
+### Session 105 addendum 26 - Aussies-mod textures in use: AMCU tile and gear grade, shoulder flag, chest rank slide that follows the player's rank (2026-10-25)
+
+- **PRODUCER DIRECTION.**
+  - "let's use the textures and camo patterns to improve ours, including rank slides (so they can match the player's rank would be cool), and the patches etc. just australian flag on the shoulders for now. i think we have enough vests and helmets ... if we can get the textures better, then reference material to improve our visuals would be great".
+  - Also asked whether github.com/Rendszerguru/ArmaPAK-TC helps. It does not: it is a Total Commander `.pak` browser and extractor with no `.xob` export.
+- **AMCU (E2 + E6).**
+  - New `Tools/Textures/make_amcu_tile.py` quilts a seamless 1350 px (0.39 m) tile from clean areas of Tonnie's 4096 combat-pants sheet (Efros-Freeman minimum-error cuts with wrap-around). Shading broader than the print is divided out first. `--test` is a self-check.
+  - Failed tries, recorded:
+    - a 48 px shading window flattened the print into mush;
+    - a stitch filter kept creased patches;
+    - 160 px patches looked choppy;
+    - equal candidate shares repeated one yellow panel.
+    The kept version uses hand-picked rectangles that exclude the maker's logo, with candidates weighted by area.
+  - Uniforms rebuilt with `uv_camo_quantum.py` at TILE_M 0.39. The raw print read pale yellow in our sun, so AMCU gets gain 0.72, desaturate 0.22 and contrast 1.45.
+  - New `Tools/Textures/grade_gear_amcu.py` grades 20 ADFRC gear sheets in CIELAB to the toned tile, so vest matches shirt.
+    - Reinhard transfer on print pixels only; neutral webbing, metal and coyote items are left alone.
+    - Outputs go to `Art/Characters/ADF/Graded/`; `Tools/Unreal/reimport_graded_gear.py` reimports them; the ADFRC sources are untouched.
+- **SHOULDER FLAG (E2 + E6).** New `Tools/Textures/make_flag_patch.py` lays Tonnie's embroidered flag patch upright into the ADFRC `SK_ADF_FlagPatches` UV strip, on a loop-velcro field. It replaces the subdued AMCU flag; the ADFRC source is kept. Capture: `flag_side.png`.
+- **RANK SLIDE (E2 + E3 + E4 + E5 + E6).**
+  - New `Tools/Blender/build_rank_slide.py`: a 5.2 x 8.5 cm slide on the plate front above the pouches, skinned to `spine_05`.
+    - Placement measured on all five refitted TBAS variants.
+    - The first build put it on the back plate: the soldier faces -Y in these FBX, not +Y.
+  - New `Tools/Textures/make_rank_slide_atlas.py`: 17 ranks in config order.
+    - Tonnie's 12 embroidered slides; his "WO" crown is used for WO2.
+    - WO1, BRIG, MAJGEN, LTGEN and GEN are drawn by the game's own `SSInsigniaRaster.h` on his blank slide.
+  - New `Tools/Unreal/setup_rank_slide.py`: `M_SS_RankSlide`, whose `RankIndex` scalar selects the atlas cell in a Custom node, and the mesh import. `setup_random_kit.py` puts the slide in every friendly kit (a shared slot).
+  - C++: `ASSCharacterPartActor::RefreshRankSlide` runs on a 1 s timer and after each kit change.
+    - It reads `USSServiceRankComponent` on the wearer's player state and sets `RankIndex` through a MID.
+    - With no record, the slide shows Private.
+  - Editor captures with CPL, CAPT and LTGEN set: `slide_cpl.png`, `slide_capt.png`, `slide_ltgen.png`.
+  - PIE log: the local player's soldier showed rank 1 (LCPL, from the dev profile) and the bots showed 0 (PTE).
+- **TOOL FIX.** `Tools/Progression/rank_preview.py` crashed on this machine: the WinLibs g++ build died with access violation 0xC0000005 when run. Linking `-static` fixes it; the preview runs again.
+- **TESTING.**
+  - `Build.bat SouthernSpearEditor Win64 Development`: Succeeded.
+  - Test suite, first run: crashed at startup before any test ran. The crash was an `EdGraphPin.cpp` `OtherPin` assert in NiagaraEditor while loading Lyra's unchanged `NE_ImpactSparks`; it is intermittent.
+  - Test suite, second run: exit 0, **89 `Result={Success}`** (`Build/s110_tests.log`).
+  - Self-checks passed: `make_amcu_tile.py --test`, `grade_gear_amcu.py --test`, `uv_camo_quantum.py --test`.
+  - Evidence in `Docs/evidence/s_CURRENT/adf_aussies_s111/`: `chest_front_before_after.jpg`, `close_before_after.jpg`, `chest_34_*`, `slide_*`, `flag_side.png`, `after_pie_friendly.png`, `after_pie_maf.png`.
+  - The editor viewport framing after the restart differs a little from the earlier session, so the before/after pairs are close, not identical.
+- **NOT RUN.**
+  - A rank change in the middle of a match.
+  - Two clients agreeing on a slide.
+  - First person.
+  - The medic's TBAS_CFA with the slide, close up.
+  - Producer acceptance of the new AMCU colour: it reads warmer and busier than the ADFRC print.
+- **FILES CHANGED.**
+  - Code: `Plugins/SouthernSpearTeam/Source/SouthernSpearTeam/Public/SSCharacterPartActor.h`, `Private/SSCharacterPartActor.cpp`.
+  - Tools, new: `Tools/Textures/{make_amcu_tile,grade_gear_amcu,make_flag_patch,make_rank_slide_atlas}.py`, `Tools/Blender/build_rank_slide.py`, `Tools/Unreal/{setup_rank_slide,reimport_graded_gear}.py`.
+  - Tools, changed: `Tools/Textures/uv_camo_quantum.py`, `Tools/Unreal/setup_random_kit.py`, `Tools/Progression/rank_preview.py`.
+  - Art: `Art/Characters/Textures/T_SS_Tile_AMCU{,_adfrc}.png`, `T_SS_QB_{Shirt,Jeans,Arms}_AMCU_co.png`, `Art/Characters/ADF/Graded/*.png`, `Art/Characters/ADF/T_SS_RankSlides.png`, `Art/Characters/ADF/SK_ADF_RankSlide.fbx`.
+  - Content: the matching `.uasset`s, `M_SS_RankSlide`, `SK_ADF_RankSlide`, `B_SS_Soldier`.
+  - Docs: `Docs/ASSET_REGISTER.md` (CH-TEX-009, C-021), `Docs/LICENCE_REGISTER.md` (L-0031 use), `Docs/CHANGELOG.md`.
+- **RISKS.**
+  - No new ids.
+  - Rerunning the gear import chain reimports the ADFRC AMCU sources over the graded sheets; rerun `reimport_graded_gear.py` afterwards.
+  - The intermittent startup assert in the headless test run is noted, not fixed.
+- **DEFECTS FOUND.**
+  - (1) The rank slide was on the back plate (axis assumption). Found by an actor-bounds check after it did not show; fixed.
+  - (2) `rank_preview.py` crashed when run. Found while building the atlas; fixed.
+  - (3) The headless test run can crash on startup. Found on the first run; not fixed (Lyra content).
+- **NEXT ACTION.** The producer compares the new warm AMCU with the previous ADFRC print (`close_before_after.jpg`) and picks one, then plays a round to see the rank slide and flags in game.
+
+### Session 105 addendum 27 - UE 5.8 review; Marringa haze, Fog Screen Space Scattering on the low-sun maps, Wandarra's duplicate sky rig removed (2026-10-25)
+
+- **PRODUCER DIRECTION.**
+  - Asked about Advanced Shader Delivery (state object database), the Semantic Search plugin, and other 5.8 features, then said of the plan: "sounds good, let's do it".
+- **REVIEW (E1, recorded for later decisions).**
+  - **Advanced Shader Delivery: not now.**
+    - It needs `ASDTool`, which is not in the installed build (no `Engine/Source/Programs/Windows`); it must be built from engine source.
+    - It also needs a packaged D3D12 SM6 build with a bundled PSO cache.
+    - Store support: Microsoft Store only; Epic Games Store planned for early 2027.
+    - The project already meets its settings: DX12, `PCD3D_SM6`, `bShareMaterialShaderCode=True`.
+    - The useful step first is PSO precaching and a bundled PSO cache when packaging starts.
+  - **Semantic Search: present but not enabled.** `Plugins/Experimental/SemanticSearch` and `SemanticSearchToolset` are in the engine, disabled.
+    - The toolset would expose it through the same Toolset Registry the MCP tools use.
+    - It needs an OpenAI-compatible captioning and embedding provider: paid by default, sends thumbnails off-machine, keys stored in clear text. A local server would avoid this; not tried.
+    - Not enabled. A paid provider needs producer approval.
+  - **Other 5.8 features of interest:** Iris (production ready) and Network Prediction, relevant to R-106 / ADR-044; motion-matching and retarget updates; MegaLights with first-person support; the Procedural Vegetation Editor; Lumen medium / Lite; Audio Insights.
+  - **Engine version.** It is 5.8.4 (`Engine/Build/Build.version`), not 5.8.3. Corrected in `CLAUDE.md` and `Docs/CURRENT_STATE.md`.
+- **SURVEY (E1).** `Build/s112_fogsurvey.py` (read-only), across the eight gameplay maps:
+  - Marringa had no height fog.
+  - Saltbush and Marringa have low suns (-23 and -22 degrees).
+  - Wandarra carried two directional lights, two sky lights, two atmospheres and two fogs.
+  - Selat Canal has three fogs and three directional lights (third-party map, left alone).
+- **CHANGES (E2 + E6).** New `Tools/Unreal/apply_map_haze.py` (idempotent; saves the maps):
+  - **Marringa:** `SS_Haze_Fog`, a thin blue-grey haze (density 0.02, falloff 0.2, start 15 m) with FSSS.
+  - **Saltbush:** FSSS on its existing haze.
+  - **Wandarra:** the map template's `DirectionalLight`, `SkyLight`, `SkyAtmosphere` and `ExponentialHeightFog` removed. Its `SS_Light_*` rig, placed by `light_wandarra.py`, stays. The before frame shows the engine's "multiple directional lights are competing" warning; the after frame does not.
+  - FSSS settings: scene-colour scale 1.0, spread 0.5. FSSS is experimental in 5.8: no volumetric clouds, one quality level.
+- **TESTING.**
+  - Same-camera editor captures: `Docs/evidence/s_CURRENT/map_haze_s112/<map>_before_after.jpg` (camera written to `Build/s112_cam_<map>.txt` by `Build/s112_hazecap.py`).
+  - Earlier unsaved trial: `Docs/evidence/s_CURRENT/ue58_fog_trial/fog_trial_sheet.jpg`.
+  - `validate_project_docs.py` run before commit.
+- **NOT RUN.**
+  - PIE on the three maps.
+  - GPU cost of FSSS (not profiled).
+  - A sniper-range visibility check through the haze.
+  - Producer acceptance.
+- **FILES CHANGED.**
+  - Maps: `Content/Maps/L_MarringaPoint_01.umap`, `L_Saltbush_01.umap`, `L_Wandarra_01.umap`.
+  - Tools: `Tools/Unreal/apply_map_haze.py` (new).
+  - Docs: `CLAUDE.md`, `Docs/CURRENT_STATE.md`, `Docs/CHANGELOG.md`, evidence.
+- **RISKS.** No new ids. Rerunning `light_wandarra.py` keeps the fix, because it only touches `SS_Light_*`. Rebuilding Wandarra from its template would bring the duplicates back.
+- **DEFECTS FOUND.**
+  - (1) Wandarra's duplicate sun, sky and fog, found by the survey; fixed.
+  - (2) Engine version wrong in the docs, found by reading `Build.version`; fixed.
+- **NEXT ACTION.** Evaluate Iris and Network Prediction against R-106 (forged-hit rejection) and ADR-044 (lag compensation), and write the findings as a proposal for the producer.
+
+### Session 105 addendum 28 - Iris and Network Prediction evaluated against R-106 and ADR-044 (2026-10-25)
+
+- **PRODUCER DIRECTION.** Addendum 27's NEXT ACTION; the producer said "yeah that would be good".
+- **COMPLETED (E1 + E4, proposal only).** The new section 12 of `Docs/NETWORK_AUTHORITY_AND_LAG_COMPENSATION.md` holds the findings and a draft decision.
+  - **Neither closes R-106 or gives lag compensation.** No engine or plugin header in 5.8.4 implements either, apart from the Marketplace plugin section 8 already rules out. ADR-044 remains the route.
+  - **Iris.**
+    - It is compiled in: `UE_WITH_IRIS=1` through Lyra's `SetupIrisSupport`. Lyra's Iris config is already in `DefaultEngine.ini`.
+    - It is off at runtime: `net.Iris.UseIrisReplication` defaults to 0.
+    - The `Iris` plugin is not enabled in the `.uproject`, so the switch alone falls back to legacy replication.
+    - SS code has no custom net serializers.
+    - The release notes call Iris production-ready; the plugin descriptor still says 0.1 beta.
+  - **Network Prediction and Mover:** not adopted. They predict the owner's own movement; they do not rewind others to check a shot. Mover replaces `UCharacterMovementComponent`, which Lyra's character, abilities, animation and bots depend on.
+  - **Recommendation:** next network session on ADR-044 steps 2 to 5 (compile the lag-compensation rules in Unreal, recorder, rewind, two-client forged-hit tests). Iris is decided afterwards, if at all, so the tests run once on the system that ships.
+- **TESTING.**
+  - Run 1: `UnrealEditor-Cmd ... -nullrhi -unattended -nosplash -nosound -NoLoadingScreen -stdout -UseIrisReplication=1 "-ExecCmds=Automation RunTests SouthernSpear;Quit"`. Exit 255; 88 passed, 1 failed (`SouthernSpear.Network.Gameplay.TwoPlayerAuthoritySmoke`, ensure "GameNetDriver is not using Iris because the IrisCore module isn't loaded").
+  - Run 2: the same plus `-EnablePlugins=Iris`. Exit 0; **89 `Result={Success}`**; `iris="1"`; Iris replication systems created for the smoke test's server and client worlds. Two `LogIris` warnings about modules loading while a replication system was active, most likely the test harness.
+  - Evidence: `Docs/evidence/s_CURRENT/iris_eval_s113/run1_iris_switch_only.txt`, `run2_iris_plugin_enabled.txt`.
+- **NOT RUN.**
+  - Two-client PIE under Iris with network emulation.
+  - Bandwidth or server CPU comparison.
+  - Anything on a dedicated server (R-09).
+  - Producer decision on the draft (12.4) or on ADR-044's open questions.
+- **FILES CHANGED.** `Docs/NETWORK_AUTHORITY_AND_LAG_COMPENSATION.md` (section 12, status line), `Docs/CHANGELOG.md`, evidence. No code, config or `.uproject` change.
+- **ASSETS.** None.
+- **RISKS.** No new ids. R-106 unchanged (OPEN).
+- **DEFECTS FOUND.** (1) Addendum 27's review called Iris a ready switch. It also needs the plugin enabled in the `.uproject`. Found by test run 1; recorded in 12.1.
+- **NEXT ACTION.** The producer answers ADR-044's section 11 questions (shooter or target favoured, 200 or 250 ms cap, explosives, rejected-hit logging) so that steps 2 to 5 can be built.
+
+### Session 105 addendum 29 - ADR-044 accepted: shooter favoured, 250 ms rewind cap, explosives rewind, rejected hits logged (2026-10-26)
+
+- **PRODUCER DIRECTION.** "1. the shooter, 2. 250ms 3. all of them 4. logged", answering ADR-044's four open decisions.
+- **COMPLETED.**
+  - **Docs (E0 decision record):**
+    - ADR-044 is now **accepted**, with the decisions recorded beside the proposal (index row and status notes updated).
+    - The answers are also recorded in section 11 of `NETWORK_AUTHORITY_AND_LAG_COMPENSATION.md`, in `CURRENT_STATE.md` section 7, in `NEXT_PRIORITIES.md` 6.3, in `CLAUDE.md`, and in the `CODING_STANDARDS.md` example (MaxRewindSeconds 0.25).
+  - **Code (E2 + E3 + E4):** `FSSRewindClock::CapSeconds` changed from 0.2 to 0.25 in `SSLagCompensation.h`. The cap checks now use 220 ms plus 30 ms interpolation for the case that reaches the cap without clamping, and 99.75 for the clamped case.
+  - **Projectile rewind (decision 3):** a design for it is owed before that step is built. The server would validate the origin and direction of the throw at the thrower's rewound time, and detonation damage against the victims' positions as the thrower saw them.
+- **TESTING.**
+  - `python Tools/Network/check_lag_comp_rules.py`: 26 checks, 0 failures.
+  - `Build.bat SouthernSpearEditor Win64 Development`: Succeeded (`Build/s114_build.log`).
+  - The full suite, run headless: exit 0, **89 `Result={Success}`**, 0 failed (`Build/s114_tests.log`). It includes `SouthernSpear.Core.LagComp.Rewind` and `.History`. These are the first in-Unreal results for those rules, which closes the E3 and E4 that section 10 said were owed.
+  - `validate_project_docs.py`: PASS.
+- **NOT RUN.** Everything past the rules: the recorder, the rewind, the projectile design, the rejected-hit logging path, and the two-client tests. R-106 stays OPEN.
+- **FILES CHANGED.** `Docs/DECISION_LOG.md`, `Docs/NETWORK_AUTHORITY_AND_LAG_COMPENSATION.md`, `Docs/CURRENT_STATE.md`, `Docs/NEXT_PRIORITIES.md`, `CLAUDE.md`, `Docs/CODING_STANDARDS.md`, `Plugins/SouthernSpearCore/Source/SouthernSpearCore/Public/SSLagCompensation.h`, `.../Private/Tests/SSLagCompensationRuleChecks.h`, `Docs/CHANGELOG.md`.
+- **ASSETS.** None.
+- **RISKS.** No new ids. A 250 ms cap gives a high-ping shooter more room than 200 ms. Accepted by the producer as part of favouring the shooter.
+- **DEFECTS FOUND.** None.
+- **NEXT ACTION.** Re-measure all eight gameplay maps with `audit_map_playability.py`, producer direction "sounds good. let's do it". The audit was last run on 2026-09-27, on four maps.
+
+### Session 105 addendum 30 - All eight gameplay maps re-measured; the headless audit misreads complex-collision ground; spawn defects found (2026-10-26)
+
+- **PRODUCER DIRECTION.** "sounds good. let's do it" (re-measure all maps before the map pass).
+- **COMPLETED (E1 measurements, read-only; nothing in any map changed).**
+  - **`audit_map_playability.py`:**
+    - Defaults to all eight gameplay maps.
+    - Counts colliding instanced meshes as cover (capped at 8,000 traces).
+    - Reports untagged starts.
+    - New `SS_NOLOAD=1` mode measures the map already open in the editor.
+  - New `Tools/Unreal/audit_map_in_editor.py` runs it over MCP.
+  - The results table and findings are in the new top section of `Docs/MAPS_PLAYABILITY_AUDIT.md`. The 2026-09-27 audit is kept below it.
+- **TESTING.**
+  - Headless run (`SS_OUT=map_playability_s114.json UnrealEditor-Cmd ... -ExecutePythonScript=.../audit_map_playability.py`): exit 0, but `ok=False`.
+    - Dry River read "no walkable ground", Ravenshoe 2 % walkable, Wandarra 0 % navmesh.
+    - The probes (`Build/s114_audit_probe.py`, `s114_trace_probe*.py`, `s114_ground_probe.py`) show every ground trace missing those maps' complex-as-simple ground meshes headless, even from 20 m above a start. Toggling the component's collision did not help.
+  - In-editor run (UnrealEditor with MCP, one map per call, after a tick): `ok=True` on all eight maps. The same traces hit 8 of 8 there.
+  - Evidence: `Docs/evidence/s_CURRENT/map_audit_s114/` (eight per-map JSON files plus the headless run).
+- **FINDINGS (E1; details in the audit doc).**
+  - **Spawns:**
+    - Ravenshoe and Bluestone: 16 untagged starts each, so the teams spawn mixed through Lyra's default.
+    - Wandarra: 1+1.
+    - Saltbush: 24+24 where its document says 8.
+    - Exposed start pairs: Selat Canal 11/64, Dry River 2/64.
+  - **Walk parity:** Marringa 59 to 83 %, Selat Canal 42 to 75 %, Saltbush A 55 %, Wandarra A and C 47 and 54 %.
+  - **Navmesh:** Bluestone 3 %, Red Gum 40 %.
+  - **Open ground and thin cover:** Bluestone, Ravenshoe, Marringa.
+  - **The 1:3 hard:soft rule** fails on seven maps; it needs re-setting for environment maps.
+  - **Better since 2026-09-27:** Dry River exposure 35/64 to 2/64 and cover density 0.09 to 0.75; Red Gum navmesh share about 17 % to 40 %.
+- **NOT RUN.** PIE or bot rounds; producer review; any fix.
+- **FILES CHANGED.** `Tools/Unreal/audit_map_playability.py`, `Tools/Unreal/audit_map_in_editor.py` (new), `Docs/MAPS_PLAYABILITY_AUDIT.md`, `Docs/CHANGELOG.md`, evidence.
+- **ASSETS.** None.
+- **RISKS.** No new ids. The headless trace miss affects any commandlet that traces complex-as-simple ground. Most commandlet map tools were written against simple collision; they are to be checked before they are trusted on Dry River or Ravenshoe.
+- **DEFECTS FOUND.**
+  - (1) Untagged starts on Ravenshoe and Bluestone.
+  - (2) Wandarra has one start per team.
+  - (3) Saltbush has 24 starts per team.
+  - (4) The headless audit misreads complex-collision ground.
+  - All four were found by this audit and its probes. None is fixed yet.
+- **NEXT ACTION.** Map pass, step 1: spawns.
+  - Run `layout_spawns.py` (8 tagged starts per team, out of the enemy's sight) on Ravenshoe, Wandarra and Saltbush in the editor.
+  - Bluestone waits on its navmesh.
+  - Then re-measure.
+
+### Session 105 addendum 31 - Map pass step 1, spawns: Ravenshoe and Bluestone tagged, Wandarra laid out 8+8; Ravenshoe and Bluestone deployments fully exposed (2026-10-26)
+
+- **PRODUCER DIRECTION.** "sounds good, let's do that" (map pass, step 1: spawns).
+- **COMPLETED.**
+  - **Ravenshoe and Bluestone (E2):** new `Tools/Unreal/tag_deploy_starts.py` tags each map's two deployment groups in place.
+    - The group nearer objective A becomes Team One; nothing moves.
+    - Ravenshoe: Alpha is TeamOne, Bravo TeamTwo. Bluestone: A is TeamOne, B TeamTwo. 8 starts each.
+    - Before this, `USSDeploymentSpawningComponent` found no tagged starts and deferred to Lyra, so the teams spawned mixed.
+  - **`fix_ravenshoe_starts.py`** now writes the same tags when it is run. It was not run: it re-places starts from the spec, and the terrain has changed since.
+  - **Wandarra (E2):** `layout_spawns.py` laid out 8+8 (was 1+1) with 0/64 exposed and saved the map.
+  - **`layout_spawns.py`** has three new options:
+    - `SS_NOLOAD` lays out the map already open in the editor (fresh loads trace nothing);
+    - `SS_KEEP_NAV` skips its two BUILDPATHS;
+    - `SS_DRY_RUN` reports the layout without changing the map.
+  - **Audit:** the starts rule is now ">= 8 each, equal". Saltbush's 24 a side is deliberate (`review_saltbush.py`), so addendum 30's defect 3 is withdrawn and `MAPS_SALTBUSH.md` is corrected.
+- **TESTING (E1 measurement, in the editor over MCP).**
+  - The re-measure of the three changed maps (`audit_map_in_editor.py`) gave:
+    - Wandarra: 8+8, 0/64 exposed.
+    - Ravenshoe: 8+8, **64/64 exposed**.
+    - Bluestone: 8+8, **64/64 exposed**.
+  - `layout_spawns.py` dry run on Ravenshoe: 58/64 exposed, so it was not applied.
+  - Evidence: `Docs/evidence/s_CURRENT/map_audit_s114/map_playability_s115_*.json`, `spawn_layout_ravenshoe_dryrun.json`.
+- **NOT RUN.**
+  - PIE with bots, to see the teams actually spawn on their own sides.
+  - Bluestone layout: its navmesh covers 3 % of walkable ground.
+  - Producer review.
+- **FILES CHANGED.**
+  - Maps: `Content/Maps/L_Ravenshoe_01.umap`, `L_Bluestone_01.umap`, `L_Wandarra_01.umap`.
+  - Tools: `Tools/Unreal/tag_deploy_starts.py` (new), `layout_spawns.py`, `fix_ravenshoe_starts.py`, `audit_map_playability.py`.
+  - Docs: `Docs/MAPS_PLAYABILITY_AUDIT.md`, `Docs/MAPS_SALTBUSH.md`, `Docs/CHANGELOG.md`, evidence.
+- **ASSETS.** None new.
+- **RISKS.** No new ids. Ravenshoe and Bluestone now spawn each team on its own side, but in full view of the other, which is spawn-kill exposure. They need cover at the deployments before a public test.
+- **DEFECTS FOUND.**
+  - (1) Ravenshoe and Bluestone deployments have mutual sight 64/64, revealed once the tags let the audit pair them. Not fixed.
+  - (2) Walk parity with tags: Ravenshoe objective B 65 %; Bluestone A and C 57 and 58 %; Wandarra A and C 47 and 54 %.
+  - (3) `fix_ravenshoe_starts.py` never set team tags. Fixed in the tool.
+- **NEXT ACTION.** Map pass, step 2, objective balance, starting with Marringa (59 to 83 %). Make objective A an even walk for both teams, by moving deployments or objectives, with a navigation check and before/after audits.
+
+### Session 105 addendum 32 - Bot tracking; Red Gum's stuck bots traced to small logs and fixed; homestead roofs were inverted; FINALISING and WIP map split (2026-10-26)
+
+- **PRODUCER DIRECTION.**
+  - "can you track the bots and their movements?"
+  - "we need to lock in certain maps that are good to go, and others that are WIP. Red gum, wandarra and saltbush seem good to go? ... the weird farm houses are weak assets, and the roofs seem inverted too."
+- **COMPLETED.**
+  - **Bot tracking (E2 + E5).**
+    - New `Tools/Unreal/pie_bot_track.py` (`frame` / `start` / `stop`) runs a Simulate-in-Editor round on the open map.
+      - It tops the round up to 16 bots with the game's own `SpawnOneBot()`.
+      - An editor tick callback samples every controlled pawn (position, team from `LyraPlayerState::GetTeamId`, move status) and every objective (active, owner, capturing team, progress, contested) once per game second.
+      - It keeps only plain data between calls, because of the PIE crash rule.
+    - New `Tools/Maps/plot_bot_tracks.py` (`--test` self-check) draws it over a straight-down editor capture: team trails, deaths, stuck rings, a heatmap.
+      - It writes a summary: when each objective activated and was captured, each team's first arrival, bots that never left spawn, and stuck spots.
+      - In the first capture the objective rings landed on the in-world objective markers.
+  - **Red Gum (E5, E6).**
+    - **Round 1:**
+      - 13 stuck periods, 4 Team One bots stuck 2 to 4 minutes about 20 m from their deployment.
+      - Team Two first to A and B (70 s and 40 s after activation) and took both.
+    - **Cause:** every stuck spot is within 0.9 to 1.9 m of an `SM_Log_S_01`, a 35 to 40 cm trunk with branch stubs to 0.9 m. The navmesh passes through or over it; the 45 cm step and the capsule do not.
+      - An attended `RebuildNavigation` (4.3 s) left the navmesh around the logs unchanged.
+    - **Fix:** new `Tools/Unreal/fix_log_pawn_collision.py`. Small logs (`SM_Log_S_01` ×1504, `SM_Log_S_02` ×756) ignore the Pawn channel and still block Visibility. Saved; verified after a reload.
+    - **Round 2:**
+      - 2 stuck periods, 43 deaths (was 18).
+      - Team One first to A (74 s); both teams reached B (50 s and 59 s).
+      - A and B captured; C active at the end of the 268 s window.
+  - **Homestead roofs inverted (E2, E6).**
+    - `redgum_homestead.py` tilted each gabled roof plane by `+sign*pitch`, and a positive X rotation lifts the plane's +Y edge. So the farmhouse, shearing shed and both huts had V-shaped roofs, and the verandah fell toward the wall.
+    - Signs flipped; FBX rebuilt in Blender; the four meshes reimported in the editor with every material slot unchanged.
+    - These meshes are also used on Saltbush, Marringa and Dry River, so the fix applies there too.
+    - Capture: `s116_farmhouse_after.png` (gable with the chimney on the ridge).
+  - **Map status:** `CURRENT_STATE.md` now records FINALISING (Red Gum, Wandarra, Saltbush) and WIP (Dry River, Selat Canal, Ravenshoe, Bluestone, Marringa).
+- **TESTING.**
+  - `python Tools/Maps/plot_bot_tracks.py --test`: OK.
+  - Two Red Gum Simulate rounds over MCP: 249 and 262 samples.
+  - Evidence: `Docs/evidence/s_CURRENT/bot_tracks_s116/` (`L_RedGum_01_before_*` and `L_RedGum_01_*` trails, heat and summary; raw tracks as JSON; log and farmhouse captures).
+- **NOT RUN.**
+  - Bot rounds on Wandarra and Saltbush.
+  - A full round to the win on Red Gum.
+  - Small logs on other maps.
+  - First-person feel of stepping through a log.
+  - Producer review of the roofs.
+- **FILES CHANGED.**
+  - Tools, new: `Tools/Unreal/pie_bot_track.py`, `Tools/Maps/plot_bot_tracks.py`, `Tools/Unreal/fix_log_pawn_collision.py`.
+  - Tools, changed: `Tools/Blender/redgum_homestead.py`.
+  - Art: `Content/Art/Environment/RedGum/SS_RedGum_{Farmhouse,ShearingShed,Hut_North,Hut_South}.{fbx,uasset}`, `SS_RedGum_Homestead.blend`.
+  - Map: `Content/Maps/L_RedGum_01.umap` (log collision, rebuilt navigation).
+  - Docs: `Docs/CURRENT_STATE.md`, `Docs/CHANGELOG.md`, evidence.
+- **ASSETS.** No new assets; existing M-RG-01a meshes corrected.
+- **RISKS.** No new ids. Characters now pass through small logs: a visible clip, accepted so that bots do not stall. Big logs (`M`, `L`) still block and are not yet checked.
+- **DEFECTS FOUND.**
+  - (1) Bots stall on small logs: found by bot tracking; fixed on Red Gum.
+  - (2) Inverted homestead roofs: producer report; cause found in the source; fixed.
+  - (3) The tracker's first team lookup (a world subsystem, not reachable from Python) returned no team. Found in the first plot; fixed.
+- **NEXT ACTION.** Bot rounds on Wandarra and Saltbush with `pie_bot_track.py`, then fix what they show alongside the objective-A walk balance on both maps.
+
+### Session 105 addendum 33 - Wandarra's stalled team traced to 3,483 solid grass clumps and fixed; snag fix on all three finalising maps; Saltbush deployment problem found; TBAS team leader rig in the kit (2026-10-26)
+
+- **PRODUCER DIRECTION.**
+  - "sounds good." (bot rounds on Wandarra and Saltbush; fix what they show.)
+  - "team leader sounds good." (add the TBAS team leader rig.)
+- **COMPLETED.**
+  - **Wandarra (E5, E6).**
+    - Round 1:
+      - Team Two (north-east) barely played: 33 stuck periods, two bots never left their deployment.
+      - Team One took all three objectives.
+    - Ruled out, in order:
+      - nothing overlaps the capsule at the stuck spots;
+      - the navmesh is complete (2 % holes);
+      - paths from the stuck spots are full and flat;
+      - all 96 sampled director flank waypoints are reachable;
+      - the bots had no TargetEnemy (tracker now records it).
+    - A live probe 94 s into a round showed 15 of 16 bots in PATH_TO_GOAL with zero velocity, walking mode, input allowed, a valid floor and a 360 cm/s max speed.
+    - A pawn-profile capsule sweep finally showed every stuck spot **inside a placed grass clump** (`SS_MAP_W_Grass`, 3,483 of them, BlockAll, "affect navigation" off).
+    - The first fix did not persist. `set_collision_enabled` and per-channel responses on a placed StaticMeshActor are lost on save; `save_current_level` returned True without writing them.
+    - `SetCollisionProfileName` plus `save_dirty_packages` does persist (verified on one actor, then on the map after a reload).
+    - After the fix: 1 stuck period (was 33), 58 deaths (was 16). Team Two took A and B, Team One took C; both teams reached B and C.
+  - **`Tools/Unreal/fix_pawn_snags.py`** (renamed from `fix_log_pawn_collision.py`, generalised):
+    - grass meshes get no collision;
+    - small logs, bushes, shrubs and grass trees ignore characters (profile `IgnoreOnlyPawn` on placed meshes, a Pawn-channel ignore on foliage);
+    - it saves the map itself.
+    - Applied to Wandarra (3,672), Red Gum (5,543: grass trees and the remaining small logs) and Saltbush (128 bushes).
+  - **Saltbush (E5).**
+    - 66 deaths but 32 stuck periods, mostly Team Two in a pit near its deployment at (0, 90 m, z -0.7 m).
+    - Objective A took 230 s and Team One never reached it; B was never taken.
+    - The deployments are about 80 m apart in the middle, A is at the west end, and the bots meet between the deployments.
+    - This needs a deployment rework, not a snag fix.
+  - **TBAS team leader rig (E2, E6):**
+    - built from `TBAS_T5_TL_MLOD.p3d` through the existing ADFRC pipeline and refitted over the Quantum body (36,456 of 43,209 vertices pushed, at most 75 mm);
+    - imported with `SS_ADF_ONLY` and given LODs;
+    - added as a fourth rifleman rig: 24 role options (was 23).
+    - Front capture: `s117_team_leader_rig.jpg` (plate carrier, 343 radio on the left strap, belt holster). Asset C-022.
+- **TESTING.**
+  - Simulate rounds over MCP with `pie_bot_track.py`: Wandarra ×4 (before, after the non-persisting fix, probe, after); Saltbush ×1.
+  - The import report shows no texture reimported (graded AMCU intact).
+  - `validate_project_docs.py`: PASS.
+  - Evidence in `Docs/evidence/s_CURRENT/bot_tracks_s116/`: `L_Wandarra_01_*` (before and after), `L_Saltbush_01_*`, `s117_team_leader_rig.jpg`.
+- **NOT RUN.**
+  - A Red Gum round after the grass-tree change.
+  - The team leader rig in a round, or in first person.
+  - A Saltbush fix.
+  - Producer review.
+- **FILES CHANGED.**
+  - Maps: `Content/Maps/L_Wandarra_01.umap`, `L_RedGum_01.umap`, `L_Saltbush_01.umap`.
+  - Assets: `Art/Characters/ADF/SK_ADF_Vest_TBAS_TL.fbx`; `.../Characters/ADF/SK_ADF_Vest_TBAS_TL.uasset`, `LODS_SK_ADF_Vest_TBAS_TL.uasset`; `.../Characters/B_SS_Soldier.uasset`.
+  - Tools: `Tools/Unreal/fix_pawn_snags.py`, `pie_bot_track.py`, `setup_adf_soldier.py`, `setup_random_kit.py`; `Tools/refit_gear_quantum.sh`.
+  - Docs: `Docs/ASSET_REGISTER.md` (C-022), `Docs/CHANGELOG.md`, evidence.
+- **ASSETS.** C-022 (new).
+- **RISKS.**
+  - No new ids.
+  - **Not committed:** `setup_adf_soldier.py` also re-saved 22 shared `MI_ADF_*` / `MI_MAF_*` instances and `M_SS_GearPBR`. The team leader rig needs none of them changed. The editor holds them locked, so they were neither reverted nor committed. When the editor is closed: `git checkout -- <those files>` (list: `Docs/evidence/s_CURRENT/bot_tracks_s116/s117_materials_to_restore.txt`).
+  - Characters now pass through grass, bushes, grass trees and small logs.
+- **DEFECTS FOUND.**
+  - (1) Wandarra's 3,483 grass clumps blocked characters: bot tracking, then a capsule sweep. Fixed.
+  - (2) Runtime collision setters on placed StaticMeshActors are not saved: found by reload checks. The tool now uses profiles.
+  - (3) Saltbush's deployments put both teams' first contact between the spawns, away from objective A: bot tracking. Not fixed.
+  - (4) A Saltbush pit traps Team Two bots: bot tracking. Not fixed.
+- **NEXT ACTION.** Saltbush deployment rework. Move both deployments so the walk to objective A is even and first contact happens at A, not between the spawns. Clear the pit at (0, 90 m). Then re-track.
+
+### Session 105 addendum 34 - Saltbush: an east gully into the Dry Bowl, deployments re-picked by measured walks, the "pit" was a fallen tree; the round is still one-sided (2026-10-26)
+
+- **PRODUCER DIRECTION.** "keep going" (the addendum 33 NEXT ACTION: Saltbush deployment rework).
+- **COMPLETED.**
+  - **Cause of the uneven walk (E1, in-editor nav paths).**
+    - Objective A sits in the Dry Bowl (-5, -23 m). The bowl had one way in: the road cut in Session 103, from the north.
+    - Team Two (west lowland) walked 118 to 169 m, almost straight into that road. Team One (on the east hill) walked 151 to 199 m: it had to leave the hill eastward, come back west and cross Team Two's approach in the open.
+    - Both routes merged at (-2, 10 m), 34 m short of A.
+  - **East gully (E2, E6 agent-reviewed editor captures).**
+    - New `review_saltbush.py` stage `cut`: grades a straight way between two ground points, cutting through a ridge and filling dips. `road` now shares the grading code (`_grade`).
+    - Cut from the east strip (57, -1 m) to the bowl (20, -18 m): 41 m, grade 0.13; 31 rocks in its path removed.
+    - New stage `bank_rocks`: 14 closed Namaqualand boulders along both banks, so the walls stop reading as a machine cut. Before and after: `s118_gully_raw.png`, `s118_gully_dressed.png`.
+    - `foliage_ground` removed 798 plants left floating; `buried` re-seated 1 rock.
+  - **Fallen-tree snag (the addendum 33 "pit") (E1, E4-style nav queries).**
+    - The stuck Team Two bots stood inside the bounds of `SS_Salt_Extra_FallenTree_0`. `SM_Fab_FallenTreeA` and `B` each have one convex hull round the whole tree, branches included, and the navmesh draped over it.
+    - Their `NavCollision` now has `AreaClass` `NavArea_Null` and `bIsDynamicObstacle`: the tree is a hole in the navmesh (verified by projection at the trunk), so bots path round it; players still collide.
+  - **Deployments re-picked (E2, E4-style nav queries).**
+    - New stage `deploy`: keeps the objectives and searches anchor pairs on roomy, flat, reachable ground. It scores the worst walk imbalance to A, B and C (A counts double) plus sight between the deployment areas. Pairs closer than 70 m are rejected, and so are pairs whose routes to A come within 25 m of each other more than 35 m from A.
+    - Starts (`place_starts`, split out of `layout`) must be reachable from their anchor, stand on bare ground, walk to A within 15% of their anchor's walk, and be hidden from the enemy anchor.
+      - Each rule came from a defect in a trial run: a start on a rock's own nav island, starts on a log and on a rock, a start 39 m from A against a median of 112 m, and 96 of 576 start pairs in sight.
+    - First pick (applied): Team One (49, 37 m), Team Two (-29, 25 m).
+      - Walks per start (min / median / max): A 90/100/120 m and 92/112/121 m; B 142/162/170 m and 133/148/160 m; C 178/199/212 m and 183/198/210 m.
+      - Spawn exposure 13 of 576 start pairs.
+      - Before: A 151/178/199 m and 118/136/169 m.
+  - **Bot round on the new layout (E5, `pie_bot_track.py`, 16 bots, 299 s).**
+    - Team One took A at 87 s, B at 218 s and C at 272 s; Team Two never reached an objective.
+    - 115 deaths (was 66), 31 stuck periods: 24 are one Team Two bot at (-30, 60 m), not yet examined.
+    - Deaths cluster on the open lowland between the two deployments: Team Two's route north to the road passes about 50 m in front of Team One's deployment in plain view.
+    - Route distance was the wrong test. The `deploy` score now includes route exposure (the share of each team's route to A seen from the enemy deployment area).
+    - With that score the best pair found (Team One (61, 34 m), Team Two (-29, 28 m), 90 m apart) still leaves 25% of Team Two's route in view. Not applied.
+  - **Conclusion (E5, one round):**
+    - with A in the bowl at the west end, fixed deployments on this map cannot keep first contact at A;
+    - respawns for B and C now walk 135 to 210 m (were 64 to 120 m).
+    - Deployments that advance with the active objective would fix both. That is a spawn-rule change for the producer to decide.
+  - `Docs/MAPS_SALTBUSH.md` sections 4 and 5 updated; the old 8-per-team numbers and the Session 029 walk table are marked superseded.
+- **TESTING.**
+  - In-editor (MCP) nav paths from all 48 starts to A, B and C; eye-level sight traces between all 576 start pairs; nav projection at the fallen trees after `BUILDPATHS`.
+  - Simulate round: `pie_bot_track.py` start/stop; `python Tools/Maps/plot_bot_tracks.py L_Saltbush_01 Build/bot_tracks_s118`.
+  - Evidence: `Docs/evidence/s_CURRENT/bot_tracks_s118/` (trails, heat, summary, raw JSON, gully captures).
+  - `validate_project_docs.py`: PASS (6 notes).
+- **NOT RUN.**
+  - A second round, or a round with the 90 m pair.
+  - The stuck Team Two bot at (-30, 60 m).
+  - The fallen-tree change on Wandarra, Marringa and Red Gum: it takes effect at their next nav rebuild.
+  - Re-tracking Red Gum.
+  - Producer review.
+- **FILES CHANGED.**
+  - `Content/Maps/L_Saltbush_01.umap`.
+  - `Content/Art/Environment/Fab/Props/SM_Fab_FallenTreeA/.../SM_Fab_FallenTreeA.uasset` and `SM_Fab_FallenTreeB/.../SM_Fab_FallenTreeB.uasset`.
+  - `Tools/Unreal/review_saltbush.py`.
+  - `Docs/MAPS_SALTBUSH.md`, `Docs/CHANGELOG.md`, evidence.
+- **ASSETS.** None new (two existing Fab meshes edited: navigation only).
+- **RISKS.**
+  - No new ids.
+  - Saltbush stays WIP-quality inside the FINALISING group: one-sided round.
+  - The fallen-tree navigation change reaches every map that uses those two meshes.
+  - The 23 re-saved shared materials from addendum 33 are still uncommitted and still to be restored once the editor is closed.
+- **DEFECTS FOUND.**
+  - (1) The Dry Bowl had one entrance, which forced both teams' routes together: nav path inspection. Fixed with the gully.
+  - (2) Fallen-tree single-hull collision under the navmesh trapped bots: actor bounds at the stuck spots. Fixed for navigation.
+  - (3) The first `deploy` picks put starts on a nav island, on props, too close to A, and in sight of the enemy: verification after each run. Fixed by the start rules.
+  - (4) Routes 25 m apart still crossed in view of the enemy deployment: bot round. Scoring fixed; layout not yet.
+- **NEXT ACTION.** Producer decision on Saltbush spawns. Either deployments that advance with the active objective (a spawn-rule change, recommended), or keep fixed spawns and screen Team Two's route from Team One's deployment with boulders.
+
+### Session 105 addendum 35 - Advancing deployments: team starts tagged per objective; Saltbush gets A, B and C spawn groups; both teams now fight at the objectives (2026-10-26)
+
+- **PRODUCER DIRECTION.** "1 - and commit those other things please."
+  - Option 1: deployments that advance with the active objective.
+  - The 23 shared materials re-saved in addendum 33 are committed as they are (`1782c227`), not restored.
+- **COMPLETED.**
+  - **Spawn rule (E2, E3, E4).**
+    - New engine-free `FSSDeploymentPhase` (Core, `SSDeploymentPhase.h`): a team start with the actor tag `SSPhase<N>` serves only while objective N is active. Starts with no phase tag serve every phase, a phase without starts falls back to all, and a map with no phase tags is unchanged.
+    - `USSRespawnGate` carries the phase (`SetDeploymentPhase` / `GetDeploymentPhase`), because the director and the bridge may not depend on each other (SS001).
+    - `ASSObjectiveAssaultDirector::ApplyEvents` sets it to the active objective on round start and on each advance, and to 0 on a reset, before the reset's respawn.
+    - `USSDeploymentSpawningComponent` narrows the team's starts with `FSSDeploymentPhase::Select` before choosing a random free one.
+    - New test `SouthernSpear.Core.DeploymentPhase.Select`.
+  - **Saltbush spawn groups (E2, E4-style nav queries).**
+    - `review_saltbush.py` `deploy` takes `DEPLOY_PHASE` (score one objective), `DEPLOY_MINWALK` (no spawning on the flag) and `DEPLOY_WALKW` (a small penalty per 100 m, so nearer pairs win ties).
+    - `place_starts` works on one phase's tagged pool, making or removing starts to the count.
+    - Every spawn group's route to its objective is out of the enemy group's sight.
+
+      | Phase | Starts per team | Anchors (Team One / Team Two) | Walk min/median/max, Team One; Team Two | Spawn pairs in view |
+      |---|---|---|---|---|
+      | 0, A | 16 | (58, 22 m) / (-20, 40 m) | 77/91/100; 76/92/102 m | 1 / 256 |
+      | 1, B | 12 | (55, 145 m) / (-20, 109 m) | 56/64/72; 54/65/71 m | 0 / 144 |
+      | 2, C | 12 | (28, 154 m) / (-47, 223 m) | 55/66/71; 55/62/67 m | 0 / 144 |
+
+    - 80 starts, all tagged, all reachable.
+    - Addendum 34's fixed-deployment numbers are superseded.
+  - **Bot round (E5, 16 bots, 448 s).**
+    - Respawns used the active phase: 38 at the A groups before A fell, 201 at the B groups after (each new life's first position against the anchors).
+    - Both teams reached A (Team Two 34 s after activation, Team One 63 s); Team One captured it at 101 s.
+    - Both reached B (Team Two 46 s, Team One 86 s); B was still contested, uncaptured, when the run stopped at 448 s (ADR-018 freezes capture while both teams are inside).
+    - 239 deaths (115 in addendum 34's fixed-deployment round), 1 stuck period (31), no bot that never left its deployment.
+    - Deaths also cluster inside Team One's B spawn area, about 55 m from B: possibly spawn fire from B (not yet examined).
+- **TESTING.**
+  - `python Tools/validate_architecture.py`: exit 0.
+  - `python Tools/check_unity_names.py`: PASS.
+  - `Build.bat SouthernSpearEditor Win64 Development`: Result Succeeded.
+  - Automation `RunTests SouthernSpear` headless: exit 0, 90 `Result={Success}`, 0 failures; log `Docs/evidence/s_CURRENT/bot_tracks_s119/automation_tests.log`.
+  - In-editor (MCP): nav paths and sight traces for all 80 starts.
+  - Simulate round via `pie_bot_track.py`, plotted with `plot_bot_tracks.py`. Evidence: `Docs/evidence/s_CURRENT/bot_tracks_s119/` (trails, heat, summary, raw JSON).
+  - `validate_project_docs.py`: PASS.
+- **NOT RUN.**
+  - A round to a win (C was never activated).
+  - Multiplayer (E7): the phase lives on the server only and decides spawns; nothing replicates.
+  - Phase tags on any other map.
+  - Section Assault with phase tags.
+  - Producer review.
+- **FILES CHANGED.**
+  - Core: `Plugins/SouthernSpearCore/Source/SouthernSpearCore/Public/SSDeploymentPhase.h` (new), `Public/SSRespawnGate.h`, `Private/Tests/SSDeploymentPhaseTests.cpp` (new).
+  - Director: `Plugins/SouthernSpearObjectives/Source/SouthernSpearObjectives/Private/SSObjectiveAssaultDirector.cpp`.
+  - Bridge: `Plugins/SouthernSpearLyraBridge/Source/SouthernSpearLyraBridge/Private/SSDeploymentSpawningComponent.cpp`, `Public/SSDeploymentSpawningComponent.h`.
+  - Map and tools: `Content/Maps/L_Saltbush_01.umap`, `Tools/Unreal/review_saltbush.py` (normalised to LF).
+  - Docs: `Docs/MAPS_SALTBUSH.md`, `Docs/CHANGELOG.md`, evidence.
+- **ASSETS.** None new.
+- **RISKS.**
+  - No new ids.
+  - B can stall for minutes when both teams hold the circle (ADR-018 contested rule); not a spawn problem.
+  - Team One's B spawn group may be exposed to fire from B.
+  - The other long maps (Ravenshoe, Bluestone, Marringa) still use fixed deployments.
+- **DEFECTS FOUND.**
+  - (1) Scored on A alone, the search went back to far mid-map spawns (182 m walks): found on the first phase-0 run; walk weight added.
+  - (2) `max(2 * imb[0], *imb[1:])` failed with one goal: runtime error; fixed.
+  - (3) `review_saltbush.py` had mixed line endings, so a CRLF-aware edit missed: assertion; file normalised to LF.
+- **NEXT ACTION.** Saltbush B: check whether Team One's B spawn group is under fire from B (deaths there in the round), move it if so, then run a round to a win.
+
+### Session 105 addendum 36 - External tools installed outside the repo (ACE-Step 1.5, audio2face, caveman, claude-code-game-studios); two project skills; CLAUDE.md brought up to date (2026-10-26)
+
+- **COMPLETED.**
+  - Producer request: install four GitHub repos and two skills from maystudios/claude-skills.
+  - Cloned to `E:\ExternalTools\` (not in this repository, not part of the build):
+    - **ACE-Step 1.5** (MIT, music generation): `venv_rocm` (Python 3.12) with AMD's ROCm 7.2 SDK and `torch 2.9.1+rocmsdk20260116`, then `requirements-rocm.txt`. The launchers' `HSA_OVERRIDE_GFX_VERSION=11.0.0` (written for RX 7000) is commented out locally, because the RX 9070 XT runs without it.
+    - **audio2face** (MIT, dlp3d-ai, UniTalker): CPU build in `.venv` (Python 3.12, `torch 2.8.0+cpu`; 2.4.1 from its guide was too old for the installed `transformers`), `protoc` 31.1, model `weights/unitalker_v0.4.0_base.onnx` (389 MB) from the project's GitHub release.
+    - **caveman** (Apache-2.0): Claude Code plugin `caveman@caveman` 4.0.1, user scope. Its hooks were read: local Node scripts, no network calls. The full `@caveman-ai/cli` (proxy, model routing, account) was not installed.
+    - **claude-code-game-studios** (MIT): cloned for reference only. It is a whole project template (its own CLAUDE.md, hooks, 49 agents, 72 skills) and is not merged.
+  - Project skills `.claude/skills/unreal-pcg-python` and `.claude/skills/unreal-thirdparty` (MIT, maystudios/claude-skills, documentation only; read before copying; their LICENCE copied alongside).
+  - `CLAUDE.md`: test count 90 (commit e3d44f0b), the deployment phase on `USSRespawnGate`, and a new "External tools" section (paths, launch commands, rules: no runtime references, any output used in the game is registered as an asset, caveman voice is chat only).
+- **TESTING.**
+  - ACE-Step: `torch.cuda.is_available()` True, device "AMD Radeon RX 9070 XT"; a 2048x2048 matmul on the GPU with the override unset: ok (E1 for the tool, not for any output).
+  - audio2face: `import audio2face.apis` ok; `main.py --config_path configs/cpu.py` reached "Uvicorn running on http://0.0.0.0:18083" and was stopped after 90 s.
+  - `claude plugin list`: `caveman@caveman` 4.0.1 enabled.
+  - `python Tools/validate_project_docs.py`: PASS (6 notes).
+- **NOT RUN.**
+  - No music generated (ACE-Step models, about 10 GB, download on first launch).
+  - No audio sent to audio2face; no blendshape output checked against the soldier rig.
+  - Game code, build and automation tests unchanged and not re-run.
+- **FILES CHANGED.** `CLAUDE.md`, `.claude/skills/unreal-pcg-python/` (new), `.claude/skills/unreal-thirdparty/` (new), `Docs/CHANGELOG.md`.
+- **ASSETS.** None (tools only; no generated output is in the project).
+- **RISKS.** No new ids. E: has about 100 GB free before the ACE-Step models download.
+- **DEFECTS FOUND.**
+  - (1) audio2face's documented `torch==2.4.1` disables PyTorch in current `transformers` (it needs 2.6 or newer): found by `main.py --help` printing the warning; CPU torch 2.8 installed instead.
+  - (2) ACE-Step's ROCm launchers force `HSA_OVERRIDE_GFX_VERSION=11.0.0`, which is wrong for an RDNA4 card: found reading the launcher; commented out after the GPU test passed without it.
+- **NEXT ACTION.** Saltbush B: check whether Team One's B spawn group is under fire from B (deaths there in the round), move it if so, then run a round to a win.
+
+### Session 105 addendum 37 - Saltbush B: spawn groups were in sight of their objective; spawn picker now checks objective sight and structures; rounds now finish, but B's terrain allows no fair hidden spawn (2026-10-26)
+
+- **COMPLETED.**
+  - **Cause of addendum 35's B stall found (E5 data, E1 traces).** It was not spawn-camping: only 5 of Team One's 89 lives in the B phase ended within 10 s of spawning. Team One died 30 to 50 m from B (median life 17 s) and Team Two within about 20 m of it, while the capture circle stood empty for 129 of 338 samples. Sight traces showed why: 11 of Team One's 12 B starts and 5 of Team Two's could see B, and all 12 of Team Two's C starts could see C (A: 0 and 1). Bots spawned straight into the fight around the objective and nobody held it. The `deploy` picker scored sight between the two deployments, never sight from the objective.
+  - `Tools/Unreal/review_saltbush.py`:
+    - `goal_seen(x, y, g)`: eye height to the objective's centre and 8 points round its capture circle (foliage ignored). Phase picks reject candidate cells that see their objective, and `place_starts` rejects such starts.
+    - `open_ground(x, y)`: no `_Struct_` actor (buildings, their furniture, wrecks, sandbags) within 5 m. Applied to starts only; at 8 m on anchors too it left almost no candidates.
+    - `SPAWN_DZ` (default 350 cm, used 900): how far a start may sit above or below its anchor. The fixed 3.5 m band was what limited Team One's north group to 7 starts.
+    - `DEPLOY_AVOID` (default 30 m): in a phase pick, the anchor and its route to the objective keep that far from every later objective.
+  - `Tools/Unreal/fix_pawn_snags.py`: small yard furniture (`Plastic_Chair`, `Wooden_Crate*`, `Metal_Bucket`, `Barbecue`, `Pallet*`, `Tire`) now ignores Pawn and still blocks Visibility. On Saltbush, 74 props changed, including the plastic chair by the farmhouse porch that held a bot for 98 s.
+  - `L_Saltbush_01` starts re-placed. 72 starts in total, all tagged, 12 per team per phase. None can see its objective and none is within 5 m of a structure (in-editor check):
+    - A: anchors unchanged. Walks 77/91/100 and 81/98/102 m. Start pairs in sight of each other 18 / 144 (addendum 35: 1 / 256, with the starts inside the farmhouse yard).
+    - B: Team One north of C (46, 247 m), Team Two south (-23, 61 m). Walks 89/98/113 and 96/113/128 m. 1 / 144 pairs in sight.
+    - C: Team One (28, 157 m), Team Two (-32, 229 m). Walks 51/64/69 and 53/62/69 m. 4 / 144 pairs in sight.
+  - **Bot rounds (E5, 16 bots, Simulate).** Rounds now play through to a win (none had finished in addenda 34 and 35).
+    - Run a (spawns hidden from the objectives, before the structure check): Team One won round 1 (A 109 s, B 200 s, C 227 s). In round 2, A and B fell to Team One and Team Two took C. Three Team Two bots stuck at the farmhouse porch for 36 to 102 s; Team Two never reached B in round 1.
+    - Run b (structure check): two rounds, Team Two took A both times and Team One took B and C. One bot still pushed against a porch chair for 98 s.
+    - Run c (furniture fix): Team One won two full rounds (C at 231 s, and again at about 430 s). No porch stuck; the longest stuck period was 32 s. 184 deaths (103 Team Two, 81 Team One), 7 within 10 s of spawning.
+  - **Found, not fixed: B's terrain.** Team One's B group sits north of C, so its route to B crosses C. When B falls, Team One already has bots on C (first arrival 0.0 s and 5.1 s after C opened) and takes it in 20 to 27 s, while Team Two reaches B about 30 s later than Team One (71 s against 41 s). With `DEPLOY_AVOID` the best B pick is spawns back near A, 167 m from B. The playable strip ends at x 61 m and every cell on it from y 90 to 180 m sees B, which stands on a ridge facing the east slope. No B spawn is close, even, hidden from B and clear of C at the same time. This needs a layout decision, for example a screen east of B, moving B, or moving C.
+- **TESTING.**
+  - In-editor (MCP): sight traces, `open_ground`, nav walks for all 72 starts (the table above).
+  - Three Simulate rounds via `pie_bot_track.py`, plotted with `plot_bot_tracks.py`. Evidence `Docs/evidence/s_CURRENT/bot_tracks_s120/` (`round_a/`, `round_b/` and the top level for run c: trails, heat, summary, raw JSON).
+  - `fix_pawn_snags.py` rule self-check (python, outside Unreal): chairs and crates ignore Pawn, walls do not, grass has no collision.
+  - `python Tools/validate_project_docs.py`: PASS (6 notes).
+- **NOT RUN.**
+  - C++ build and automation tests (no C++ changed).
+  - Multiplayer.
+  - Producer review.
+  - Section Assault.
+  - Visual capture of the furniture change (collision only, nothing visible).
+- **FILES CHANGED.** `Tools/Unreal/review_saltbush.py`, `Tools/Unreal/fix_pawn_snags.py`, `Content/Maps/L_Saltbush_01.umap`, `Docs/MAPS_SALTBUSH.md`, `Docs/CHANGELOG.md`, `Docs/evidence/s_CURRENT/bot_tracks_s120/`.
+- **ASSETS.** None new.
+- **RISKS.** No new ids. Saltbush rounds favour Team One while B's Team One group crosses C. The A groups now have 18 / 144 start pairs in sight at about 80 m.
+- **DEFECTS FOUND.**
+  - (1) The phase picker never tested sight from the objective: found by tracing addendum 35's deaths and then the starts.
+  - (2) Team Two's B anchor was inside the farmhouse (its floor is navigable): found by a stuck cluster in run a.
+  - (3) A BlockAll plastic chair by the porch snagged bots: found in run b (capsule sweep).
+  - (4) The B pick crossed C: found in run c (Team One on C at 0.0 s).
+  - (5) Picks applied with `APPLY` true even when a team placed fewer starts than asked (the leftovers stay where they were): seen twice; each was re-run until all starts placed.
+- **NEXT ACTION.** Saltbush B layout decision for the producer: a screen (berm or rocks, nav-guarded) on B's east slope so Team One can spawn east of B hidden, or move B or C. Then re-pick phase 1 with `DEPLOY_AVOID` and run a round.
+
+### Session 105 addendum 38 - Showcase prep, part 1: rank patch seated per vest; weapon materials and magazine seating; Red Gum advancing deployments with named spawn vehicles; EF88 reload reviewed (2026-10-26)
+
+- **COMPLETED.**
+  - **Rank slide (producer: "looks slightly weird over the top of the webbing").**
+    - Every TBAS vest covers the shirt's chest to the collar (Blender ray casts), so a shirt-mounted slide would never be seen. The producer chose "flush on the vest placard".
+    - The old slide was a flat plane: 6 mm off the plate at its bottom edge and 7-9 mm off at its sides. On TBAS it straddled the admin box's lower edge.
+    - The vests differ: Base, CQB and MG have no admin box, and CFA's medic item stands 12 mm proud. No single mesh fits all of them.
+    - Now six 3.5 x 5.6 cm patches (`Tools/Blender/build_rank_slide.py`), one per vest. Each is draped 1.5 mm proud of its vest's flattest upper-centre panel, judged by residual from a fitted plane. TBAS gets the admin box's velcro face; the others get the velcro loop panel.
+    - `setup_rank_slide.py` imports all six, and `setup_random_kit.py` rolls each with its vest. The shared slot is gone.
+  - **Weapon materials (producer chose "material pass first").**
+    - The audit (research agent) found:
+      - the ADFRC colour maps average 0.01-0.025 linear (made for Arma lighting);
+      - Metallic was a constant 0.2;
+      - there was no AO;
+      - the A25's FDE slots had no normal or SMDI;
+      - 20 "Metal" fallback slots were 0.018 black chrome.
+    - `upgrade_weapon_materials.py` `tune_master()`: raises the on-disk master's hand-added `WeaponBrightness` multiplier to 2.2, or adds `AlbedoGain` where there is none, sets Metallic to 0, and wires a new `AOMap` (the packs' `_AS` ambient-shadow maps) into AmbientOcclusion.
+    - Colour variants (`_FDE/_BLK/_C_CO`) now find their base set's normal, SMDI and AS maps.
+    - `setup_weapons.py` "Metal" finish is now 0.05 base colour and 0.55 metallic. The 20 existing instances were updated in place.
+  - **Magazine seating (producer: the M4 and HK416 magazines sit too far out, "even the EF88", then "clipping the rifle"; EF88 reference photos supplied).**
+    - The source MLODs carry no magazine-slot proxy geometry, so seating was measured on the exported meshes against references.
+    - **M4 PMAG height:** it showed 15 cm below the magwell (about 13.5 cm on a real 30-round magazine), and its feed lips sat 2 cm under where the bore puts them.
+    - **EF88:** the AUG magazine hung 0.53 of the stock's depth below the stock. The producer's EF88 side profile shows about 0.31.
+    - **Inside the well (z 0):** the M4's PMAG spanned x 0.062..0.126 between walls at 0.041..0.106, so it was 2.0 cm through the front wall. The HK416's spanned 0.044..0.107 between 0.037..0.102.
+    - `Tools/build_adfrc_weapons.py` adds `MAG_DZ` (`SS_MAG_DZ`): A88 and A88G +3.5 cm, A4 and A416 +1.8 cm. It also adds `MAG_DX` (`SS_MAG_DX`, MLOD +X toward the stock): A4 2.0 cm, A416 0.5 cm.
+    - Result: the A88 is now 0.31. Both PMAGs now sit within their walls (A4 0.042..0.106 between 0.041..0.106; A416 0.039..0.102 between 0.037..0.102).
+    - Rebuilt with `build_adfrc_weapons.py` and `weapon_import_chain.sh` (A88, A88G, A4, A416).
+  - **Red Gum (showcase map).**
+    - `review_saltbush.py` now runs on other maps:
+      - `MAP_TAG`, `SURVEY_BOUNDS`, `STRUCT_KEYS` and `DEPLOY_SIGN`;
+      - `SIGHT_FOLIAGE`, because Red Gum's cover is foliage trees;
+      - `DEPLOY_MAXWALK`, because the uncapped even pick landed 237 m out;
+      - phase runs delete starts they could not place (they had stayed stacked at an old start).
+    - **Advancing deployments:** 47 starts, all tagged and reachable. None can see its objective and none is near a structure.
+      - Walks, Team One / Team Two medians: A 118/122 m, B 71/74 m, C 122/115 m.
+      - The previous starts were 200-255 m from A.
+    - **Spawn vehicles:** per team, two Bushmasters and one ASLAV/BMP-3 (new `SS_RedGum_SpawnVehicle_A3/B3`), moved 9-24 m from the phase 0 anchors and facing A.
+    - **Vehicle names:** new cosmetic `ASSSpawnVehicleActor` properties `OwnLookName` / `OpposingLookName`. "Mulga" (Bushmaster) / "Saiga" (GAZ Tiger); "Thorny Devil" (ASLAV) / "Karakurt" (BMP-3).
+  - **EF88 (A88) review.**
+    - First-person PIE capture on Red Gum: idle, then Lyra's real reload at slomo 0.25.
+    - R-101 confirmed again: the rifle tips until the stock fills the view, the support hand drops out of frame, and the magazine is never seen leaving.
+    - The producer chose to retarget ADFRC `GestureReloadAUG.rtm`. Research found that this clip has never decoded to a valid pose (Session 066: wrists 1.5-3.2 m apart; `test_rtm_rigs.py` notes the AUG family's bone ordering). No retarget was attempted in this addendum.
+  - **Tools.**
+    - New: `pie_followshot.py` (follow-bot captures); `pie_a88_review.py` (first-person idle and reload captures, pressing the class-select DEPLOY); `pie_real_reload.py` (moved from `Build/`); `weapon_lineup.py` (weapon booth).
+    - `soldier_lineup.py`: `extra`, `only`, `nogear` and `keep`, plus a ground trace.
+    - `viewport_look.py`: trace fallback.
+- **TESTING.**
+  - `Build.bat SouthernSpearEditor Win64 Development`: Result Succeeded.
+  - `weapon_import_chain.sh A88,A88G,A4,A416`, then again for `A4,A416`: five steps, exit 0 each time. `weapons_setup.json`: ok, no failed steps.
+  - In-editor captures, controlled (E6):
+    - `Docs/evidence/s_CURRENT/uniform_pass/` (`slide_before_after.png`, `patch_variants.png`).
+    - `Docs/evidence/s_CURRENT/weapon_materials/` (`weapons_before_after.png`, `magwell_closeups.png` from before the well fix, `magwell_after.png`).
+    - `Docs/evidence/s_CURRENT/redgum_showcase/teamone_deploy_vehicles.png`.
+  - PIE first person (E5): `Docs/evidence/s_CURRENT/captures/a88_review_before/`, `a88_review_after/`.
+  - Magazine fit in Blender: ray casts from the magazine to the receiver walls on the exported FBXs (numbers above).
+  - In-editor nav walks and sight traces for all 47 Red Gum starts.
+  - `python Tools/validate_project_docs.py`: PASS (6 notes).
+- **NOT RUN.**
+  - Automation tests (the only C++ change is two cosmetic UPROPERTYs).
+  - A Red Gum bot round.
+  - The TL vest's patch on screen.
+  - The magazines in third person.
+  - Close-ups of the A89, MAG58, A25 and A9 materials.
+  - Producer review.
+  - Multiplayer.
+- **FILES CHANGED.**
+  - Tools:
+    - `Tools/Blender/build_rank_slide.py` and `Tools/build_adfrc_weapons.py`;
+    - `Tools/Unreal/{setup_rank_slide, setup_random_kit, setup_weapons, upgrade_weapon_materials, review_saltbush, soldier_lineup, viewport_look}.py`;
+    - new `Tools/Unreal/{pie_followshot, pie_a88_review, pie_real_reload, weapon_lineup}.py`.
+  - Code: `Plugins/SouthernSpearTeam/Source/SouthernSpearTeam/Public/SSSpawnVehicleActor.h`.
+  - Art: `Art/Characters/ADF/SK_ADF_RankSlide*.fbx` and `Art/Weapons/{A88,A88G,A4,A416}/ADFRC/*`.
+  - Content:
+    - weapon content (meshes, MIs, new `T_*_AS` textures) under `SSExp_ObjectiveAssault/Content/Weapons/`;
+    - `M_SS_WeaponPBR`, the rank patch assets and `B_SS_Soldier`;
+    - `Content/Maps/L_RedGum_01.umap`.
+  - Docs: `Docs/MAPS_REDGUM.md`, `Docs/ASSET_REGISTER.md` (C-021, VEH-001, VEH-005), `Docs/CHANGELOG.md`, evidence.
+- **ASSETS.**
+  - Six rank patch meshes (C-021 note).
+  - Ambient-shadow textures imported from the ADFRC packs already registered (L-0021).
+  - No new source.
+- **RISKS.**
+  - No new ids.
+  - Red Gum's phase 2 Team One group has only 4 starts.
+  - The AUG reload retarget depends on a decode that two sessions could not make valid.
+- **DEFECTS FOUND.**
+  - (1) `soldier_lineup.py` and `viewport_look.py` assumed a landscape named "Landscape", which put Red Gum lineups at z 0. Found by the first lineup.
+  - (2) The kit's single rank slide floated or clipped on four of the six vests. Found by Blender ray casts.
+  - (3) `M_SS_WeaponPBR` on disk carried a hand-added `WeaponBrightness` multiply that no script records. Found when the gain step skipped.
+  - (4) A heredoc turned a `\2` backreference into a control byte in `upgrade_weapon_materials.py`. Found by reading the line back.
+  - (5) Phase runs left unplaced starts stacked at an old start. Found on Red Gum phase 1.
+  - (6) PIE first-person captures showed no arms until the class-select DEPLOY was pressed. Found by the first capture.
+  - (7) The PMAGs stood forward of their wells (2.0 cm through the M4's front wall). Found by the producer from the lineup capture, then measured.
+- **NEXT ACTION.** EF88 reload: attempt the AUG-rig decode fix (the `test_rtm_rigs.py` fixed-point method on `GestureReloadAUG`'s own frames; gate: wrists less than 0.9 m apart in every frame) before any retarget, then the showcase clip.
+
+### Session 105 addendum 39 - PMAG seated to its ribbed grip on the M4 and HK416 (2026-10-27)
+
+- **COMPLETED.**
+  - **Magazine depth (producer, from the addendum 38 close-up: "the smooth part of the magazine should be in the weapon").**
+    - The PMAG30 R0 mesh's vertex rows show the feed lips over its top 2.4 cm, a smooth band to 6.6 cm, and the ribbed grip from 6.9 cm below its top.
+    - At the addendum 38 seat (+1.8 cm) the ribs began about 1.0 cm under the M4 magwell lip (lip lowest point about -0.041 m in the exported mesh), so the smooth band showed below the well.
+    - `Tools/build_adfrc_weapons.py` `MAG_DZ`: A4 and A416 0.018 -> 0.028 (another 1.0 cm). `MAG_DX` is unchanged.
+    - Rebuilt `SM_A4*` and `SM_A416*` (manifest `well_m` z -0.0016 -> 0.0084; gun height 0.315 -> 0.305 m) and re-ran `weapon_import_chain.sh A4,A416`.
+- **TESTING.**
+  - `python Tools/build_adfrc_weapons.py A4 A416`: FBXs rewritten (timestamps, manifest diff).
+  - `bash Tools/weapon_import_chain.sh A4,A416`: five steps exit 0; `setup ok: True failed steps: []`.
+  - In-editor capture, same lineup and cameras as addendum 38 (E6): `Docs/evidence/s_CURRENT/weapon_materials/magwell_ribs_before_after.png` (left before, right after; M4 top, HK416 bottom). The ribbed grip now starts at the well's lip; a few millimetres of smooth band still show at the front, where the lip rises. `a4_well_side_ribs.png`, `a416_well_side_ribs.png`; the right side shows the ejection port cover closed with nothing showing through.
+  - `ejection_port_check.png` was meant as the port side but shows the left (shaded) side; kept, nothing wrong is visible on it.
+  - `python Tools/validate_project_docs.py`: see commit.
+- **NOT RUN.** First-person and third-person PIE views of the M4 and HK416; producer review; automation tests (no code changed).
+- **FILES CHANGED.** `Tools/build_adfrc_weapons.py`; `Art/Weapons/{A4,A416}/ADFRC/*`; `SSExp_ObjectiveAssault/Content/Weapons/{A4,A416}/`; evidence above; this entry.
+  - The import chain also re-saved the other weapons' materials and textures (A25, A88, A88G, A89, A9, MAG58), and an MCP auto-save re-saved `L_RedGum_01`. They are not part of this commit and are left in the working tree.
+- **ASSETS.** None new.
+- **RISKS.** No new ids. The raised magazine tops sit higher inside the receiver shells; nothing showed through the ejection port in the side capture.
+- **DEFECTS FOUND.** (1) The PMAG's smooth band showed under both magwells (producer, from the addendum 38 capture). (2) `SM_<W>_Mag.fbx` is exported relative to the MagWell socket, so its extents do not move when the magazine seat moves; measure seating on `SM_<W>.fbx` (found when the first re-measure showed no change).
+- **NEXT ACTION.** Red Gum bot round in PIE (spawns, vehicles, both teams reaching A) to prove the showcase map, then the showcase capture; the EF88 AUG-rig decode stays queued behind it.
+
+### Session 105 addendum 40 - Red Gum bot rounds: Team Two won 3-0 twice off the high ground; A and B deployments re-picked level, vehicles moved; Team One now wins a round (2026-10-27)
+
+- **COMPLETED.**
+  - **Round a, on the addendum 38 layout (E5, Simulate, 16 bots, `pie_bot_track.py`).** Two rounds in 431 s, both won 3-0 by Team Two (A 56 s and 55 s, B 58 s and 38 s, C 67 s and 115 s after each opened). Team One never entered the A or B capture circle; 89 Team One deaths against 65.
+    - Both teams were about 60 m from A at the same time and had the same engagement rate (8 % and 7 % of samples with an enemy, median range 48 m) and movement (96 % and 98 % moving). Team Two reached A first (34 s) and Team One died 50-70 m out.
+    - The one measured difference: Team Two stood about 5 m higher during A (median pawn z 6.7 m against 1.7 m); its route came down off the ridge north-east of A.
+    - Approach exposure (share of the last 20-70 m seen from the objective) was 1.0 for both teams on every phase, so that is not the cause. Loadouts are identical (`SSLoadoutSettings`, ADR-016).
+  - **`review_saltbush.py` `deploy`:** `walks()` now returns the approach (20-70 m from the goal): median ground height and, when `DEPLOY_EXPOSEW` is set, its share seen from the objective (`goal_exposure()`). New scores `DEPLOY_HEIGHTW` (per metre of approach-height difference) and `DEPLOY_EXPOSEW`; both default 0, so Saltbush picks are unchanged. The report adds `approach_z_one_two` and `approach_seen_one_two`.
+  - **Re-picked Red Gum phase 0 and 1 with `DEPLOY_HEIGHTW=0.1`** (other parameters as addendum 38). Phase 0: anchors Team One (-105, -60 m), Team Two (110, -105 m), walks 118/117 m, approach heights 0.5/3.2 m (was 0.6/4.6 m). Phase 1: (-20, -80 m) and (90, -25 m), walks 87/88 m, heights 4.7/5.3 m (was 3.1/6.0 m). Phase 2 is unchanged (its best pick does not change with the term). 10 + 10 starts for phases 0 and 1.
+  - **Spawn vehicles moved:** Team Two's phase 0 anchor moved about 70 m, away from its vehicles. B1-B3 now stand 8-18 m behind the new anchor and at least 7 m from any start; A1-A3 8-18 m from Team One's. All face A, set on the landscape by trace.
+  - **Round b (E5, same harness).** One round in 444 s: A to Team Two at 109 s after a contested fight (Team One arrived 44 s after it opened, Team Two 29 s). B to Team Two at 212 s (Team One arrived first, 44 s against 83 s). C to Team One at 383 s; Team One won the round. 169 deaths, no stuck bots, every bot left its deployment. The trails show the fights at the objectives, not short of them.
+- **TESTING.**
+  - In-editor `deploy` dry runs (APPLY False) for phases 0-2 at `DEPLOY_HEIGHTW` 0, 0.1 and 0.4 and with `DEPLOY_EXPOSEW`; then APPLY for phases 0 and 1.
+  - Bot rounds: `Docs/evidence/s_CURRENT/redgum_showcase/bot_round_a/` and `bot_round_b/` (trails, heat, summary, raw JSON); log `Saved/Logs/SouthernSpear.log` `LogSSObjectives`.
+  - `python Tools/validate_project_docs.py`: see commit.
+- **NOT RUN.** A second round on the new layout (one round is not a balance result); PIE with a player; vehicle placement viewed in the editor; nav rebuilt around the moved vehicles (no bot stuck at them); multiplayer.
+- **FILES CHANGED.** `Tools/Unreal/review_saltbush.py`, `Content/Maps/L_RedGum_01.umap`, `Docs/MAPS_REDGUM.md` §4, `Docs/CHANGELOG.md`, evidence above.
+- **ASSETS.** None.
+- **RISKS.** No new ids. Red Gum balance rests on one round after the change. Phase 2 Team One still has 4 starts.
+- **DEFECTS FOUND.** (1) The addendum 38 Red Gum deployments lost two rounds 3-0 (bot round). (2) The deploy picker had no measure of who comes in from higher ground (found from the round's pawn heights).
+- **NEXT ACTION.** Showcase capture on Red Gum: map flyover, deployment with the named vehicles, first-person shooting with the HUD, bot fights at A (shots framed to avoid reloads).
+
+### Session 105 addendum 41 - Showcase readiness: spawn vehicles verified per viewer with two PIE clients; Team Two's ASLAV and a Bushmaster moved off a fallen tree; animation state checked (2026-10-27)
+
+- **COMPLETED.**
+  - **Vehicle set (producer: "2x bushmasters and 1x aslav at team A, then ... the equivalent, but GAZ and BMP-3").** Each team's deployment holds two `SM_SS_Bushmaster` ("Mulga"; opposing look `SM_SS_GazTiger`, "Saiga") and one `SM_SS_ASLAV` ("Thorny Devil"; opposing look `SM_SS_BMP3`, "Karakurt"). A1-A3 are `SpawnTeam` TeamOne and B1-B3 TeamTwo (read over MCP).
+  - **Viewer-relative looks, two clients at once (E7 for this cosmetic path, listen server only).** PIE as listen server with 2 clients, one process; the client moved to Team Two with `SetTeam 2` run on the server for its controller (it did nothing when run on the client).
+    - Host (Team One): A1-A3 drew Bushmaster, Bushmaster, ASLAV; B1-B3 drew GAZ Tiger, GAZ Tiger, BMP-3.
+    - Client (Team Two), same moment: A1-A3 drew GAZ Tiger, GAZ Tiger, BMP-3; B1-B3 drew Bushmaster, Bushmaster, ASLAV. All six were resolved and visible in both worlds.
+    - Soldiers: on each client the other team's pawns had the MAF vest and PASGT helmet visible and its own team's had them hidden. That is the same `ISSLocalityPresentable` path (`SSViewerTeamTintSubsystem`).
+    - Locality is never replicated: each client resolves it from the replicated team ids (ADR-003, ADR-017). Not run: a dedicated server (R-09), a late-joining client, network emulation.
+    - The play settings were restored afterwards (`PIE_Standalone`, 1 client).
+  - **Placement.** Editor captures showed B3 (the ASLAV) standing across a fallen dead tree and a dead branch over B1. Both were re-placed by a search behind Team Two's phase 0 anchor: landscape under the centre, corners within 60 cm in height, no WorldStatic/WorldDynamic actor in a 4.8 m box, at least 6.5 m from a start and 9 m from the other vehicles. B1 is now at (117.7, -111.4 m), 10 m from the anchor; B3 at (125.3, -117.9 m), 20 m. A1, A3 and B2 pass that check. A2's tight footprint is clear; only the padded box touches foliage at its corners. All face A.
+  - **Animation check before the showcase (E5, PIE, first person and third person).**
+    - First person, A88 (`pie_a88_review.py`, `captures/a88_showcase_check/`): the idle hold reads. The reload is still R-101: the rifle stands vertical, the support hand drops away, and no magazine is seen changing.
+    - Third person (`pie_followshot.py` following a Team One bot, `captures/tp_showcase_check/`): run with the rifle at the shoulder and tracers firing; nothing broken at follow distance.
+- **TESTING.** As above, over MCP in the open editor. Evidence: `Docs/evidence/s_CURRENT/redgum_showcase/` (`vehicles_close.jpg`, `vehicles_B_side.jpg` (before), `vehicles_teamtwo_after.png`), `Docs/evidence/s_CURRENT/captures/a88_showcase_check/`, `tp_showcase_check/`. `python Tools/validate_project_docs.py`: see commit.
+- **NOT RUN.** Captures of each client's view (the per-world mesh read is the evidence); a bot round after the B1/B3 move; nav rebuilt around the vehicles; third-person reload; producer review.
+- **FILES CHANGED.** `Content/Maps/L_RedGum_01.umap`, `Docs/MAPS_REDGUM.md`, `Docs/CHANGELOG.md`, evidence above.
+- **ASSETS.** None.
+- **RISKS.** No new ids. R-101 / R-104 (A88 reload) stand, so the showcase must not show a reload.
+- **DEFECTS FOUND.** (1) Addendum 40 put B3 on a fallen tree and B1 under a dead branch (editor captures; the addendum 40 placement checked starts, not props). (2) `SetTeam` run on a PIE client does nothing; run it on the server for that client's controller (found when the client stayed on Team One).
+- **NEXT ACTION.** Showcase capture on Red Gum (flyover, deployment with the named vehicles, first-person shooting with the HUD, bot fights at A), framed so no reload is shown.
+
+### Session 105 addendum 42 - In-engine showcase of Red Gum (29 s cut with sound), site hero video and section loops staged (not published) (2026-10-27)
+
+- **COMPLETED.**
+  - **Capture pipeline (producer: "a nice snapshot of the graphics, the models, textures, gameplay, sounds, hud and first person gameplay"; it is also the site's header video and loops).**
+    - `Tools/Unreal/showcase_capture.py`: an editor tick callback drives one shot while PIE plays. Modes: camera (Catmull-Rom keys on a CameraActor tagged `SS_ShowCam`), first person (aims at the nearest visible enemy, walks, fires `GA_Weapon_Fire_Rifle_Auto` in bursts and tops the magazine up so no reload is shown), follow (`ss.Debug.FollowBot`) and idle. It logs the wall/game clock and every shot fired: the player's from its own activations, bots' from drops in their MagazineAmmo stacks, with distance and pan for the mix.
+    - `Tools/Unreal/showcase_shot.py`: starts PIE, presses DEPLOY, applies God and the shot's console settings, waits, runs the shot at `slomo 0.06`, captures game-view frames over MCP (about 0.54 s each, 0.032 game s), and resamples them to an even 30 fps by game time.
+    - `Tools/Media/showcase_edit.py`: crops the 1397 x 772 PIE capture to 16:9, scales it to 1080p (lanczos), adds title and end cards (Barlow Condensed), and builds the sound in numpy. The game's audio cannot be recorded at slomo. Instead the project's own rifle layers (Lyra `Weapons_Rifle_*`) are placed at the logged shot times, with distance, speed of sound and pan, over the Red Gum wind and cicada beds (ATM-001) and the Fab menu music (ATM-008), ducked under first person. `--test` checks the timing maths.
+    - Shot specs and the edit list: `Tools/Media/showcase/make_shots.py`, `edit.json`.
+  - **The cut (29.0 s, 1080p30, AAC):** aerial over the gum canopy with the title; low dolly past the Team One spawn vehicles; the class-select screen (soldier model on its stage); a third-person bot; first person with the full HUD at North Paddock (firing at enemies by the van, then advancing; ammo counter, compass, objective panel, name tags); a low angle on objective A; a rising pull-back with the end card ("Pre-alpha - captured in engine" and the fictional-work disclaimer "Not endorsed by the ADF, Defence or the Australian Army").
+  - **Site (staged, not published):** `Site/index.html` hero now carries a muted, looping `<video>` (720p WebM 4.3 MB / MP4 4.9 MB, 1080p MP4 8.5 MB above 1400 px wide). `site.js` starts it only on screens 768 px wide or more, without reduced motion and without Save-Data; otherwise, and without JavaScript, the existing still stays. Section loops (WebM and GIF): `Site/assets/loops/{aerial,vehicles,class,firefight}`. `Tools/publish_site.py` allowlists `.mp4 .webm .gif`.
+- **TESTING.**
+  - `python Tools/Media/showcase_edit.py --test`: ok.
+  - Shots captured in PIE on L_RedGum_01 (E5), the cut reviewed frame by frame from contact sheets (E6, agent review; no producer review yet): `Docs/evidence/s_CURRENT/showcase/master_sheet.jpg`, `fp_sheet.jpg`, `hero_poster.jpg`.
+  - Mix loudness per second: about -24 dB RMS under the cinematic shots, -10 to -13 dB in the first-person firefight; peak 0 dB after the soft limiter.
+  - `python Tools/publish_site.py --build-only`, served on :8765 in the browser pane: at 1024 px the video loaded `showcase-720.webm`, played (15 s in), opacity 1, above the still.
+  - `python Tools/validate_project_docs.py`: see commit.
+- **NOT RUN.** Publishing the site (needs the producer's yes); a listen to the mix by a person; mobile and Safari checks of the hero; placing the loops in site sections; a capture at native 1080p (Windows scaling caps the PIE window's capture at 1397 x 772, so the cut is upscaled).
+- **FILES CHANGED.**
+  - New: `Tools/Unreal/showcase_capture.py`, `Tools/Unreal/showcase_shot.py`, `Tools/Media/showcase_edit.py`, `Tools/Media/showcase/`.
+  - Changed: `Tools/publish_site.py`; `Site/index.html`, `Site/styles.css`, `Site/site.js`; new `Site/assets/hero/showcase-*`, `Site/assets/loops/`.
+  - Docs: `Docs/ASSET_REGISTER.md` (ATM-008), `Docs/CHANGELOG.md`, evidence.
+  - Masters, not tracked: `Build/showcase/out/showcase_1080p.mp4` (117 MB, CRF 19) and `showcase_1080p_share.mp4` (32 MB).
+- **ASSETS.**
+  - ATM-008: Fab FPS Menu Music Vol. 1 (juanjo) registered; credit the composer where the showcase is shown.
+  - The bird clips (ATM-005) are kept out of the mix because four are CC BY-SA 4.0 (L-0029), and share-alike would reach the showcase's sound track.
+- **RISKS.**
+  - No new ids.
+  - R-101 stands: the cut avoids reloads by topping the magazine up, so it shows no reload by design.
+  - The first-person shot shows enemies missing the player: `ss.BotAim 1` with a huge spread was set for that shot so the casualty system (God does not stop it) would not kill the player mid-take. It was restored afterwards.
+- **DEFECTS FOUND.**
+  - (1) `God` does not stop the casualty system: the player was "KILLED IN ACTION" (first test).
+  - (2) After the player died and redeployed later in the round, the first-person arms and weapon were not drawn although the HUD and firing worked (first full s5 take; not reproduced in a fresh session; not investigated).
+  - (3) In Python, `WidgetBlueprintLibrary` was unbound in this editor session and `begin_deferred_actor_spawn_from_class` does not exist. Work-arounds: `ObjectIterator` for the class screen, and a tagged editor camera copied into PIE.
+  - (4) Impact chips on foliage hits show as large orange squares in slow motion (`SSImpactDust`, test frames).
+- **NEXT ACTION.** Producer review of `Build/showcase/out/showcase_1080p_share.mp4` and the staged hero (`python Tools/publish_site.py --build-only`, :8765); on a yes, publish the site.
+
+### Session 105 addendum 43 - Showcase v2: a 59.7 s pre-alpha cut with first-person ADS combat, live-placed camera shots, and an honest reload finding (2026-10-27)
+
+- **COMPLETED.**
+  - **Reviewed first, rebuilt second.** Addendum 42's tools and shots were read and played back before any change. Kept as-is in the new cut: `s1_aerial` (Red Gum panorama, the title shot), `s2_vehicles` (deployment vehicles), `s3_class` (class selection), `s5_fp` (first-person firing with HUD, impacts and muzzle flash), `s6_fight`, `s7_outro`. Recaptured: the first-person engagement and the third-person firefight.
+  - **New cut**: `Tools/Media/showcase/edit6.json` -> `Build/showcase/out_final/showcase_1080p.mp4`, 59.7 s, 1600x900, 30 fps, H.264 + AAC. A copy is at `Build/showcase/out/showcase_v2_1600x900.mp4`. 15 segments: aerial/title (6.9 s), vehicles (5.9), third-person soldier advancing (3.9), class/character (3.1), first-person firing (7.0), ADS contact (1.6), third-person firefight at OBJ A (6.6), first-person firing (3.2), first-person firing (5.6), third-person firefight (4.6), second ADS contact (1.6), third-person advance (1.5), third-person firefight (4.0), closing aerial + end card (4.3).
+  - **Placement from live bot data.** `showcase_capture.py` gained `fp_auto` and `cam_auto`: at shot start, from the closest opposing bot pair, the player is stood 22-42 m away and turned onto an enemy (`fp_auto`), or the shot camera is set on the soldier nearest OBJ A (`cam_auto`). Fixed coordinates had put the camera in scrub twice (`c1` first take at (-3600,-11800) was inside a tree, `c2` first take was empty ground).
+  - **ADS is held with `ss.FP.ForceAim 1`**, the first-person subsystem's own review switch: the same camera mode, weapon and HUD state the game produces when a player aims (`SSFirstPersonSubsystem.cpp` DetermineCameraModeDelegate). It sets no damage, spread or hit value; the shot's spread stays whatever the weapon's hip-fire row is, so some rounds miss, as the impact dust shows.
+  - **Console-variable hygiene.** Every shot now resets `ss.FP.DebugSlot`, `ss.FP.BodyView`, `ss.FP.ForceAim` and `ss.FP.ClipArmsOffset` in setup. CVars persist across PIE sessions in this editor, and a `ss.FP.DebugSlot 1` left by one probe made every later probe hold the A9 instead of the rifle (fire/reload abilities returned false; the A416 looked broken when it was not).
+  - **Resolution, measured.** The editor and PIE game viewport are 1398x772 on this machine (Windows display scaling; the PIE window is created at 1398x772 whatever `NewWindowWidth/Height`, `r.SetRes`, `ToggleFullscreen` or a Win32 `MoveWindow` ask for). `HighResShot 1920x1080` renders true 1920x1080 but excludes the UMG HUD. The master is therefore 1600x900: a 1.15x lift on the HUD shots instead of the 1.37x of the addendum 42 master, and no 1080p claim is made for them.
+  - **Audio** is synthesized from the shot logs as before (real player and bot fire events, distance and pan), with Red Gum wind and cicadas and the registered menu theme (ATM-008). Master peak -0.8 dBFS in the WAV (0 clipped samples); measured -19.5 dB mean after AAC.
+- **RELOAD FINDING (the brief asked for this before any reload capture).** No clean first-person rifle reload exists in this build. Three forms were captured and played back:
+  1. **Stock arms clip** (`ReloadClip=Reload`, the shipped A88/A88G row): the rifle rotates until the butt plate and stock fill the frame; the support hand leaves the view and no magazine is seen. Ammo refills mid-clip (29 -> 30).
+  2. **Procedural path** (`ReloadClip` cleared, the left-hand path with `SM_A88_Mag`/`SM_A88_NoMag`): tried with rig rotation (0,0,30) + 10 cm lift, (-5,8,45) + 15 cm, and (0,0,0) + 0 cm. In all three the butt plate crosses the camera; the magazine motion is not readable.
+  3. **A416** (granted at runtime, real reload ability, ammo 29 -> 30): the ability and ammo swap are real and the gloved hand is visible, but the receiver swings through the camera; raising `ss.FP.ClipArmsOffset` to "8 0 10" brings the hands in and still crosses the receiver.
+  The A9 sidearm view model did not render at all in first person in this session (`ss.FP.DebugSlot 1`, HUD showed A9 15/45), and `ss.FP.BodyView 1` drew no body or arms. **The cut therefore shows no first-person reload and does not time-skip a magazine**: the ADS sequences end before a reload would be needed, and the third-person film shows combatants advancing rather than a staged reload beat. R-101 and R-104 stand unchanged.
+- **FILES CHANGED.**
+  - Tools: `Tools/Unreal/showcase_capture.py` (fp_auto, cam_auto, aim, cvar reset), `Tools/Unreal/showcase_scout.py` (new, editor-viewport composition scout), the probes `Tools/Unreal/pie_{shot_test,restest,uitest,uitest2,resize_probe,fullscreen_probe,reload_probe,reload_probe2,path_reload_probe,a416_probe,a416_offset_probe,pistol_probe,reload_modes_probe,tp_reload_probe,recon}.py`; `Tools/Media/showcase_edit.py` (output size and folder from the edit file, 0.78 headroom), `Tools/Media/showcase/edit{2,3,4,5,6}.json`.
+  - Docs: this entry; evidence `Docs/evidence/s_CURRENT/showcase_v2/`.
+  - Not touched: `Site/`, `Tools/publish_site.py`, the addendum 42 outputs in `Build/showcase/out/` (kept for comparison).
+- **TESTING.**
+  - `python Tools/Media/showcase_edit.py Tools/Media/showcase/edit6.json`: ffmpeg exited 0; `showcase_1080p.mp4` 59.666667 s, 1600x900, 30/1 fps, h264 + aac (ffprobe).
+  - Audio: `ffmpeg -af volumedetect` on the WAV: mean -19.5 dB, max -0.8 dB, 0 samples at full scale; on the muxed AAC: max -0.0 dB (codec overshoot with the source peak at -0.8).
+  - Visual review (E6): 1 fps contact sheet over the whole film (`Docs/evidence/s_CURRENT/showcase_v2/contact_sheet_1fps.jpg`) plus segment sheets; the second ADS take and the first `cam_auto` take were rejected and replaced.
+  - **NOT RUN.** In-engine playback of the muxed file (the film is reviewed from decoded frames, not from the game); site render or publish (forbidden for this review); automation tests (no C++ changed); producer review.
+- **ASSETS.** None new. Music ATM-008 and ambience as addendum 42.
+- **RISKS.**
+  - No new ids. R-101 (first-person bullpup reload) and R-104 (third-person reload) stand and now block a reload beat entirely.
+  - The bots miss a lot on purpose in these takes (`ss.BotAim 1` with a wide setting so the player is not killed mid-take); return fire is visible but the player is not hit.
+  - The third-person firefight is framed on one soldier at 4-8 m; two combatants are only sometimes both in frame.
+  - The homestead/windmill is not in the film: from every angle tried (25 m and 60 m, editor scout and PIE) the station is inside gum canopy, and the aerial pass ended in leaves. The Red Gum station's presentation is a map issue, not a capture one.
+- **DEFECTS FOUND.**
+  - (1) CVars from a previous PIE session leak into the next (`ss.FP.DebugSlot`), silently changing the held weapon in later captures. Found when the A416 probe's fire ability returned false in one run and true in the next; fixed by resetting the four switches in every shot.
+  - (2) `set_level_viewport_camera_info` needs `get_active_viewport_config_key()` and a realtime/invalidate pass, or it silently does nothing (all six scout captures were the same frame). Found by comparing the scout sheet.
+  - (3) `LevelEditorPlaySettings.NewWindowWidth/Height` and `LastExecutedPlayModeType` do not change the PIE viewport size through `editor_request_begin_play()`; measured 1398x772 in every configuration.
+  - (4) The class-select DEPLOY is only reachable through `ObjectIterator`; `WidgetBlueprintLibrary.get_all_widgets_of_class` returned nothing in this session, leaving the class screen up and the probe with no pawn.
+- **NEXT ACTION.** Producer review of `Build/showcase/out/showcase_v2_1600x900.mp4`; the reload remains the one shot the film cannot yet carry, and it needs an authored A88 first-person reload clip (the AUG source clips still do not decode to a valid pose) before any reload can be captured.
+
+### Session 105 addendum 44 - Showcase v4: 62.6 s, station-shed beat, one clean optic shot, and the windmill ruled out with evidence (2026-10-27)
+
+- **COMPLETED.**
+  - **Addendum 43 reviewed before changing it.** Its 59.7 s cut was watched at 1 fps across the whole film and at full resolution at the joins. The finding that shaped this pass: ~20 s of the combat block was third-person coverage of a lone soldier on empty red ground, and the rest was environment, so the film still read as an environment demo with shooting rather than a tactical FPS.
+  - **Kept unchanged:** `s1_aerial` (title panorama), `s2_vehicles`, `s3_class`, `s5_fp` and `s6_fight` (first-person firing with HUD, impacts and muzzle flash), `c2_tp_fight`, `c3_tp_close`, `s7_outro`.
+  - **New environment shot (`e_shed`).** The station shearing shed (`SS_RedGum_Homestead_ShearingShed`, 4700, 3900) filmed as a 4.8 s push-in from a scouted position 48 m out: timber walls, corrugated roof, red dirt, dropped root-mass and grass trees in the foreground. Used twice in the cut, at 0:12 as the wide establishing beat and at 0:52 as a close timber detail; both framings are clean and neither shows the green plane that appears at the shed's base from the south approach (first `e_shed` take, rejected).
+  - **Second ADS beat dropped, with the measurement.** `c1_fp_assault` holds the optic from ~0.9 s, but its view is dust-streaked except for about 0.4 s (frames at 4.4/4.8/5.2/5.6/6.0/6.4 inspected). The cut therefore keeps one clean ADS beat at 0:27.4 (`ads_ef88_optic.png`: EF88 reticle, zero marks, a kangaroo and a soldier beyond it, compass and objective panel live) and gives the 1.4 s to the third-person exchange instead of showing a muddy frame.
+  - **New cut:** `Tools/Media/showcase/edit7.json` -> `Build/showcase/out_v4/showcase_1080p.mp4` (master) and `Build/showcase/out_v4/showcase_share.mp4` (47 MB review copy), 62.6 s, 1600x900, 30 fps, H.264 + AAC. 16 segments: aerial/title 6.6 s, vehicles 5.6, station shed 4.2, class select 3.1, soldier advancing 1.9, first-person fire 6.0, ADS 1.6, third-person exchange 5.4, first-person fire 3.2, third-person close 1.6, first-person fire 5.4, third-person advance 3.6, third-person exchange 4.4, shed detail 2.0, closing aerial 3.7, end card 4.3. Combat occupies 0:21.4-0:52.6.
+  - **`cam_pair` added to the driver, and not used.** `Tools/Unreal/showcase_capture.py` gained an over-the-shoulder pair mode (frames both halves of a live firefight; a square-on camera cannot hold a 58 m pair in a 44 deg frame), with live-pawn filtering, a line-of-sight pair test and a clearance fan for the camera position. Every take framed empty ground: `Build/showcase/pair_debug.json` records the pairs at capture time as 58-96 m apart, and the takes logged 0 shot events, i.e. the two bots were not exchanging fire. The pair mode is kept because the defect it fixes is real, but nothing from it is in the film.
+  - **Windmill ruled out on evidence, not impression.** `SS_RG97_HS_Windmill` exists at (-600, 2700, 271), a 7 m `SM_Fab_Windmill` Fab mesh, with the farmhouse (-38, -522), water tank (-250, 1880) and shearing shed around it. Five editor scout passes (26 views), a sight-trace sweep from 24 bearings x 3 distances x 2 heights, and one 135-frame PIE push-in were run. The mesh has no collision (traces pass through it, so the sweep could not be trusted) and it stands inside continuous gum canopy: the best result is a partial rotor at the frame edge through branches 12 m away (`windmill_in_canopy.jpg`). Not in the film. This is a Red Gum presentation issue (canopy density around OBJ B's homestead), not a capture issue.
+- **FILES CHANGED.**
+  - Tools: `Tools/Unreal/showcase_capture.py` (`cam_pair`, `_alive` health filter, pair/LOS/clearance placement, setup error capture to `Build/showcase/setup_error.txt`, pair diagnostics), `Tools/Media/showcase_edit.py` (poster frame written as `yuvj420p`), `Tools/Media/showcase/edit7.json`, shot specs `Build/showcase/shots/{e_shed,e_windmill,c4_squad_fight}.json`, scout view lists `Build/showcase/views_{windmill,windmill2,windmill3,windmill4,windmill5,hut,shed2}.json`.
+  - Docs: this entry; evidence `Docs/evidence/s_CURRENT/showcase_v3/` (1 fps contact sheet, ADS frame, station shed, closing aerial, shed scout, windmill-in-canopy sheet, empty pair take).
+  - Not touched: `Site/`, `Tools/publish_site.py`, addendum 42's `Build/showcase/out/`, addendum 43's `Build/showcase/out_final/` (both kept for comparison).
+- **TESTING.**
+  - `python Tools/Media/showcase_edit.py Tools/Media/showcase/edit7.json`: ffmpeg exited 0; `showcase_1080p.mp4` 62.600000 s, 1600x900, 30/1 fps, h264 + aac (ffprobe); `showcase_share.mp4` 62.6 s, 46 MB, same geometry (crf 23, 6 Mbit cap, video copied from the master).
+  - Audio: `ffmpeg -af volumedetect` on the master: mean -19.9 dB, max -0.2 dB (the source WAV peaks at -0.8 dB; the AAC overshoot is codec ringing). The share copy measured max 0.0 dB after its own AAC pass, so its audio was re-encoded once more at -1.5 dB: mean -21.9 dB, max -0.3 dB.
+  - Visual review (E6): 1 fps contact sheet over all 62.6 s (`contact_sheet_1fps.jpg`) plus full-resolution frames at 28.2 s (ADS), 48.8 s (rejected dust frame that led to dropping that beat), 54.0 s (shed detail) and 57.0 s (closing aerial). Two earlier edit7 renders were discarded: the first had aerial-shed-aerial at the end, the second still carried the dust-streaked ADS.
+  - **NOT RUN.** In-engine playback of the muxed file (reviewed from decoded frames); site render or publish (forbidden for this review); automation tests (no C++ changed); producer review.
+- **ASSETS.** None new. Music ATM-008 and Red Gum ambience as addendum 42.
+- **RISKS.**
+  - No new ids. R-101 (first-person bullpup reload) and R-104 (third-person reload) stand, and the film still carries no reload beat.
+  - Both third-person exchanges are single-soldier framing at 20-90 m; a genuine two-combatant shot needs bots that are close and engaged, which this round did not offer at capture time.
+  - The closing aerial is correct but flat (bush from above at 20-25 m); the stronger panorama is the title shot.
+- **DEFECTS FOUND.**
+  - (1) `LyraHealthComponent` exposes no reflected `IsAlive`; calling it raises, and because the call sat inside shot setup it aborted placement silently and every take framed the default camera position. Found by adding `Build/showcase/setup_error.txt`; fixed by reading `GetHealth` and failing open (an unreadable pawn counts as alive, because a wrong filter empties a shot while an unfiltered body only frames it badly).
+  - (2) Writing the hero poster with `-q:v` from a limited-range H.264 master fails in the mjpeg encoder (`Non full-range YUV is non-standard`); fixed with `format=yuvj420p`.
+  - (3) `SS_RG97_HS_Windmill` has no collision: visibility traces to it pass straight through, so a trace sweep reports "clear" for a windmill that is completely screened by leaves. Any future sight audit of Fab props must not rely on trace hits alone.
+  - (4) `c1_fp_assault`'s optic view is occluded by its own impact dust for all but ~0.4 s of the 5.6 s ADS hold.
+- **NEXT ACTION.** Producer review of `Build/showcase/out_v4/showcase_share.mp4` (47 MB) against `Docs/evidence/s_CURRENT/showcase_v3/contact_sheet_1fps.jpg`; the reload remains the one beat the film cannot carry, and it needs an authored A88 first-person reload clip before it can be captured.
+
+### Session 105 addendum 43 - Handoff brief for a second agent (2026-10-27)
+
+- **COMPLETED.** `Docs/HANDOFF_FREEBUFF_TASKS.md`: the rules and nine tasks for a second agent (Freebuff running DeepSeek) to work on while the Claude session is unavailable. T1 register drift audit, T2 site section loops (patch only), T3 offline decode of the EF88 AUG reload clip, T4 showcase fix plan, then editor tasks to run after the showcase work: T5 repeated Red Gum bot rounds, T6 weapon and rank-patch close-ups, T7 first-person arms missing after a redeploy (investigation), T8 impact-chip squares (investigation, patch only), T9 the automation suite. Rules: no git writes, no map or asset saves, no site publishing, no edits to the registers or changelog (it proposes them), outputs under `Build/handoff/`.
+- **TESTING.** `python Tools/validate_project_docs.py`: PASS. Nothing in the brief was executed: it is instructions only (E0).
+- **NOT RUN.** Any of T1 to T9.
+- **FILES CHANGED.** `Docs/HANDOFF_FREEBUFF_TASKS.md`, `Docs/CHANGELOG.md`.
+- **ASSETS.** None.
+- **RISKS.** No new ids. The second agent's results are unreviewed until a Claude session checks them; C++, `.uasset` and `.umap` changes and commits stay with the Claude session.
+- **DEFECTS FOUND.** None.
+- **NEXT ACTION.** Producer review of the showcase clip after the second agent's fixes (patches, windmill, shack, more fighting); the first task on the brief's list for the second agent is T1.
+
+### Session 105 addendum 45 - Showcase v5: real squad firefights, the Saltbush farmhouse in place of the Dry River shed, and the badge on both cards (2026-10-27)
+
+- **COMPLETED.** Addendum 44's 62.6 s cut was reviewed against the producer's two notes before anything was shot: "the firefight could use more than 1v1" and "the shack you showed isn't the really good quality asset, it's the 'okay' cheaply made one".
+  - **The building was the wrong building.** The 4.2 s beat was `SS_RedGum_Homestead_ShearingShed` on Dry River: Blender-built, and the plainest of the station's structures. The asset the brief meant is the Saltbush farmhouse: 99 pieces of the Fab Modular Rural Cabin pack assembled at (-2475, 6545) by `Tools/Unreal/dress_saltbush.py` from `Tools/Unreal/saltbush_cabin_layout.json` - slab walls, louvred windows and shutters, corrugated iron roof, river-stone chimney, veranda with table, chairs, kettle, log pile and crates. Three shots replace the shed beat: `e_farm_wide` (a 3.2 s establishing view across the yard with the sandstone boulders behind), `e_farm_hero` (a 1.7 s push-in on the slab wall and stone chimney) and `e_farm_close` (1.1 s of raking-shadow timber detail on the door and wall). The tail of the film is now the farmhouse rather than the shed.
+  - **Squad staging, not a luckier pair.** `Tools/Unreal/showcase_capture.py` gained `mode: cam_squad`: up to four live bots a side are placed in two lines across a cleared area (`at`, `axis`, `split_cm`, `lateral_cm`), each side facing the other, and `fit_camera` then steps a camera back along `cam_dir_deg` until every staged soldier projects inside 92% of the lens with a clear trace to the camera. The fighting in front of it is the game's own AI: real rounds, real return fire, `ss.BotAim` spread set to 600-700 degrees per 100 m beyond 0 m so neither side is laser-accurate (the brief's "do not stage enemies so they obviously always miss" cuts both ways). `spawn_bots` in `Tools/Unreal/showcase_shot.py` tops the round up through Lyra's own `SpawnOneBot` when the round has thinned out.
+  - **Three squad cuts in the film** (`c9_squad` 1.4 s at 0:29.8, `c6_squad_ots` 1.2 s at 0:33.6, `c7_squad` 1.2 s at 0:40.2): five and six soldiers of both teams in a farm yard, firing and moving, with the farmhouse, water tank, watchtower and a kangaroo in frame. This is the shot the previous two cuts lacked.
+  - **The badge.** The producer asked for the Southern Spear logo on the cards. `Tools/Media/showcase_edit.py` now takes a `logo` block (path, size, fade window, y for each card) and `title_lines`/`end_lines` as [text, size, y-fraction] per line: the badge fades in over the opening aerial at 0:00.9 with "OBJECTIVE ASSAULT" beneath it, and again over the closing aerial at 0:55.7 with "PRE-ALPHA - CAPTURED IN ENGINE" and the ADF disclaimer. The old "SOUTHERN SPEAR" drawtext was removed from both cards because the badge already carries the wordmark.
+  - **New cut:** `Tools/Media/showcase/edit13.json` -> `Build/showcase/out_v10/showcase_1080p.mp4` (master) and `showcase_share.mp4` (68 MB review copy), **60.0 s**, 1600x900, 30 fps, H.264 + AAC. 19 segments: aerial/title 5.2 s, vehicles 5.4, farmhouse wide 3.2, class select 3.1, soldier advancing 2.3, first-person fire 9.0, ADS 1.6, squad firefight 1.4, third-person exchange 2.4, squad firefight 1.2, first-person fire 5.4, squad firefight 1.2, third-person close 2.4, first-person fire 4.5 + 1.0, farmhouse door detail 1.1, farmhouse hero 1.7, closing aerial 3.6, end card 4.3.
+- **FILES CHANGED.**
+  - Tools: `Tools/Unreal/showcase_capture.py` (`cam_squad` staging + `fit_camera`, `snap`, `hold`, `cam_at`/`cam_look`, God in cam modes, staged-position diagnostics), `Tools/Unreal/showcase_shot.py` (`spawn_bots` via `SpawnOneBot`), `Tools/Media/showcase_edit.py` (logo overlay from one split looped input, `title_lines`/`end_lines`, per-card windows), `Tools/Media/showcase/edit{8,9,10,11,12,13}.json`.
+  - Docs: this entry; evidence `Docs/evidence/s_CURRENT/showcase_v4/` (1 fps contact sheet, title card, end card, two squad frames, farmhouse, HUD frame, edit13.json, the seven shot specs).
+  - Not touched: `Site/`, `Tools/publish_site.py`, the addendum 43/44 outputs (`Build/showcase/out_final/`, `out_v4/`), any map or asset.
+- **TESTING.**
+  - `python Tools/Media/showcase_edit.py Tools/Media/showcase/edit13.json`: exit 0; `showcase_1080p.mp4` **60.000000 s, 1800 frames**, 1600x900, 30/1 fps (ffprobe on the video stream, not just the container).
+  - **Segment-length check** (new, run before the render): every segment's `start + dur` was compared with its shot's captured frame count. This caught three over-long segments in the earlier candidates (`s2_vehicles` 1.7 s, `e_farm_wide` 0.4 s, `s7_outro` 0.3 s past the end of their takes), which had pulled picture and sound out of step; the final edit has 0 short segments.
+  - Audio: `volumedetect`/`astats` on the master: mean -20.1 dB, peak +0.35 dB (AAC overshoot on a WAV that peaks at -0.8); the share copy is limited with `alimiter=limit=0.85:level=disabled` after -2 dB, measured **peak -1.40 dB**, mean -22.2 dB.
+  - Visual review (E6): 1 fps contact sheet over all 60 s, plus full-resolution frames at 2.6 s (title), 30.0 s and 33.7-34.6 s (squad firefights), 48.6 s (first-person HUD), 50.9 s (farmhouse) and 57.0 s (end card). Six earlier candidate cuts (v5-v9) were rendered and rejected: over-long segments, a door detail that ran too long, a farmhouse push whose first second carried a bright light bloom on the roof edge, and squad windows that landed on a blown-out impact flare at the water tank.
+  - **NOT RUN.** In-engine playback of the muxed file (reviewed from decoded frames); site render or publish (forbidden for this review); automation tests (no C++ changed); producer review.
+- **ASSETS.** `Docs/images/logo.png` (the producer's existing badge) is the only new ingredient; it is used as an overlay, not copied into content. Music ATM-008 and ambience as addenda 42-44. No new source.
+- **RISKS.** No new ids. R-101 (first-person bullpup reload) and R-104 (third-person reload) stand and the film still carries no reload beat. The squad takes are staged positions with the game's own AI fighting; bots converge within about two seconds and the muzzle-flash light blows out the ground when a bot fires close to the lens, so only 1.2-1.4 s of each 4-6 s take is showable. The squad window is short, not absent.
+- **DEFECTS FOUND.**
+  - (1) `APawn.teleport()` is silently refused for an AI-possessed pawn: the first `cam_squad` takes logged six "staged" soldiers that were still standing at their original positions 40-100 m away (`squad_where_*.json`). Found by writing the staged pawns' live positions into a debug file; fixed with `set_actor_location(..., sweep=False, teleport=True)`, which moves them with their controllers.
+  - (2) A segment longer than its captured take does not fail the render: ffmpeg trims to the frames that exist, the concat gets shorter, and everything after it slides against the audio. Three segments were affected. Found by comparing edit lengths with the shot frame counts; the check is now part of the edit workflow.
+  - (3) `alimiter` auto-levels by default: `-af "volume=-1.5dB,alimiter=limit=0.92"` still measured +0.26 dB peak, because `level=1` re-normalises the output. Fixed with `level=disabled` (measured -1.40 dB).
+  - (4) `unreal.EditorLoadingAndSaveUtils` is not bound in this editor's Python (`AttributeError`); `LevelEditorSubsystem.load_level()` is the working call for map loads from MCP.
+  - (5) The farmhouse pieces carry no collision: a downward visibility trace inside the yard returned the landscape 4 m below the house footprint, and `cam_pair`'s LOS test passed through the building. Consistent with the windmill finding in addendum 44; staged placement now opts into ground snapping per shot (`snap`) instead of assuming traces work.
+- **NEXT ACTION.** Producer review of `Build/showcase/out_v10/showcase_share.mp4` (68 MB) with `Docs/evidence/s_CURRENT/showcase_v4/contact_sheet_1fps.jpg`; the reload is still the one beat the film cannot carry, and the highest-value next shot is a longer clean squad exchange, which needs the muzzle-light bloom on nearby ground looked at first.
+
+### Session 105 addendum 46 - Reddit post material; spawn-vehicle review frames kept as JPEG (2026-10-27)
+
+- **COMPLETED.**
+  - A post for r/aigamedev about the 60 s showcase (YouTube `xv6uSMxUgQM`, the v10 cut): title options, body, gallery order and a credits comment, with nine in-engine images exported as JPEG. They live in `Build/reddit_post/` (git-ignored, so not committed). The AI-use section states what Claude Code did and did not do, and flags the one disclosure the producer must confirm (any AI-generated art on the site).
+  - The eleven spawn-vehicle review frames from addendum 41 (`veh_*`, `vehicles_*`) are now committed as JPEG (28 MB of PNG became under 3 MB), because the GitHub Git LFS quota is nearly full (producer's email; see below).
+- **TESTING.** Images read in a contact sheet (E6); the post text was not run against the subreddit's rules (not read). `python Tools/validate_project_docs.py`: see commit.
+- **NOT RUN.** Posting; the 405 MB of re-saved weapon materials left uncommitted (below).
+- **FILES CHANGED.** `Docs/evidence/s_CURRENT/redgum_showcase/` (JPEG frames), `Docs/CHANGELOG.md`.
+- **ASSETS.** None.
+- **RISKS.** No new ids. **GitHub LFS storage:** the producer's warning email (about 10 GB). This machine holds 48 GB of LFS objects locally and the current tree references about 15 GB; every rebuilt asset or PNG uploaded adds storage that deleting files does not free. Pending: 405 MB of modified weapon `.uasset` and texture files (A25, A88, A88G, A89, A9, MAG58) from earlier import-chain runs are held back until the producer decides how to handle the quota.
+- **DEFECTS FOUND.** My PNG-to-JPEG conversion globbed a tracked file (`vehicles_teamtwo_after.png`) and deleted it; restored from HEAD before committing. Found when `git status` showed a deletion.
+- **NEXT ACTION.** Producer decision on the LFS quota (stop uploading PNG evidence, buy a data pack, move rebuildable art out of LFS, or start a fresh repository) and on whether to commit the held weapon assets; then freebuff's brief tasks.

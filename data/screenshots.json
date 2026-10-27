@@ -1,6 +1,132 @@
 {
   "screenshots": [
     {
+      "id": "shot-showcase-vehicles",
+      "title": "Red Gum, the spawn vehicles at the drop-off",
+      "alt": "Low camera past a Bushmaster and a second armoured vehicle parked on red earth under gum trees, late afternoon.",
+      "map": "Red Gum",
+      "captured": "2026-10-27",
+      "session": "105",
+      "note": "Spawn vehicles are static scenery: no crew, no movement. The Bushmaster and ASLAV are named Mulga and Thorny Devil in the project. Frame taken from the 60 s showcase video, so it is video-compressed.",
+      "width": 1600,
+      "height": 900,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-showcase-vehicles-960"
+        },
+        {
+          "width": 1600,
+          "path": "assets/screenshots/shot-showcase-vehicles-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-showcase-class-select",
+      "title": "Class select, the Rifleman",
+      "alt": "The Select Class screen: five roles listed on the left (Rifleman, Medic, Machine Gunner, Sniper, Grenadier) and a camouflaged soldier with an EF88 rifle on a display stage on the right.",
+      "map": "Front end",
+      "captured": "2026-10-27",
+      "session": "105",
+      "note": "Front-end design is provisional. Frame taken from the 60 s showcase video, so it is video-compressed.",
+      "width": 1600,
+      "height": 900,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-showcase-class-select-960"
+        },
+        {
+          "width": 1600,
+          "path": "assets/screenshots/shot-showcase-class-select-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-showcase-firstperson-hud",
+      "title": "Red Gum, first person at North Paddock",
+      "alt": "First-person view across red earth towards a parked van, with the EF88 and its optic at the bottom right, a minimap at top left, an objective panel at top right and ammo and health at the bottom.",
+      "map": "Red Gum",
+      "captured": "2026-10-27",
+      "session": "105",
+      "note": "The EF88 reload animation is not finished, so reloads are not shown. Frame taken from the 60 s showcase video, so it is video-compressed.",
+      "width": 1600,
+      "height": 900,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-showcase-firstperson-hud-960"
+        },
+        {
+          "width": 1600,
+          "path": "assets/screenshots/shot-showcase-firstperson-hud-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-showcase-squad-fight",
+      "title": "Saltbush farmyard, a squad firefight",
+      "alt": "Six soldiers in two groups firing and moving across a sandy yard beside a timber farmhouse, a wooden water tank on a tower and a kangaroo in the frame.",
+      "map": "Saltbush",
+      "captured": "2026-10-27",
+      "session": "105",
+      "note": "Staged positions with the game's own bot AI doing the fighting. Pre-alpha. Frame taken from the 60 s showcase video, so it is video-compressed.",
+      "width": 1600,
+      "height": 900,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-showcase-squad-fight-960"
+        },
+        {
+          "width": 1600,
+          "path": "assets/screenshots/shot-showcase-squad-fight-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-showcase-squad-fight-2",
+      "title": "Saltbush farmyard, muzzle flash",
+      "alt": "Soldiers crouched and moving around a wooden water tower beside a timber farmhouse, one muzzle flash lighting the ground.",
+      "map": "Saltbush",
+      "captured": "2026-10-27",
+      "session": "105",
+      "note": "Pre-alpha. Muzzle-light bloom on nearby ground is still being tuned. Frame taken from the 60 s showcase video, so it is video-compressed.",
+      "width": 1600,
+      "height": 900,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-showcase-squad-fight-2-960"
+        },
+        {
+          "width": 1600,
+          "path": "assets/screenshots/shot-showcase-squad-fight-2-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-showcase-farmhouse",
+      "title": "Saltbush, the farmhouse",
+      "alt": "Close view of a weathered timber farmhouse with a shuttered window, a door, stacked firewood and a small porch with chairs.",
+      "map": "Saltbush",
+      "captured": "2026-10-27",
+      "session": "105",
+      "note": "Assembled from a Fab pack; the pieces carry no collision yet. Frame taken from the 60 s showcase video, so it is video-compressed.",
+      "width": 1600,
+      "height": 900,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-showcase-farmhouse-960"
+        },
+        {
+          "width": 1600,
+          "path": "assets/screenshots/shot-showcase-farmhouse-1920"
+        }
+      ]
+    },
+    {
       "id": "shot-redgum-bushmasters-mag58",
       "title": "Red Gum, the Bushmasters at the drop-off",
       "alt": "First-person view across red earth towards two camouflaged Bushmaster protected mobility vehicles parked with their lights off, a timber shack beside them and gum trees behind, an MAG58 light support gun with a bipod held at the bottom right.",

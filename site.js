@@ -1429,6 +1429,27 @@
     }).then(revealFragment);
   }
 
+  /* ------------------------------------------------------- hero showcase */
+  // The in-engine showcase plays over the hero still only where it costs the visitor nothing they did not ask for:
+  // a wide screen, no reduced-motion preference, no Save-Data. Sources stay in data-src until then (preload="none").
+  function startHeroVideo() {
+    var video = document.querySelector(".hero__video");
+    if (!video) return;
+    var conn = navigator.connection || {};
+    if (!window.matchMedia("(min-width: 768px)").matches || window.matchMedia("(prefers-reduced-motion: reduce)").matches || conn.saveData) {
+      return;
+    }
+    var hiDpiWide = window.matchMedia("(min-width: 1400px)").matches;
+    Array.prototype.forEach.call(video.querySelectorAll("source"), function (source) {
+      source.src = (hiDpiWide && source.getAttribute("data-src-wide")) || source.getAttribute("data-src");
+    });
+    video.load();
+    video.addEventListener("playing", function () { video.classList.add("is-playing"); }, { once: true });
+    var attempt = video.play();
+    if (attempt && attempt.catch) attempt.catch(function () { /* autoplay refused: the still stays */ });
+  }
+  startHeroVideo();
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {

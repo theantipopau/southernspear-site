@@ -1,6 +1,69 @@
 {
   "screenshots": [
     {
+      "id": "shot-map-saltbush-range",
+      "title": "Saltbush, the basin and the track from the ridge",
+      "alt": "First-person view from a ridge on Saltbush: a dirt track winding across a dry grassy basin between rocky hills, an A88 rifle with its optic held at the bottom right.",
+      "map": "Saltbush",
+      "captured": "2026-10-28",
+      "session": "106",
+      "note": "A presentation view from the pre-alpha build with the HUD hidden, not a gameplay capture. Saltbush is in production: no navigation audit has signed it off.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-map-saltbush-range-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-map-saltbush-range-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-3acr-portrait",
+      "title": "3 ACR portrait",
+      "alt": "A soldier in Australian camouflage and a helmet, rifle raised, standing on a ridge above an open valley in the dry hills.",
+      "map": "Saltbush",
+      "captured": "2026-10-28",
+      "session": "106",
+      "note": "Character model in progress; a presentation view, not gameplay.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-3acr-portrait-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-3acr-portrait-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-maf-portrait",
+      "title": "MAF portrait",
+      "alt": "A soldier in Murasian desert camouflage and a helmet with goggles pushed up, holding a rifle on a ridge above an open valley.",
+      "map": "Saltbush",
+      "captured": "2026-10-28",
+      "session": "106",
+      "note": "Character model in progress; a presentation view, not gameplay.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-maf-portrait-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-maf-portrait-1920"
+        }
+      ]
+    },
+    {
       "id": "shot-showcase-vehicles",
       "title": "Red Gum, the spawn vehicles at the drop-off",
       "alt": "Low camera past a Bushmaster and a second armoured vehicle parked on red earth under gum trees, late afternoon.",
@@ -338,48 +401,6 @@
         {
           "width": 1920,
           "path": "assets/screenshots/shot-maf-patrol-1920"
-        }
-      ]
-    },
-    {
-      "id": "shot-3acr-portrait",
-      "title": "3 ACR portrait",
-      "alt": "Close view of a soldier in a boonie hat with a boom microphone headset, white fence behind.",
-      "map": "Wandarra",
-      "captured": "2026-10-05",
-      "session": "099",
-      "note": "Character model in progress.",
-      "width": 1920,
-      "height": 1080,
-      "files": [
-        {
-          "width": 960,
-          "path": "assets/screenshots/shot-3acr-portrait-960"
-        },
-        {
-          "width": 1920,
-          "path": "assets/screenshots/shot-3acr-portrait-1920"
-        }
-      ]
-    },
-    {
-      "id": "shot-maf-portrait",
-      "title": "MAF portrait",
-      "alt": "Close view of Murasian soldiers in camouflage helmets with goggles pushed up.",
-      "map": "Wandarra",
-      "captured": "2026-10-05",
-      "session": "099",
-      "note": "Character model in progress.",
-      "width": 1920,
-      "height": 1080,
-      "files": [
-        {
-          "width": 960,
-          "path": "assets/screenshots/shot-maf-portrait-960"
-        },
-        {
-          "width": 1920,
-          "path": "assets/screenshots/shot-maf-portrait-1920"
         }
       ]
     }

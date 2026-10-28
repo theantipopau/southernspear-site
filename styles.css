@@ -914,6 +914,18 @@ body[data-nav-open="true"] { overflow: hidden; }
 .inengine__facts strong { color: var(--brass-300, var(--sand-100)); }
 @media (max-width: 900px) { .inengine { grid-template-columns: 1fr; } }
 
+/* The one picture in the maps section: a look at the ground the cards describe. */
+.maphero { margin: 0 0 28px; }
+.maphero__frame {
+  position: relative; display: block; width: 100%; padding: 0;
+  border: 1px solid var(--line-soft); border-radius: var(--radius-lg);
+  overflow: hidden; background: var(--ink-900); cursor: zoom-in;
+}
+.maphero__frame img { display: block; width: 100%; height: auto; transition: transform var(--dur-slow) var(--ease); }
+.maphero__frame:hover img { transform: scale(1.02); }
+.maphero__frame .showcase__zoom { bottom: 12px; }
+.maphero figcaption { padding: 12px 2px 0; max-width: 92ch; color: var(--sand-200); font-size: 0.9rem; }
+
 .map-grid { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
 .map-card {
   position: relative;

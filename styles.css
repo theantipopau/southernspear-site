@@ -914,9 +914,11 @@ body[data-nav-open="true"] { overflow: hidden; }
 .inengine__facts strong { color: var(--brass-300, var(--sand-100)); }
 @media (max-width: 900px) { .inengine { grid-template-columns: 1fr; } }
 
-/* The pictures in the maps section: the ground the cards describe, three maps at a time. */
+/* The pictures in the maps section: the ground the cards describe, the two maps
+   that are in the game. Only in-game maps lead here, so the bigger pair reads as
+   what you can play today; the production maps are in the gallery. */
 .maphero { margin: 0 0 28px; }
-.maphero__grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.maphero__grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .maphero__frame {
   position: relative; display: block; width: 100%; padding: 0;
   border: 1px solid var(--line-soft); border-radius: var(--radius);

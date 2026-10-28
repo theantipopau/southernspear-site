@@ -914,17 +914,21 @@ body[data-nav-open="true"] { overflow: hidden; }
 .inengine__facts strong { color: var(--brass-300, var(--sand-100)); }
 @media (max-width: 900px) { .inengine { grid-template-columns: 1fr; } }
 
-/* The one picture in the maps section: a look at the ground the cards describe. */
+/* The pictures in the maps section: the ground the cards describe, three maps at a time. */
 .maphero { margin: 0 0 28px; }
+.maphero__grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .maphero__frame {
   position: relative; display: block; width: 100%; padding: 0;
-  border: 1px solid var(--line-soft); border-radius: var(--radius-lg);
+  border: 1px solid var(--line-soft); border-radius: var(--radius);
   overflow: hidden; background: var(--ink-900); cursor: zoom-in;
 }
-.maphero__frame img { display: block; width: 100%; height: auto; transition: transform var(--dur-slow) var(--ease); }
-.maphero__frame:hover img { transform: scale(1.02); }
-.maphero__frame .showcase__zoom { bottom: 12px; }
-.maphero figcaption { padding: 12px 2px 0; max-width: 92ch; color: var(--sand-200); font-size: 0.9rem; }
+.maphero__frame img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; transition: transform var(--dur-slow) var(--ease); }
+.maphero__frame:hover img { transform: scale(1.03); }
+.maphero__frame .showcase__zoom { bottom: 8px; right: 8px; }
+.maphero__label { margin: 10px 2px 0; color: var(--sand-200); font-size: 0.9rem; line-height: 1.45; }
+.maphero__label strong { color: var(--sand-100); font-weight: 600; }
+.maphero figcaption { padding: 14px 2px 0; max-width: 92ch; color: var(--sage-400); font-size: 0.86rem; }
+@media (max-width: 900px) { .maphero__grid { grid-template-columns: 1fr; } }
 
 .map-grid { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
 .map-card {

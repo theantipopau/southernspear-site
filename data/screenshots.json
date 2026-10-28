@@ -1,6 +1,48 @@
 {
   "screenshots": [
     {
+      "id": "shot-map-redgum-station",
+      "title": "Red Gum, the fence line to the homestead",
+      "alt": "First-person view on Red Gum Station: a wire fence running across red earth towards a timber homestead among gum trees, an A88 rifle with its optic held at the bottom right.",
+      "map": "Red Gum",
+      "captured": "2026-10-28",
+      "session": "106",
+      "note": "A presentation view from the pre-alpha build with the HUD hidden, not a gameplay capture.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-map-redgum-station-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-map-redgum-station-1920"
+        }
+      ]
+    },
+    {
+      "id": "shot-map-dryriver-tower",
+      "title": "Dry River, the ridge watchtower",
+      "alt": "First-person view on Dry River: a timber watchtower beside a gum tree on red earth, a tin-roofed shed to the right and long tree shadows across the ground, an A88 rifle held at the bottom right.",
+      "map": "Dry River",
+      "captured": "2026-10-28",
+      "session": "106",
+      "note": "A presentation view from the pre-alpha build with the HUD hidden, not a gameplay capture.",
+      "width": 1920,
+      "height": 1080,
+      "files": [
+        {
+          "width": 960,
+          "path": "assets/screenshots/shot-map-dryriver-tower-960"
+        },
+        {
+          "width": 1920,
+          "path": "assets/screenshots/shot-map-dryriver-tower-1920"
+        }
+      ]
+    },
+    {
       "id": "shot-map-saltbush-range",
       "title": "Saltbush, the basin and the track from the ridge",
       "alt": "First-person view from a ridge on Saltbush: a dirt track winding across a dry grassy basin between rocky hills, an A88 rifle with its optic held at the bottom right.",
